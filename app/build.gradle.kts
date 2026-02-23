@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -18,10 +20,30 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val isCI = System.getenv("CI") != null
+            if (isCI) {
+                storeFile = rootProject.file("scanrift-release.jks")
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias = "scanrift"
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            } else {
+                val props = Properties()
+                rootProject.file("local.properties").inputStream().use { props.load(it) }
+                storeFile = rootProject.file("scanrift-release.jks")
+                storePassword = props.getProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = "scanrift"
+                keyPassword = props.getProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
