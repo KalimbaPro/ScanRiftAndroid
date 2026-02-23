@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <string name="app_name">ScanRift</string>
+    <string name="tab_collection">Collection</string>
+    <string name="tab_decks">Decks</string>
+    <string name="tab_scanner">Scan</string>
+    <string name="tab_settings">Settings</string>
+    <style name="Theme.ScanRift" parent="android:Theme.Material.Light.NoActionBar"/>
+</resources>

@@ -1,0 +1,675 @@
+-- Merging decision tree log ---
+provider#androidx.core.content.FileProvider
+INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:31:9-39:20
+	android:grantUriPermissions
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:35:13-47
+	android:authorities
+		INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:33:13-64
+	android:exported
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:34:13-37
+	android:name
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:32:13-62
+manifest
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:2:1-41:12
+INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:2:1-41:12
+INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:2:1-41:12
+INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:2:1-41:12
+MERGED from [androidx.camera:camera-video:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/88b5d934b4129bf603a150545138656c/transformed/camera-video-1.4.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.camera:camera-view:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/624221cdee6d092afe8409d937bc04b9/transformed/camera-view-1.4.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.camera:camera-lifecycle:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c1f5e405dbb10fb4deb40a4daceeab32/transformed/camera-lifecycle-1.4.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:17:1-36:12
+MERGED from [androidx.camera:camera-core:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/97124610a9ce3e73d39864439d7296be/transformed/camera-core-1.4.1/AndroidManifest.xml:17:1-36:12
+MERGED from [com.google.mlkit:text-recognition:16.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7d51a80bdb8a194d27f554bfd700c87b/transformed/text-recognition-16.0.1/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.gms:play-services-mlkit-text-recognition:19.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/4ba92022bd7640bb620184fbd9d8be7c/transformed/play-services-mlkit-text-recognition-19.0.1/AndroidManifest.xml:2:1-8:12
+MERGED from [com.google.mlkit:text-recognition-bundled-common:17.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/6ce3c0a4cd80c417a53251ff2b71bd5a/transformed/text-recognition-bundled-common-17.0.0/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:2:1-18:12
+MERGED from [com.google.mlkit:vision-common:17.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/642878b8da87f00e2d0d4e492836ae52/transformed/vision-common-17.3.0/AndroidManifest.xml:2:1-18:12
+MERGED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:2:1-26:12
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c531cd4cf211c9f6bad9e4f3812379e6/transformed/play-services-base-18.5.0/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.mlkit:vision-interfaces:16.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bb254980757a6eadc72a49fcbbba89c4/transformed/vision-interfaces-16.3.0/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06b9b79189e075b124573f8b88e97e92/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:2:1-5:12
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f6498e00a49406a6529f65e419b411c9/transformed/play-services-basement-18.4.0/AndroidManifest.xml:2:1-9:12
+MERGED from [androidx.navigation:navigation-common:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a3b1e495271d9ef14cd4067818b98ae2/transformed/navigation-common-2.8.5/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.navigation:navigation-runtime:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c6fb583453c5547b4bf34ba3865ed851/transformed/navigation-runtime-2.8.5/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.navigation:navigation-common-ktx:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/127db1461150e83902848a917578f382/transformed/navigation-common-ktx-2.8.5/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.navigation:navigation-runtime-ktx:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/9266d56b3409f3165e1b50cdc0ec5c20/transformed/navigation-runtime-ktx-2.8.5/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.navigation:navigation-compose:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06f01774adb5e421323086d3365f1793/transformed/navigation-compose-2.8.5/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material3:material3-android:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5d4e0cf46dcfa18ee80cad15bbaf3ca9/transformed/material3-release/AndroidManifest.xml:17:1-22:12
+MERGED from [io.coil-kt:coil-compose:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a77d194fdbb6563658063cd00e086975/transformed/coil-compose-2.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [io.coil-kt:coil-compose-base:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5765641261910cfd49c5ef6269e1427e/transformed/coil-compose-base-2.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [io.coil-kt:coil:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/48e6ac3aea0a034eeecbf9dddefd1e87/transformed/coil-2.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [io.coil-kt:coil-base:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b79e1614f2df70ea30f71777ddc86fdb/transformed/coil-base-2.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/92a3268ce472e67767af0a5b6aaf37b2/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.appcompat:appcompat:1.6.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1b827d647b2bd87528ba7f4ea8f601d3/transformed/appcompat-1.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.material:material-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/8f9c41d43e6568bb697032dfd424e668/transformed/material-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.animation:animation-core-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e40fe335a873c3db3a2be1bbd9913fc5/transformed/animation-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-ripple-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/45f878f95fbd9e5f5d07cb5c2398a21f/transformed/material-ripple-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.animation:animation-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0073f9c9b23cab5d9a662651c1225681/transformed/animation-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/65d070526b0f414c8322b96e6ea69fde/transformed/foundation-layout-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.foundation:foundation-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7f05978b71587d22b97934109b525fc7/transformed/foundation-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/669e3515c0b17d2abf389654f2f592b0/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bf3c5be1a7c5903ac9eadabacb96ff65/transformed/ui-tooling-data-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-unit-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0a196322fcc51e528249d98e7a23af6a/transformed/ui-unit-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-geometry-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/3c2ff87f57640f70d640c8d69b0883c4/transformed/ui-geometry-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-util-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/28a1435204afe554eaeaebf0863485dd/transformed/ui-util-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f692322541e8b9501e7a5c5a4fff5e51/transformed/ui-tooling-preview-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.ui:ui-graphics-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c15b33bd72e6906f8882f45e0b334efd/transformed/ui-graphics-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-text-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dea3c0aaaa15bd209764f686330eea89/transformed/ui-text-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1a2eea9ebca668f08f0e408d8ec5f5e8/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.fragment:fragment:1.3.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e806d4dd6b2bc5db832ecc43e181dbb0/transformed/fragment-1.3.6/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.loader:loader:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e51c16948ab901a471ae7e464e2f1e09/transformed/loader-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/6c809ca9631b1dbffc92db2c94a8d3d0/transformed/lifecycle-viewmodel-2.8.7/AndroidManifest.xml:2:1-5:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dc005c596d3038433ca9c46fd88daf12/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a56574413fbe67ab331d32b28fe05a62/transformed/lifecycle-livedata-core-ktx-2.8.7/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5e1f23911f144ab68661678e0319e18d/transformed/lifecycle-livedata-core-2.8.7/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/789f3ff42fc5cea7def440a97cc274be/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate:1.2.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bfa0ff4d1c8e5402a91e04eaaa5bdd51/transformed/savedstate-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/3e405210701ec37f695d23bb4b2200f8/transformed/lifecycle-runtime-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ce3037c119d7abed1659e3a990b84fd4/transformed/lifecycle-viewmodel-ktx-2.8.7/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1e949e207143312855f6118d652048bf/transformed/lifecycle-viewmodel-savedstate-2.8.7/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0860456e40a075113a7b0819713ddf9b/transformed/lifecycle-livedata-2.8.7/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e878aa12867897b73a60b8fe0deaab39/transformed/lifecycle-runtime-compose-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/acb9881df6ac30a057d99db70c85e544/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-compose-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/8c93e575674209f120f890370391c4f5/transformed/lifecycle-viewmodel-compose-release/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.accompanist:accompanist-drawablepainter:0.32.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/21b2b593c46103546d7151d28d72cda0/transformed/accompanist-drawablepainter-0.32.0/AndroidManifest.xml:17:1-23:12
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c3c1e1793ae20f2159ab01ecf2790e9c/transformed/material-icons-extended-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/fff609b0ab24c688d0a41ed64dda4861/transformed/material-icons-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bf581bd44cab0b5bb51115da7aeaf9b9/transformed/ui-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-test-manifest:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2f652017250d49b74b9afa5c7ede50e5/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:17:1-28:12
+MERGED from [androidx.compose.ui:ui-tooling-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/10e06363ed95fe377bda5f0d2a422705/transformed/ui-tooling-release/AndroidManifest.xml:17:1-28:12
+MERGED from [androidx.activity:activity-compose:1.9.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a57e5d50e30b11fcf81387883dfc7fed/transformed/activity-compose-1.9.3/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity-ktx:1.9.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1ec42930627440398779f8bb334c7c13/transformed/activity-ktx-1.9.3/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity:1.9.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/674cfe0c4b049efbbb41cb1155aafc05/transformed/activity-1.9.3/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.autofill:autofill:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/af5eb7081acf8a3e52e37426652acd3d/transformed/autofill-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.graphics:graphics-path:1.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a86ea65c51cd5bc56936b4113151a7ae/transformed/graphics-path-1.0.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2ef8e2e5015ba61aa3d3ff38f8415b07/transformed/drawerlayout-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ad3c12d5e44db9089e536c51ecf68745/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23e63eec8b3673cedf75ce34ee402506/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0443374c421f27be3b1f473c0e182d41/transformed/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.customview:customview:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/227ac7c97b293441bb6e9c7b01299c85/transformed/customview-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:17:1-30:12
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/743e72b45aec92925d13a0445ba5655f/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:17:1-23:12
+MERGED from [androidx.core:core-ktx:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/669bb0afc40dc5e39f02a597ab72a0e9/transformed/core-ktx-1.15.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.room:room-runtime-android:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7af34bd835b944d8f25977911a6c4e19/transformed/room-runtime/AndroidManifest.xml:17:1-31:12
+MERGED from [androidx.room:room-ktx:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c99d67334d3f3536447ab78bc3bdd4d3/transformed/room-ktx-2.8.4/AndroidManifest.xml:17:1-22:12
+MERGED from [com.jakewharton.timber:timber:5.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06a0c2c7ed4d9f919ab1455d9abe4e6e/transformed/timber-5.0.1/AndroidManifest.xml:2:1-9:12
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/69796e342d9c7eb936a06cd8a54ec524/transformed/runtime-saveable-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.runtime:runtime-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/cf185720b8efd7844d6d8fa4a6721129/transformed/runtime-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.datastore:datastore-core-android:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/9b79b0a49ec7aeb0be60909ad71311b9/transformed/datastore-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.datastore:datastore-android:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ac08efa9e60e058e62ebeb57c103da7b/transformed/datastore-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.datastore:datastore-preferences-android:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b28f4ac0a5d2245ac04af81a1c11e9d7/transformed/datastore-preferences-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:17:1-55:12
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b8477861b093e0cd6a8ab4b2438f8636/transformed/startup-runtime-1.1.1/AndroidManifest.xml:17:1-33:12
+MERGED from [androidx.tracing:tracing:1.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/934d629c80e8b8f7a4a4fc32b35dfea5/transformed/tracing-1.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.tracing:tracing-ktx:1.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/8327f33a84c3244bf4a734532ae1b204/transformed/tracing-ktx-1.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.annotation:annotation-experimental:1.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dfea3764e77108d467741b79a74aff8c/transformed/annotation-experimental-1.5.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/32fd6199c916f96e18930b6657d1e1b3/transformed/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b992dfa0f0cf86705e49c181a573e508/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:17:1-27:12
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/60dbc8815fa5acca612381ba0a9159fa/transformed/core-runtime-2.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:15:1-38:12
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:15:1-41:12
+MERGED from [com.google.android.datatransport:transport-api:2.2.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dc466ffff2fbc165c499555253d57712/transformed/transport-api-2.2.1/AndroidManifest.xml:15:1-22:12
+MERGED from [com.google.firebase:firebase-components:16.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ad1cb31e20c08d87025e1af5fb0327e7/transformed/firebase-components-16.1.0/AndroidManifest.xml:15:1-23:12
+MERGED from [com.google.firebase:firebase-encoders-json:17.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/90977b5aba7b811aad3161ad3f7a8c94/transformed/firebase-encoders-json-17.1.0/AndroidManifest.xml:15:1-23:12
+MERGED from [androidx.sqlite:sqlite-framework-android:2.6.2] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5923b8929ab5733abd58ec5ab121b031/transformed/sqlite-framework/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.sqlite:sqlite-android:2.6.2] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d0040e201c82926d51dfc68d43755b31/transformed/sqlite/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/40986b4e493288143ffa9dffdb0222b2/transformed/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.exifinterface:exifinterface:1.3.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/753d0d0e9210cbbaac8271c6de810fe7/transformed/exifinterface-1.3.7/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.odml:image:1.0.0-beta1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/cb2f7117607fd9a03ab480407e218f15/transformed/image-1.0.0-beta1/AndroidManifest.xml:2:1-9:12
+	package
+		INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml
+	android:versionName
+		INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml
+	xmlns:tools
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:3:5-51
+	android:versionCode
+		INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.INTERNET
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:5:5-67
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:26:5-67
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:26:5-67
+	android:name
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:5:22-64
+uses-permission#android.permission.CAMERA
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:6:5-65
+	android:name
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:6:22-62
+uses-permission#android.permission.VIBRATE
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:7:5-66
+	android:name
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:7:22-63
+uses-feature#android.hardware.camera
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:9:5-85
+	android:required
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:9:58-82
+	android:name
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:9:19-57
+application
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:11:5-40:19
+INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:11:5-40:19
+MERGED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:23:5-34:19
+MERGED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:23:5-34:19
+MERGED from [androidx.camera:camera-core:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/97124610a9ce3e73d39864439d7296be/transformed/camera-core-1.4.1/AndroidManifest.xml:23:5-34:19
+MERGED from [androidx.camera:camera-core:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/97124610a9ce3e73d39864439d7296be/transformed/camera-core-1.4.1/AndroidManifest.xml:23:5-34:19
+MERGED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:8:5-16:19
+MERGED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:8:5-16:19
+MERGED from [com.google.mlkit:vision-common:17.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/642878b8da87f00e2d0d4e492836ae52/transformed/vision-common-17.3.0/AndroidManifest.xml:8:5-16:19
+MERGED from [com.google.mlkit:vision-common:17.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/642878b8da87f00e2d0d4e492836ae52/transformed/vision-common-17.3.0/AndroidManifest.xml:8:5-16:19
+MERGED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:8:5-24:19
+MERGED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:8:5-24:19
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c531cd4cf211c9f6bad9e4f3812379e6/transformed/play-services-base-18.5.0/AndroidManifest.xml:4:5-6:19
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c531cd4cf211c9f6bad9e4f3812379e6/transformed/play-services-base-18.5.0/AndroidManifest.xml:4:5-6:19
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06b9b79189e075b124573f8b88e97e92/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:4:5-20
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06b9b79189e075b124573f8b88e97e92/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:4:5-20
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f6498e00a49406a6529f65e419b411c9/transformed/play-services-basement-18.4.0/AndroidManifest.xml:5:5-7:19
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f6498e00a49406a6529f65e419b411c9/transformed/play-services-basement-18.4.0/AndroidManifest.xml:5:5-7:19
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1a2eea9ebca668f08f0e408d8ec5f5e8/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1a2eea9ebca668f08f0e408d8ec5f5e8/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.compose.ui:ui-test-manifest:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2f652017250d49b74b9afa5c7ede50e5/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.compose.ui:ui-test-manifest:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2f652017250d49b74b9afa5c7ede50e5/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.compose.ui:ui-tooling-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/10e06363ed95fe377bda5f0d2a422705/transformed/ui-tooling-release/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.compose.ui:ui-tooling-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/10e06363ed95fe377bda5f0d2a422705/transformed/ui-tooling-release/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:28:5-89
+MERGED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:28:5-89
+MERGED from [androidx.room:room-runtime-android:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7af34bd835b944d8f25977911a6c4e19/transformed/room-runtime/AndroidManifest.xml:23:5-29:19
+MERGED from [androidx.room:room-runtime-android:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7af34bd835b944d8f25977911a6c4e19/transformed/room-runtime/AndroidManifest.xml:23:5-29:19
+MERGED from [com.jakewharton.timber:timber:5.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06a0c2c7ed4d9f919ab1455d9abe4e6e/transformed/timber-5.0.1/AndroidManifest.xml:7:5-20
+MERGED from [com.jakewharton.timber:timber:5.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06a0c2c7ed4d9f919ab1455d9abe4e6e/transformed/timber-5.0.1/AndroidManifest.xml:7:5-20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b8477861b093e0cd6a8ab4b2438f8636/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b8477861b093e0cd6a8ab4b2438f8636/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b992dfa0f0cf86705e49c181a573e508/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b992dfa0f0cf86705e49c181a573e508/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:28:5-36:19
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:28:5-36:19
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:25:5-39:19
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:25:5-39:19
+MERGED from [com.google.android.odml:image:1.0.0-beta1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/cb2f7117607fd9a03ab480407e218f15/transformed/image-1.0.0-beta1/AndroidManifest.xml:7:5-20
+MERGED from [com.google.android.odml:image:1.0.0-beta1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/cb2f7117607fd9a03ab480407e218f15/transformed/image-1.0.0-beta1/AndroidManifest.xml:7:5-20
+	android:extractNativeLibs
+		INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml
+	android:appComponentFactory
+		ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:28:18-86
+	android:supportsRtl
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:17:9-35
+	android:label
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:15:9-41
+	android:roundIcon
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:16:9-54
+	tools:targetApi
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:19:9-29
+	android:icon
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:14:9-43
+	android:allowBackup
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:13:9-35
+	android:theme
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:18:9-46
+	android:name
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:12:9-36
+activity#com.scanrift.android.MainActivity
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:21:9-29:20
+	android:exported
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:23:13-36
+	android:theme
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:24:13-50
+	android:name
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:22:13-41
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:25:13-28:29
+action#android.intent.action.MAIN
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:26:17-69
+	android:name
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:26:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:27:17-77
+	android:name
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:27:27-74
+meta-data#android.support.FILE_PROVIDER_PATHS
+ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:36:13-38:54
+	android:resource
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:38:17-51
+	android:name
+		ADDED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml:37:17-67
+uses-sdk
+INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml
+INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml
+MERGED from [androidx.camera:camera-video:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/88b5d934b4129bf603a150545138656c/transformed/camera-video-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.camera:camera-video:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/88b5d934b4129bf603a150545138656c/transformed/camera-video-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.camera:camera-view:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/624221cdee6d092afe8409d937bc04b9/transformed/camera-view-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.camera:camera-view:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/624221cdee6d092afe8409d937bc04b9/transformed/camera-view-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.camera:camera-lifecycle:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c1f5e405dbb10fb4deb40a4daceeab32/transformed/camera-lifecycle-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.camera:camera-lifecycle:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c1f5e405dbb10fb4deb40a4daceeab32/transformed/camera-lifecycle-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.camera:camera-core:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/97124610a9ce3e73d39864439d7296be/transformed/camera-core-1.4.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.camera:camera-core:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/97124610a9ce3e73d39864439d7296be/transformed/camera-core-1.4.1/AndroidManifest.xml:21:5-44
+MERGED from [com.google.mlkit:text-recognition:16.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7d51a80bdb8a194d27f554bfd700c87b/transformed/text-recognition-16.0.1/AndroidManifest.xml:5:5-44
+MERGED from [com.google.mlkit:text-recognition:16.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7d51a80bdb8a194d27f554bfd700c87b/transformed/text-recognition-16.0.1/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-mlkit-text-recognition:19.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/4ba92022bd7640bb620184fbd9d8be7c/transformed/play-services-mlkit-text-recognition-19.0.1/AndroidManifest.xml:6:5-44
+MERGED from [com.google.android.gms:play-services-mlkit-text-recognition:19.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/4ba92022bd7640bb620184fbd9d8be7c/transformed/play-services-mlkit-text-recognition-19.0.1/AndroidManifest.xml:6:5-44
+MERGED from [com.google.mlkit:text-recognition-bundled-common:17.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/6ce3c0a4cd80c417a53251ff2b71bd5a/transformed/text-recognition-bundled-common-17.0.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.mlkit:text-recognition-bundled-common:17.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/6ce3c0a4cd80c417a53251ff2b71bd5a/transformed/text-recognition-bundled-common-17.0.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:6:5-44
+MERGED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:6:5-44
+MERGED from [com.google.mlkit:vision-common:17.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/642878b8da87f00e2d0d4e492836ae52/transformed/vision-common-17.3.0/AndroidManifest.xml:6:5-44
+MERGED from [com.google.mlkit:vision-common:17.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/642878b8da87f00e2d0d4e492836ae52/transformed/vision-common-17.3.0/AndroidManifest.xml:6:5-44
+MERGED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:6:5-44
+MERGED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:6:5-44
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c531cd4cf211c9f6bad9e4f3812379e6/transformed/play-services-base-18.5.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c531cd4cf211c9f6bad9e4f3812379e6/transformed/play-services-base-18.5.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.mlkit:vision-interfaces:16.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bb254980757a6eadc72a49fcbbba89c4/transformed/vision-interfaces-16.3.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.mlkit:vision-interfaces:16.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bb254980757a6eadc72a49fcbbba89c4/transformed/vision-interfaces-16.3.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06b9b79189e075b124573f8b88e97e92/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06b9b79189e075b124573f8b88e97e92/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f6498e00a49406a6529f65e419b411c9/transformed/play-services-basement-18.4.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f6498e00a49406a6529f65e419b411c9/transformed/play-services-basement-18.4.0/AndroidManifest.xml:3:5-44
+MERGED from [androidx.navigation:navigation-common:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a3b1e495271d9ef14cd4067818b98ae2/transformed/navigation-common-2.8.5/AndroidManifest.xml:20:5-44
+MERGED from [androidx.navigation:navigation-common:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a3b1e495271d9ef14cd4067818b98ae2/transformed/navigation-common-2.8.5/AndroidManifest.xml:20:5-44
+MERGED from [androidx.navigation:navigation-runtime:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c6fb583453c5547b4bf34ba3865ed851/transformed/navigation-runtime-2.8.5/AndroidManifest.xml:20:5-44
+MERGED from [androidx.navigation:navigation-runtime:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c6fb583453c5547b4bf34ba3865ed851/transformed/navigation-runtime-2.8.5/AndroidManifest.xml:20:5-44
+MERGED from [androidx.navigation:navigation-common-ktx:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/127db1461150e83902848a917578f382/transformed/navigation-common-ktx-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-common-ktx:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/127db1461150e83902848a917578f382/transformed/navigation-common-ktx-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-runtime-ktx:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/9266d56b3409f3165e1b50cdc0ec5c20/transformed/navigation-runtime-ktx-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-runtime-ktx:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/9266d56b3409f3165e1b50cdc0ec5c20/transformed/navigation-runtime-ktx-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-compose:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06f01774adb5e421323086d3365f1793/transformed/navigation-compose-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-compose:2.8.5] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06f01774adb5e421323086d3365f1793/transformed/navigation-compose-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material3:material3-android:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5d4e0cf46dcfa18ee80cad15bbaf3ca9/transformed/material3-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material3:material3-android:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5d4e0cf46dcfa18ee80cad15bbaf3ca9/transformed/material3-release/AndroidManifest.xml:20:5-44
+MERGED from [io.coil-kt:coil-compose:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a77d194fdbb6563658063cd00e086975/transformed/coil-compose-2.7.0/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt:coil-compose:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a77d194fdbb6563658063cd00e086975/transformed/coil-compose-2.7.0/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt:coil-compose-base:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5765641261910cfd49c5ef6269e1427e/transformed/coil-compose-base-2.7.0/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt:coil-compose-base:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5765641261910cfd49c5ef6269e1427e/transformed/coil-compose-base-2.7.0/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt:coil:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/48e6ac3aea0a034eeecbf9dddefd1e87/transformed/coil-2.7.0/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt:coil:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/48e6ac3aea0a034eeecbf9dddefd1e87/transformed/coil-2.7.0/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt:coil-base:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b79e1614f2df70ea30f71777ddc86fdb/transformed/coil-base-2.7.0/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt:coil-base:2.7.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b79e1614f2df70ea30f71777ddc86fdb/transformed/coil-base-2.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/92a3268ce472e67767af0a5b6aaf37b2/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/92a3268ce472e67767af0a5b6aaf37b2/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.appcompat:appcompat:1.6.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1b827d647b2bd87528ba7f4ea8f601d3/transformed/appcompat-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.appcompat:appcompat:1.6.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1b827d647b2bd87528ba7f4ea8f601d3/transformed/appcompat-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material:material-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/8f9c41d43e6568bb697032dfd424e668/transformed/material-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/8f9c41d43e6568bb697032dfd424e668/transformed/material-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-core-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e40fe335a873c3db3a2be1bbd9913fc5/transformed/animation-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-core-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e40fe335a873c3db3a2be1bbd9913fc5/transformed/animation-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-ripple-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/45f878f95fbd9e5f5d07cb5c2398a21f/transformed/material-ripple-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-ripple-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/45f878f95fbd9e5f5d07cb5c2398a21f/transformed/material-ripple-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0073f9c9b23cab5d9a662651c1225681/transformed/animation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0073f9c9b23cab5d9a662651c1225681/transformed/animation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/65d070526b0f414c8322b96e6ea69fde/transformed/foundation-layout-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/65d070526b0f414c8322b96e6ea69fde/transformed/foundation-layout-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7f05978b71587d22b97934109b525fc7/transformed/foundation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7f05978b71587d22b97934109b525fc7/transformed/foundation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/669e3515c0b17d2abf389654f2f592b0/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/669e3515c0b17d2abf389654f2f592b0/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bf3c5be1a7c5903ac9eadabacb96ff65/transformed/ui-tooling-data-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bf3c5be1a7c5903ac9eadabacb96ff65/transformed/ui-tooling-data-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-unit-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0a196322fcc51e528249d98e7a23af6a/transformed/ui-unit-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-unit-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0a196322fcc51e528249d98e7a23af6a/transformed/ui-unit-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-geometry-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/3c2ff87f57640f70d640c8d69b0883c4/transformed/ui-geometry-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-geometry-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/3c2ff87f57640f70d640c8d69b0883c4/transformed/ui-geometry-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-util-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/28a1435204afe554eaeaebf0863485dd/transformed/ui-util-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-util-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/28a1435204afe554eaeaebf0863485dd/transformed/ui-util-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f692322541e8b9501e7a5c5a4fff5e51/transformed/ui-tooling-preview-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f692322541e8b9501e7a5c5a4fff5e51/transformed/ui-tooling-preview-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-graphics-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c15b33bd72e6906f8882f45e0b334efd/transformed/ui-graphics-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-graphics-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c15b33bd72e6906f8882f45e0b334efd/transformed/ui-graphics-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-text-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dea3c0aaaa15bd209764f686330eea89/transformed/ui-text-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-text-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dea3c0aaaa15bd209764f686330eea89/transformed/ui-text-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1a2eea9ebca668f08f0e408d8ec5f5e8/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1a2eea9ebca668f08f0e408d8ec5f5e8/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:21:5-44
+MERGED from [androidx.fragment:fragment:1.3.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e806d4dd6b2bc5db832ecc43e181dbb0/transformed/fragment-1.3.6/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment:1.3.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e806d4dd6b2bc5db832ecc43e181dbb0/transformed/fragment-1.3.6/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.loader:loader:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e51c16948ab901a471ae7e464e2f1e09/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e51c16948ab901a471ae7e464e2f1e09/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/6c809ca9631b1dbffc92db2c94a8d3d0/transformed/lifecycle-viewmodel-2.8.7/AndroidManifest.xml:4:5-43
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/6c809ca9631b1dbffc92db2c94a8d3d0/transformed/lifecycle-viewmodel-2.8.7/AndroidManifest.xml:4:5-43
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dc005c596d3038433ca9c46fd88daf12/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dc005c596d3038433ca9c46fd88daf12/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a56574413fbe67ab331d32b28fe05a62/transformed/lifecycle-livedata-core-ktx-2.8.7/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a56574413fbe67ab331d32b28fe05a62/transformed/lifecycle-livedata-core-ktx-2.8.7/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5e1f23911f144ab68661678e0319e18d/transformed/lifecycle-livedata-core-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5e1f23911f144ab68661678e0319e18d/transformed/lifecycle-livedata-core-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/789f3ff42fc5cea7def440a97cc274be/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/789f3ff42fc5cea7def440a97cc274be/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bfa0ff4d1c8e5402a91e04eaaa5bdd51/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bfa0ff4d1c8e5402a91e04eaaa5bdd51/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/3e405210701ec37f695d23bb4b2200f8/transformed/lifecycle-runtime-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/3e405210701ec37f695d23bb4b2200f8/transformed/lifecycle-runtime-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ce3037c119d7abed1659e3a990b84fd4/transformed/lifecycle-viewmodel-ktx-2.8.7/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ce3037c119d7abed1659e3a990b84fd4/transformed/lifecycle-viewmodel-ktx-2.8.7/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1e949e207143312855f6118d652048bf/transformed/lifecycle-viewmodel-savedstate-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1e949e207143312855f6118d652048bf/transformed/lifecycle-viewmodel-savedstate-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0860456e40a075113a7b0819713ddf9b/transformed/lifecycle-livedata-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0860456e40a075113a7b0819713ddf9b/transformed/lifecycle-livedata-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e878aa12867897b73a60b8fe0deaab39/transformed/lifecycle-runtime-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e878aa12867897b73a60b8fe0deaab39/transformed/lifecycle-runtime-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/acb9881df6ac30a057d99db70c85e544/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/acb9881df6ac30a057d99db70c85e544/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-compose-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/8c93e575674209f120f890370391c4f5/transformed/lifecycle-viewmodel-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-compose-android:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/8c93e575674209f120f890370391c4f5/transformed/lifecycle-viewmodel-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [com.google.accompanist:accompanist-drawablepainter:0.32.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/21b2b593c46103546d7151d28d72cda0/transformed/accompanist-drawablepainter-0.32.0/AndroidManifest.xml:21:5-44
+MERGED from [com.google.accompanist:accompanist-drawablepainter:0.32.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/21b2b593c46103546d7151d28d72cda0/transformed/accompanist-drawablepainter-0.32.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c3c1e1793ae20f2159ab01ecf2790e9c/transformed/material-icons-extended-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c3c1e1793ae20f2159ab01ecf2790e9c/transformed/material-icons-extended-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/fff609b0ab24c688d0a41ed64dda4861/transformed/material-icons-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/fff609b0ab24c688d0a41ed64dda4861/transformed/material-icons-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bf581bd44cab0b5bb51115da7aeaf9b9/transformed/ui-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bf581bd44cab0b5bb51115da7aeaf9b9/transformed/ui-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-test-manifest:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2f652017250d49b74b9afa5c7ede50e5/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-test-manifest:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2f652017250d49b74b9afa5c7ede50e5/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/10e06363ed95fe377bda5f0d2a422705/transformed/ui-tooling-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/10e06363ed95fe377bda5f0d2a422705/transformed/ui-tooling-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity-compose:1.9.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a57e5d50e30b11fcf81387883dfc7fed/transformed/activity-compose-1.9.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-compose:1.9.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a57e5d50e30b11fcf81387883dfc7fed/transformed/activity-compose-1.9.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.9.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1ec42930627440398779f8bb334c7c13/transformed/activity-ktx-1.9.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.9.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1ec42930627440398779f8bb334c7c13/transformed/activity-ktx-1.9.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity:1.9.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/674cfe0c4b049efbbb41cb1155aafc05/transformed/activity-1.9.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.9.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/674cfe0c4b049efbbb41cb1155aafc05/transformed/activity-1.9.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.autofill:autofill:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/af5eb7081acf8a3e52e37426652acd3d/transformed/autofill-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.autofill:autofill:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/af5eb7081acf8a3e52e37426652acd3d/transformed/autofill-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.graphics:graphics-path:1.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a86ea65c51cd5bc56936b4113151a7ae/transformed/graphics-path-1.0.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.graphics:graphics-path:1.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/a86ea65c51cd5bc56936b4113151a7ae/transformed/graphics-path-1.0.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2ef8e2e5015ba61aa3d3ff38f8415b07/transformed/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2ef8e2e5015ba61aa3d3ff38f8415b07/transformed/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ad3c12d5e44db9089e536c51ecf68745/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ad3c12d5e44db9089e536c51ecf68745/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23e63eec8b3673cedf75ce34ee402506/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23e63eec8b3673cedf75ce34ee402506/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0443374c421f27be3b1f473c0e182d41/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/0443374c421f27be3b1f473c0e182d41/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/227ac7c97b293441bb6e9c7b01299c85/transformed/customview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.customview:customview:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/227ac7c97b293441bb6e9c7b01299c85/transformed/customview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/743e72b45aec92925d13a0445ba5655f/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:20:5-21:38
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/743e72b45aec92925d13a0445ba5655f/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:20:5-21:38
+MERGED from [androidx.core:core-ktx:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/669bb0afc40dc5e39f02a597ab72a0e9/transformed/core-ktx-1.15.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-ktx:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/669bb0afc40dc5e39f02a597ab72a0e9/transformed/core-ktx-1.15.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.room:room-runtime-android:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7af34bd835b944d8f25977911a6c4e19/transformed/room-runtime/AndroidManifest.xml:21:5-44
+MERGED from [androidx.room:room-runtime-android:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7af34bd835b944d8f25977911a6c4e19/transformed/room-runtime/AndroidManifest.xml:21:5-44
+MERGED from [androidx.room:room-ktx:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c99d67334d3f3536447ab78bc3bdd4d3/transformed/room-ktx-2.8.4/AndroidManifest.xml:20:5-44
+MERGED from [androidx.room:room-ktx:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c99d67334d3f3536447ab78bc3bdd4d3/transformed/room-ktx-2.8.4/AndroidManifest.xml:20:5-44
+MERGED from [com.jakewharton.timber:timber:5.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06a0c2c7ed4d9f919ab1455d9abe4e6e/transformed/timber-5.0.1/AndroidManifest.xml:5:5-44
+MERGED from [com.jakewharton.timber:timber:5.0.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/06a0c2c7ed4d9f919ab1455d9abe4e6e/transformed/timber-5.0.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/69796e342d9c7eb936a06cd8a54ec524/transformed/runtime-saveable-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/69796e342d9c7eb936a06cd8a54ec524/transformed/runtime-saveable-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/cf185720b8efd7844d6d8fa4a6721129/transformed/runtime-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/cf185720b8efd7844d6d8fa4a6721129/transformed/runtime-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.datastore:datastore-core-android:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/9b79b0a49ec7aeb0be60909ad71311b9/transformed/datastore-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.datastore:datastore-core-android:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/9b79b0a49ec7aeb0be60909ad71311b9/transformed/datastore-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.datastore:datastore-android:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ac08efa9e60e058e62ebeb57c103da7b/transformed/datastore-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.datastore:datastore-android:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ac08efa9e60e058e62ebeb57c103da7b/transformed/datastore-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.datastore:datastore-preferences-android:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b28f4ac0a5d2245ac04af81a1c11e9d7/transformed/datastore-preferences-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.datastore:datastore-preferences-android:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b28f4ac0a5d2245ac04af81a1c11e9d7/transformed/datastore-preferences-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b8477861b093e0cd6a8ab4b2438f8636/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b8477861b093e0cd6a8ab4b2438f8636/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.tracing:tracing:1.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/934d629c80e8b8f7a4a4fc32b35dfea5/transformed/tracing-1.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.tracing:tracing:1.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/934d629c80e8b8f7a4a4fc32b35dfea5/transformed/tracing-1.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.tracing:tracing-ktx:1.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/8327f33a84c3244bf4a734532ae1b204/transformed/tracing-ktx-1.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.tracing:tracing-ktx:1.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/8327f33a84c3244bf4a734532ae1b204/transformed/tracing-ktx-1.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dfea3764e77108d467741b79a74aff8c/transformed/annotation-experimental-1.5.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dfea3764e77108d467741b79a74aff8c/transformed/annotation-experimental-1.5.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/32fd6199c916f96e18930b6657d1e1b3/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/32fd6199c916f96e18930b6657d1e1b3/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b992dfa0f0cf86705e49c181a573e508/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b992dfa0f0cf86705e49c181a573e508/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/60dbc8815fa5acca612381ba0a9159fa/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/60dbc8815fa5acca612381ba0a9159fa/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:19:5-21:41
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:19:5-21:41
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:18:5-20:41
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:18:5-20:41
+MERGED from [com.google.android.datatransport:transport-api:2.2.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dc466ffff2fbc165c499555253d57712/transformed/transport-api-2.2.1/AndroidManifest.xml:18:5-20:41
+MERGED from [com.google.android.datatransport:transport-api:2.2.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/dc466ffff2fbc165c499555253d57712/transformed/transport-api-2.2.1/AndroidManifest.xml:18:5-20:41
+MERGED from [com.google.firebase:firebase-components:16.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ad1cb31e20c08d87025e1af5fb0327e7/transformed/firebase-components-16.1.0/AndroidManifest.xml:19:5-21:41
+MERGED from [com.google.firebase:firebase-components:16.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/ad1cb31e20c08d87025e1af5fb0327e7/transformed/firebase-components-16.1.0/AndroidManifest.xml:19:5-21:41
+MERGED from [com.google.firebase:firebase-encoders-json:17.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/90977b5aba7b811aad3161ad3f7a8c94/transformed/firebase-encoders-json-17.1.0/AndroidManifest.xml:19:5-21:41
+MERGED from [com.google.firebase:firebase-encoders-json:17.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/90977b5aba7b811aad3161ad3f7a8c94/transformed/firebase-encoders-json-17.1.0/AndroidManifest.xml:19:5-21:41
+MERGED from [androidx.sqlite:sqlite-framework-android:2.6.2] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5923b8929ab5733abd58ec5ab121b031/transformed/sqlite-framework/AndroidManifest.xml:20:5-44
+MERGED from [androidx.sqlite:sqlite-framework-android:2.6.2] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/5923b8929ab5733abd58ec5ab121b031/transformed/sqlite-framework/AndroidManifest.xml:20:5-44
+MERGED from [androidx.sqlite:sqlite-android:2.6.2] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d0040e201c82926d51dfc68d43755b31/transformed/sqlite/AndroidManifest.xml:20:5-44
+MERGED from [androidx.sqlite:sqlite-android:2.6.2] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d0040e201c82926d51dfc68d43755b31/transformed/sqlite/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/40986b4e493288143ffa9dffdb0222b2/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/40986b4e493288143ffa9dffdb0222b2/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.exifinterface:exifinterface:1.3.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/753d0d0e9210cbbaac8271c6de810fe7/transformed/exifinterface-1.3.7/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.exifinterface:exifinterface:1.3.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/753d0d0e9210cbbaac8271c6de810fe7/transformed/exifinterface-1.3.7/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.odml:image:1.0.0-beta1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/cb2f7117607fd9a03ab480407e218f15/transformed/image-1.0.0-beta1/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.odml:image:1.0.0-beta1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/cb2f7117607fd9a03ab480407e218f15/transformed/image-1.0.0-beta1/AndroidManifest.xml:5:5-44
+	android:targetSdkVersion
+		INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Users/matthieu.roques.mailgmail.com/Documents/Codes/Perso/ScanRift-Android/app/src/main/AndroidManifest.xml
+service#androidx.camera.core.impl.MetadataHolderService
+ADDED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:24:9-33:19
+MERGED from [androidx.camera:camera-core:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/97124610a9ce3e73d39864439d7296be/transformed/camera-core-1.4.1/AndroidManifest.xml:29:9-33:78
+MERGED from [androidx.camera:camera-core:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/97124610a9ce3e73d39864439d7296be/transformed/camera-core-1.4.1/AndroidManifest.xml:29:9-33:78
+	tools:node
+		ADDED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:29:13-31
+	android:enabled
+		ADDED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:26:13-36
+	android:exported
+		ADDED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:27:13-37
+	tools:ignore
+		ADDED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:28:13-75
+	android:name
+		ADDED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:25:13-75
+meta-data#androidx.camera.core.impl.MetadataHolderService.DEFAULT_CONFIG_PROVIDER
+ADDED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:30:13-32:89
+	android:value
+		ADDED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:32:17-86
+	android:name
+		ADDED from [androidx.camera:camera-camera2:1.4.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/23172fac8270bbefb9356a27ed378e31/transformed/camera-camera2-1.4.1/AndroidManifest.xml:31:17-103
+service#com.google.mlkit.common.internal.MlKitComponentDiscoveryService
+ADDED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:9:9-15:19
+MERGED from [com.google.mlkit:vision-common:17.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/642878b8da87f00e2d0d4e492836ae52/transformed/vision-common-17.3.0/AndroidManifest.xml:9:9-15:19
+MERGED from [com.google.mlkit:vision-common:17.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/642878b8da87f00e2d0d4e492836ae52/transformed/vision-common-17.3.0/AndroidManifest.xml:9:9-15:19
+MERGED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:15:9-23:19
+MERGED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:15:9-23:19
+	android:exported
+		ADDED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:11:13-37
+	tools:targetApi
+		ADDED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:19:13-32
+	android:directBootAware
+		ADDED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:17:13-43
+	android:name
+		ADDED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:10:13-91
+meta-data#com.google.firebase.components:com.google.mlkit.vision.text.internal.TextRegistrar
+ADDED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:12:13-14:85
+	android:value
+		ADDED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:14:17-82
+	android:name
+		ADDED from [com.google.android.gms:play-services-mlkit-text-recognition-common:19.1.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/e140c85f5d18850ed31ea7477d16cf4a/transformed/play-services-mlkit-text-recognition-common-19.1.0/AndroidManifest.xml:13:17-114
+meta-data#com.google.firebase.components:com.google.mlkit.vision.common.internal.VisionCommonRegistrar
+ADDED from [com.google.mlkit:vision-common:17.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/642878b8da87f00e2d0d4e492836ae52/transformed/vision-common-17.3.0/AndroidManifest.xml:12:13-14:85
+	android:value
+		ADDED from [com.google.mlkit:vision-common:17.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/642878b8da87f00e2d0d4e492836ae52/transformed/vision-common-17.3.0/AndroidManifest.xml:14:17-82
+	android:name
+		ADDED from [com.google.mlkit:vision-common:17.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/642878b8da87f00e2d0d4e492836ae52/transformed/vision-common-17.3.0/AndroidManifest.xml:13:17-124
+provider#com.google.mlkit.common.internal.MlKitInitProvider
+ADDED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:9:9-13:38
+	android:authorities
+		ADDED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:11:13-69
+	android:exported
+		ADDED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:12:13-37
+	android:initOrder
+		ADDED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:13:13-35
+	android:name
+		ADDED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:10:13-78
+meta-data#com.google.firebase.components:com.google.mlkit.common.internal.CommonComponentRegistrar
+ADDED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:20:13-22:85
+	android:value
+		ADDED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:22:17-82
+	android:name
+		ADDED from [com.google.mlkit:common:18.11.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/31c4c4b5c03316eb057be1f19d1e5f9e/transformed/common-18.11.0/AndroidManifest.xml:21:17-120
+activity#com.google.android.gms.common.api.GoogleApiActivity
+ADDED from [com.google.android.gms:play-services-base:18.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c531cd4cf211c9f6bad9e4f3812379e6/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:9-173
+	android:exported
+		ADDED from [com.google.android.gms:play-services-base:18.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c531cd4cf211c9f6bad9e4f3812379e6/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:146-170
+	android:theme
+		ADDED from [com.google.android.gms:play-services-base:18.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c531cd4cf211c9f6bad9e4f3812379e6/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:86-145
+	android:name
+		ADDED from [com.google.android.gms:play-services-base:18.5.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/c531cd4cf211c9f6bad9e4f3812379e6/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:19-85
+meta-data#com.google.android.gms.version
+ADDED from [com.google.android.gms:play-services-basement:18.4.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f6498e00a49406a6529f65e419b411c9/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:9-122
+	android:value
+		ADDED from [com.google.android.gms:play-services-basement:18.4.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f6498e00a49406a6529f65e419b411c9/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:66-119
+	android:name
+		ADDED from [com.google.android.gms:play-services-basement:18.4.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/f6498e00a49406a6529f65e419b411c9/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:20-65
+provider#androidx.startup.InitializationProvider
+ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1a2eea9ebca668f08f0e408d8ec5f5e8/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1a2eea9ebca668f08f0e408d8ec5f5e8/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b8477861b093e0cd6a8ab4b2438f8636/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/b8477861b093e0cd6a8ab4b2438f8636/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+	tools:node
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:28:13-31
+	android:authorities
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+	android:exported
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+meta-data#androidx.emoji2.text.EmojiCompatInitializer
+ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/310897414c51a6997e905811add4c7ae/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+meta-data#androidx.lifecycle.ProcessLifecycleInitializer
+ADDED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1a2eea9ebca668f08f0e408d8ec5f5e8/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1a2eea9ebca668f08f0e408d8ec5f5e8/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1a2eea9ebca668f08f0e408d8ec5f5e8/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:30:17-78
+activity#androidx.activity.ComponentActivity
+ADDED from [androidx.compose.ui:ui-test-manifest:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2f652017250d49b74b9afa5c7ede50e5/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:23:9-25:39
+	android:exported
+		ADDED from [androidx.compose.ui:ui-test-manifest:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2f652017250d49b74b9afa5c7ede50e5/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:25:13-36
+	android:name
+		ADDED from [androidx.compose.ui:ui-test-manifest:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/2f652017250d49b74b9afa5c7ede50e5/transformed/ui-test-manifest-1.7.6/AndroidManifest.xml:24:13-63
+activity#androidx.compose.ui.tooling.PreviewActivity
+ADDED from [androidx.compose.ui:ui-tooling-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/10e06363ed95fe377bda5f0d2a422705/transformed/ui-tooling-release/AndroidManifest.xml:23:9-25:39
+	android:exported
+		ADDED from [androidx.compose.ui:ui-tooling-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/10e06363ed95fe377bda5f0d2a422705/transformed/ui-tooling-release/AndroidManifest.xml:25:13-36
+	android:name
+		ADDED from [androidx.compose.ui:ui-tooling-android:1.7.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/10e06363ed95fe377bda5f0d2a422705/transformed/ui-tooling-release/AndroidManifest.xml:24:13-71
+permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:23:9-81
+permission#com.scanrift.android.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:23:9-81
+uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:26:22-94
+uses-permission#com.scanrift.android.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.15.0] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/58ce12bf1f2516fc940a12767b249f5e/transformed/core-1.15.0/AndroidManifest.xml:26:22-94
+service#androidx.room.MultiInstanceInvalidationService
+ADDED from [androidx.room:room-runtime-android:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7af34bd835b944d8f25977911a6c4e19/transformed/room-runtime/AndroidManifest.xml:24:9-28:63
+	android:exported
+		ADDED from [androidx.room:room-runtime-android:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7af34bd835b944d8f25977911a6c4e19/transformed/room-runtime/AndroidManifest.xml:27:13-37
+	tools:ignore
+		ADDED from [androidx.room:room-runtime-android:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7af34bd835b944d8f25977911a6c4e19/transformed/room-runtime/AndroidManifest.xml:28:13-60
+	android:directBootAware
+		ADDED from [androidx.room:room-runtime-android:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7af34bd835b944d8f25977911a6c4e19/transformed/room-runtime/AndroidManifest.xml:26:13-43
+	android:name
+		ADDED from [androidx.room:room-runtime-android:2.8.4] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/7af34bd835b944d8f25977911a6c4e19/transformed/room-runtime/AndroidManifest.xml:25:13-74
+meta-data#androidx.profileinstaller.ProfileInstallerInitializer
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+receiver#androidx.profileinstaller.ProfileInstallReceiver
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+	android:enabled
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+	android:exported
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+	android:permission
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+	android:directBootAware
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+intent-filter#action:name:androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+action#androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+intent-filter#action:name:androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+action#androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+intent-filter#action:name:androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+action#androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+intent-filter#action:name:androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+action#androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/1429b8204b2010df8b33735bf2ada0ba/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
+uses-permission#android.permission.ACCESS_NETWORK_STATE
+ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:25:5-79
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:22:5-79
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:22:5-79
+	android:name
+		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:25:22-76
+service#com.google.android.datatransport.runtime.backends.TransportBackendDiscovery
+ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:29:9-35:19
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:36:9-38:40
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:36:9-38:40
+	android:exported
+		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:31:13-37
+	android:name
+		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:30:13-103
+meta-data#backend:com.google.android.datatransport.cct.CctBackendFactory
+ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:32:13-34:39
+	android:value
+		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:34:17-36
+	android:name
+		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/bae0d9ae4d0ea9cf20ec2dee0eb55117/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:33:17-94
+service#com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService
+ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:26:9-30:19
+	android:exported
+		ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:28:13-37
+	android:permission
+		ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:29:13-69
+	android:name
+		ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:27:13-117
+receiver#com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver
+ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:32:9-34:40
+	android:exported
+		ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:34:13-37
+	android:name
+		ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /Users/matthieu.roques.mailgmail.com/.gradle/caches/9.2.1/transforms/d1984954a63e6020512042208e8803a8/transformed/transport-runtime-2.2.6/AndroidManifest.xml:33:13-132

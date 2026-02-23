@@ -1,0 +1,35 @@
+R_DEF: Internal format may change without notice
+local
+color ic_launcher_background
+drawable ic_exhaust
+drawable ic_might
+drawable ic_rarity_common
+drawable ic_rarity_epic
+drawable ic_rarity_rare
+drawable ic_rarity_showcase
+drawable ic_rarity_uncommon
+drawable ic_rune_body
+drawable ic_rune_calm
+drawable ic_rune_chaos
+drawable ic_rune_fury
+drawable ic_rune_mind
+drawable ic_rune_order
+drawable ic_rune_rainbow
+drawable ic_type_battlefield
+drawable ic_type_champion
+drawable ic_type_gear
+drawable ic_type_legend
+drawable ic_type_rune
+drawable ic_type_spell
+drawable ic_type_unit
+mipmap ic_launcher
+mipmap ic_launcher_foreground
+mipmap ic_launcher_round
+raw cards
+string app_name
+string tab_collection
+string tab_decks
+string tab_scanner
+string tab_settings
+style Theme.ScanRift
+xml file_paths
