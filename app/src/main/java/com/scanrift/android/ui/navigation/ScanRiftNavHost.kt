@@ -13,6 +13,8 @@ import androidx.navigation.toRoute
 import androidx.navigation.navigation
 import com.scanrift.android.ui.collection.CollectionBrowsePane
 import com.scanrift.android.ui.collection.CollectionHubScreen
+import com.scanrift.android.ui.scanner.CameraPermissionGate
+import com.scanrift.android.ui.scanner.ScannerScreen
 import com.scanrift.android.ui.settings.SettingsScreen
 
 /**
@@ -50,7 +52,9 @@ fun ScanRiftNavHost(
         }
 
         navigation<ScannerGraph>(startDestination = ScannerRoute) {
-            composable<ScannerRoute> { Placeholder("Scanner") }
+            composable<ScannerRoute> {
+                CameraPermissionGate { ScannerScreen() }
+            }
         }
 
         navigation<GameGraph>(startDestination = GameRoute) {
