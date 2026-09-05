@@ -13,6 +13,8 @@ import androidx.navigation.toRoute
 import androidx.navigation.navigation
 import com.scanrift.android.ui.collection.CollectionBrowsePane
 import com.scanrift.android.ui.collection.CollectionHubScreen
+import com.scanrift.android.ui.decks.DeckBuilderScreen
+import com.scanrift.android.ui.decks.DeckListScreen
 import com.scanrift.android.ui.scanner.CameraPermissionGate
 import com.scanrift.android.ui.scanner.ScannerScreen
 import com.scanrift.android.ui.settings.SettingsScreen
@@ -47,8 +49,15 @@ fun ScanRiftNavHost(
         }
 
         navigation<DecksGraph>(startDestination = DeckListRoute) {
-            composable<DeckListRoute> { Placeholder("Decks") }
-            composable<DeckBuilderRoute> { Placeholder("Deck builder") }
+            composable<DeckListRoute> {
+                DeckListScreen(onOpenDeck = { deckId -> navController.navigate(DeckBuilderRoute(deckId)) })
+            }
+            composable<DeckBuilderRoute> { entry ->
+                DeckBuilderScreen(
+                    deckId = entry.toRoute<DeckBuilderRoute>().deckId,
+                    onBack = { navController.popBackStack() },
+                )
+            }
         }
 
         navigation<ScannerGraph>(startDestination = ScannerRoute) {
