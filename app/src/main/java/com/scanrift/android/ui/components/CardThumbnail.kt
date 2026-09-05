@@ -89,7 +89,10 @@ fun CardThumbnail(
             AsyncImage(
                 model = card.imageUrl,
                 contentDescription = card.name,
-                contentScale = ContentScale.Crop,
+                // A landscape battlefield cropped into a portrait tile shows its middle
+                // and hides its name, so letterbox it instead. The collection grid is
+                // the one place that rotates them upright rather than fitting them.
+                contentScale = if (card.isLandscape) ContentScale.Fit else ContentScale.Crop,
                 colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) }),
                 modifier = Modifier.matchParentSize().alpha(imageAlpha),
             )
