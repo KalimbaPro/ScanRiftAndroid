@@ -1,0 +1,786 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "80ff8052974239bfbeaac33086062e83",
+    "entities": [
+      {
+        "tableName": "cards",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `riftboundId` TEXT NOT NULL, `publicCode` TEXT NOT NULL, `collectorNumber` INTEGER NOT NULL, `energy` INTEGER, `might` INTEGER, `power` INTEGER, `type` TEXT NOT NULL, `supertype` TEXT, `rarity` TEXT NOT NULL, `domains` TEXT NOT NULL, `richText` TEXT, `plainText` TEXT, `setId` TEXT NOT NULL, `setLabel` TEXT NOT NULL, `sourceSetId` TEXT NOT NULL, `imageUrl` TEXT, `artist` TEXT, `accessibilityText` TEXT, `cleanName` TEXT NOT NULL, `alternateArt` INTEGER NOT NULL, `overnumbered` INTEGER NOT NULL, `signature` INTEGER NOT NULL, `updatedOn` INTEGER, `orientation` TEXT NOT NULL DEFAULT 'portrait', `tags` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "riftboundId",
+            "columnName": "riftboundId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "publicCode",
+            "columnName": "publicCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "collectorNumber",
+            "columnName": "collectorNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "energy",
+            "columnName": "energy",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "might",
+            "columnName": "might",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "power",
+            "columnName": "power",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supertype",
+            "columnName": "supertype",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rarity",
+            "columnName": "rarity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "domains",
+            "columnName": "domains",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "richText",
+            "columnName": "richText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "plainText",
+            "columnName": "plainText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "setId",
+            "columnName": "setId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "setLabel",
+            "columnName": "setLabel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceSetId",
+            "columnName": "sourceSetId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imageUrl",
+            "columnName": "imageUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "artist",
+            "columnName": "artist",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "accessibilityText",
+            "columnName": "accessibilityText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "cleanName",
+            "columnName": "cleanName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "alternateArt",
+            "columnName": "alternateArt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "overnumbered",
+            "columnName": "overnumbered",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signature",
+            "columnName": "signature",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedOn",
+            "columnName": "updatedOn",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "orientation",
+            "columnName": "orientation",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'portrait'"
+          },
+          {
+            "fieldPath": "tags",
+            "columnName": "tags",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_cards_riftboundId",
+            "unique": false,
+            "columnNames": [
+              "riftboundId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cards_riftboundId` ON `${TABLE_NAME}` (`riftboundId`)"
+          },
+          {
+            "name": "index_cards_setId",
+            "unique": false,
+            "columnNames": [
+              "setId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cards_setId` ON `${TABLE_NAME}` (`setId`)"
+          },
+          {
+            "name": "index_cards_sourceSetId",
+            "unique": false,
+            "columnNames": [
+              "sourceSetId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cards_sourceSetId` ON `${TABLE_NAME}` (`sourceSetId`)"
+          },
+          {
+            "name": "index_cards_setId_collectorNumber",
+            "unique": false,
+            "columnNames": [
+              "setId",
+              "collectorNumber"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cards_setId_collectorNumber` ON `${TABLE_NAME}` (`setId`, `collectorNumber`)"
+          },
+          {
+            "name": "index_cards_cleanName",
+            "unique": false,
+            "columnNames": [
+              "cleanName"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cards_cleanName` ON `${TABLE_NAME}` (`cleanName`)"
+          },
+          {
+            "name": "index_cards_type",
+            "unique": false,
+            "columnNames": [
+              "type"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cards_type` ON `${TABLE_NAME}` (`type`)"
+          },
+          {
+            "name": "index_cards_rarity",
+            "unique": false,
+            "columnNames": [
+              "rarity"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cards_rarity` ON `${TABLE_NAME}` (`rarity`)"
+          },
+          {
+            "name": "index_cards_publicCode",
+            "unique": false,
+            "columnNames": [
+              "publicCode"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cards_publicCode` ON `${TABLE_NAME}` (`publicCode`)"
+          }
+        ]
+      },
+      {
+        "tableName": "collection_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `cardId` TEXT, `quantity` INTEGER NOT NULL, `isFoil` INTEGER NOT NULL, `dateAdded` INTEGER NOT NULL, `condition` TEXT NOT NULL, `notes` TEXT, `folder` TEXT, FOREIGN KEY(`cardId`) REFERENCES `cards`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cardId",
+            "columnName": "cardId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFoil",
+            "columnName": "isFoil",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateAdded",
+            "columnName": "dateAdded",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "condition",
+            "columnName": "condition",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "folder",
+            "columnName": "folder",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_collection_entries_cardId",
+            "unique": false,
+            "columnNames": [
+              "cardId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_collection_entries_cardId` ON `${TABLE_NAME}` (`cardId`)"
+          },
+          {
+            "name": "index_collection_entries_cardId_isFoil_condition",
+            "unique": true,
+            "columnNames": [
+              "cardId",
+              "isFoil",
+              "condition"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_collection_entries_cardId_isFoil_condition` ON `${TABLE_NAME}` (`cardId`, `isFoil`, `condition`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "cards",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "cardId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "card_lists",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `colorHex` TEXT NOT NULL, `isSystem` INTEGER NOT NULL, `systemType` TEXT, `createdDate` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "colorHex",
+            "columnName": "colorHex",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSystem",
+            "columnName": "isSystem",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "systemType",
+            "columnName": "systemType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdDate",
+            "columnName": "createdDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_card_lists_systemType",
+            "unique": false,
+            "columnNames": [
+              "systemType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_card_lists_systemType` ON `${TABLE_NAME}` (`systemType`)"
+          }
+        ]
+      },
+      {
+        "tableName": "card_list_cross_ref",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`listId` TEXT NOT NULL, `cardId` TEXT NOT NULL, PRIMARY KEY(`listId`, `cardId`), FOREIGN KEY(`listId`) REFERENCES `card_lists`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`cardId`) REFERENCES `cards`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "listId",
+            "columnName": "listId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cardId",
+            "columnName": "cardId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "listId",
+            "cardId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_card_list_cross_ref_cardId",
+            "unique": false,
+            "columnNames": [
+              "cardId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_card_list_cross_ref_cardId` ON `${TABLE_NAME}` (`cardId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "card_lists",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "listId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "cards",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "cardId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "decks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `createdDate` INTEGER NOT NULL, `lastModifiedDate` INTEGER NOT NULL, `legendCardId` TEXT, `championCardId` TEXT, PRIMARY KEY(`id`), FOREIGN KEY(`legendCardId`) REFERENCES `cards`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`championCardId`) REFERENCES `cards`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdDate",
+            "columnName": "createdDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedDate",
+            "columnName": "lastModifiedDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "legendCardId",
+            "columnName": "legendCardId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "championCardId",
+            "columnName": "championCardId",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_decks_legendCardId",
+            "unique": false,
+            "columnNames": [
+              "legendCardId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_decks_legendCardId` ON `${TABLE_NAME}` (`legendCardId`)"
+          },
+          {
+            "name": "index_decks_championCardId",
+            "unique": false,
+            "columnNames": [
+              "championCardId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_decks_championCardId` ON `${TABLE_NAME}` (`championCardId`)"
+          },
+          {
+            "name": "index_decks_lastModifiedDate",
+            "unique": false,
+            "columnNames": [
+              "lastModifiedDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_decks_lastModifiedDate` ON `${TABLE_NAME}` (`lastModifiedDate`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "cards",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "legendCardId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "cards",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "championCardId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "deck_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `deckId` TEXT NOT NULL, `cardId` TEXT, `quantity` INTEGER NOT NULL, `section` TEXT NOT NULL, FOREIGN KEY(`deckId`) REFERENCES `decks`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`cardId`) REFERENCES `cards`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deckId",
+            "columnName": "deckId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cardId",
+            "columnName": "cardId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "section",
+            "columnName": "section",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_deck_entries_deckId",
+            "unique": false,
+            "columnNames": [
+              "deckId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_deck_entries_deckId` ON `${TABLE_NAME}` (`deckId`)"
+          },
+          {
+            "name": "index_deck_entries_cardId",
+            "unique": false,
+            "columnNames": [
+              "cardId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_deck_entries_cardId` ON `${TABLE_NAME}` (`cardId`)"
+          },
+          {
+            "name": "index_deck_entries_deckId_cardId_section",
+            "unique": true,
+            "columnNames": [
+              "deckId",
+              "cardId",
+              "section"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_deck_entries_deckId_cardId_section` ON `${TABLE_NAME}` (`deckId`, `cardId`, `section`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "decks",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "deckId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "cards",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "cardId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "game_records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `date` INTEGER NOT NULL, `name` TEXT, `result` TEXT NOT NULL, `playerName` TEXT, `opponentName` TEXT, `pointsScored` INTEGER, `pointsAllowed` INTEGER, `ties` INTEGER, `conquerCount` INTEGER, `holdCount` INTEGER, `abilityCount` INTEGER, `notes` TEXT, `deckId` TEXT, `legendId` TEXT, `opponentLegendId` TEXT, PRIMARY KEY(`id`), FOREIGN KEY(`deckId`) REFERENCES `decks`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "result",
+            "columnName": "result",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "playerName",
+            "columnName": "playerName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "opponentName",
+            "columnName": "opponentName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pointsScored",
+            "columnName": "pointsScored",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "pointsAllowed",
+            "columnName": "pointsAllowed",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ties",
+            "columnName": "ties",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "conquerCount",
+            "columnName": "conquerCount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "holdCount",
+            "columnName": "holdCount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "abilityCount",
+            "columnName": "abilityCount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deckId",
+            "columnName": "deckId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "legendId",
+            "columnName": "legendId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "opponentLegendId",
+            "columnName": "opponentLegendId",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_game_records_deckId",
+            "unique": false,
+            "columnNames": [
+              "deckId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_game_records_deckId` ON `${TABLE_NAME}` (`deckId`)"
+          },
+          {
+            "name": "index_game_records_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_game_records_date` ON `${TABLE_NAME}` (`date`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "decks",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "deckId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '80ff8052974239bfbeaac33086062e83')"
+    ]
+  }
+}
