@@ -42,3 +42,8 @@ build/
 # Android
 local.properties
 *.jks
+# Signing credentials (never commit)
+keystore.properties
+
+# macOS
+.DS_Store

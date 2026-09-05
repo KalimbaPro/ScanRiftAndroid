@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.ScanRift" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Launch theme only; everything after the first frame is Compose Material 3.
+         The night variant in values-night/ avoids a white flash before Compose draws. -->
+    <style name="Theme.ScanRift" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
 </resources>

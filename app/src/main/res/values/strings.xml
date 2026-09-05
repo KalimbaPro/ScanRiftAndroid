@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ScanRift</string>
+
+    <!-- Top-level destinations -->
     <string name="tab_collection">Collection</string>
-    <string name="tab_scanner">Scan</string>
     <string name="tab_decks">Decks</string>
+    <string name="tab_scanner">Scan</string>
+    <string name="tab_game">Game</string>
     <string name="tab_settings">Settings</string>
 </resources>

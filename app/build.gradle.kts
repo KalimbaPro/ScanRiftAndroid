@@ -3,17 +3,43 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.room)
 }
+
+/**
+ * Signing credentials.
+ *
+ * CI supplies them as environment variables; locally they live in an untracked
+ * `keystore.properties` at the repo root. Both paths are optional so a fresh clone
+ * can always build `assembleDebug` without any secrets present.
+ */
+val keystoreProps = Properties().apply {
+    rootProject.file("keystore.properties")
+        .takeIf { it.exists() }
+        ?.inputStream()
+        ?.use { load(it) }
+}
+
+fun signingSecret(key: String): String? =
+    System.getenv(key) ?: keystoreProps.getProperty(key)
+
+val releaseKeystore = rootProject.file("scanrift-release.jks")
+val canSignRelease =
+    releaseKeystore.exists() &&
+        signingSecret("RELEASE_STORE_PASSWORD") != null &&
+        signingSecret("RELEASE_KEY_PASSWORD") != null
 
 android {
     namespace = "com.scanrift.android"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.scanrift.android"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 
@@ -21,29 +47,26 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            val isCI = System.getenv("CI") != null
-            if (isCI) {
-                storeFile = rootProject.file("scanrift-release.jks")
-                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+        if (canSignRelease) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = signingSecret("RELEASE_STORE_PASSWORD")
                 keyAlias = "scanrift"
-                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
-            } else {
-                val props = Properties()
-                rootProject.file("local.properties").inputStream().use { props.load(it) }
-                storeFile = rootProject.file("scanrift-release.jks")
-                storePassword = props.getProperty("RELEASE_STORE_PASSWORD")
-                keyAlias = "scanrift"
-                keyPassword = props.getProperty("RELEASE_KEY_PASSWORD")
+                keyPassword = signingSecret("RELEASE_KEY_PASSWORD")
             }
         }
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            isMinifyEnabled = false
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -61,6 +84,23 @@ android {
         buildConfig = true
     }
 
+    bundle {
+        // Keep every locale in the base APK so in-app locale switching keeps working.
+        language { enableSplit = false }
+    }
+
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -72,6 +112,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 dependencies {
@@ -93,8 +137,20 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
+    // Adaptive layouts / foldable support
+    implementation(libs.androidx.material3.adaptive)
+    implementation(libs.androidx.material3.adaptive.layout)
+    implementation(libs.androidx.material3.adaptive.navigation)
+    implementation(libs.androidx.material3.adaptive.navigation.suite)
+    implementation(libs.androidx.window)
+
     // Navigation
     implementation(libs.androidx.navigation.compose)
+
+    // Dependency injection
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
 
     // Room
     implementation(libs.androidx.room.runtime)
@@ -104,10 +160,12 @@ dependencies {
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 
-    // Network
+    // Network / serialization
     implementation(libs.retrofit)
-    implementation(libs.retrofit.converter.gson)
-    implementation(libs.gson)
+    implementation(libs.retrofit.converter.kotlinx.serialization)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
+    debugImplementation(libs.okhttp.logging.interceptor)
 
     // CameraX
     implementation(libs.camerax.core)
@@ -118,16 +176,21 @@ dependencies {
     // ML Kit
     implementation(libs.mlkit.text.recognition)
 
-    // Image Loading
+    // Image loading
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 
     // Logging
     implementation(libs.timber)
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.truth)
+    testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
     testImplementation(libs.androidx.room.testing)
+    testImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

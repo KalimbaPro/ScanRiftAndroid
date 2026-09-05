@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android Auto Backup (API 23-30).
+     Only the database and preferences are worth the 25MB quota; card art and HTTP
+     responses live in cacheDir, which Auto Backup never includes anyway. -->
+<full-backup-content>
+    <include domain="database" path="scanrift.db" />
+    <include domain="database" path="scanrift.db-wal" />
+    <include domain="database" path="scanrift.db-shm" />
+    <include domain="file" path="datastore/" />
+</full-backup-content>
