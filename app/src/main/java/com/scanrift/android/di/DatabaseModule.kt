@@ -1,5 +1,6 @@
 package com.scanrift.android.di
 
+import android.content.ContentResolver
 import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -27,6 +28,11 @@ object DatabaseModule {
         Room.databaseBuilder(context, ScanRiftDatabase::class.java, ScanRiftDatabase.NAME)
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .build()
+
+    @Provides
+    @Singleton
+    fun provideContentResolver(@ApplicationContext context: Context): ContentResolver =
+        context.contentResolver
 
     @Provides fun provideCardDao(db: ScanRiftDatabase): CardDao = db.cardDao()
     @Provides fun provideCollectionEntryDao(db: ScanRiftDatabase): CollectionEntryDao = db.collectionEntryDao()

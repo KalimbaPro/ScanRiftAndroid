@@ -28,6 +28,9 @@ interface CardListDao {
     @Query("SELECT * FROM card_lists ORDER BY isSystem DESC, createdDate ASC")
     fun observeAll(): Flow<List<CardListEntity>>
 
+    @Query("SELECT * FROM card_lists ORDER BY isSystem DESC, createdDate ASC")
+    suspend fun getAll(): List<CardListEntity>
+
     @Transaction
     @Query("SELECT * FROM card_lists ORDER BY isSystem DESC, createdDate ASC")
     fun observeAllWithCards(): Flow<List<CardListWithCards>>
