@@ -9,6 +9,7 @@ import com.scanrift.android.di.Remote
 import com.scanrift.android.data.local.ScanRiftDatabase
 import com.scanrift.android.data.local.dao.CardDao
 import com.scanrift.android.data.local.dao.MaintenanceDao
+import com.scanrift.android.data.local.dao.SyncedSetDao
 import com.scanrift.android.data.remote.datasource.RiftboundDataSource
 import com.scanrift.android.di.IoDispatcher
 import java.util.concurrent.atomic.AtomicBoolean
@@ -50,6 +51,7 @@ class DatabaseBootstrapper @Inject constructor(
     private val db: ScanRiftDatabase,
     private val cardDao: CardDao,
     private val maintenanceDao: MaintenanceDao,
+    private val syncedSetDao: SyncedSetDao,
     @param:Bundled private val bundledSource: RiftboundDataSource,
     @param:Remote private val remoteSource: RiftboundDataSource,
     private val listRepository: CardListRepository,
@@ -113,5 +115,5 @@ class DatabaseBootstrapper @Inject constructor(
     }
 
     private fun service(source: RiftboundDataSource) =
-        CardDatabaseService(db, cardDao, maintenanceDao, source, io)
+        CardDatabaseService(db, cardDao, maintenanceDao, syncedSetDao, source, io)
 }

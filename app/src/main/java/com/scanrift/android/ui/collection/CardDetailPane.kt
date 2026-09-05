@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.components.CardThumbnail
+import com.scanrift.android.ui.text.RichCardText
 import com.scanrift.android.ui.theme.Dimens
 import com.scanrift.android.ui.theme.domainColor
 import com.scanrift.android.ui.theme.rarityColor
@@ -149,8 +150,10 @@ private fun CardInfo(
             )
         }
 
-        card.plainText?.takeIf { it.isNotBlank() }?.let { text ->
-            Text(text, style = MaterialTheme.typography.bodyMedium)
+        // plainText is the field that carries the :rb_xxx: / [Keyword] / (reminder)
+        // markup — iOS renders that one too, deliberately, not richText.
+        (card.plainText ?: card.richText)?.takeIf { it.isNotBlank() }?.let { text ->
+            RichCardText(text, modifier = Modifier.fillMaxWidth())
         }
 
         card.artist?.let {

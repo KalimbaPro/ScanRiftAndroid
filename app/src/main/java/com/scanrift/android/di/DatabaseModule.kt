@@ -11,6 +11,7 @@ import com.scanrift.android.data.local.dao.CollectionEntryDao
 import com.scanrift.android.data.local.dao.DeckDao
 import com.scanrift.android.data.local.dao.GameRecordDao
 import com.scanrift.android.data.local.dao.MaintenanceDao
+import com.scanrift.android.data.local.dao.SyncedSetDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -40,4 +41,5 @@ object DatabaseModule {
     @Provides fun provideDeckDao(db: ScanRiftDatabase): DeckDao = db.deckDao()
     @Provides fun provideGameRecordDao(db: ScanRiftDatabase): GameRecordDao = db.gameRecordDao()
     @Provides fun provideMaintenanceDao(db: ScanRiftDatabase): MaintenanceDao = db.maintenanceDao()
+    @Provides fun provideSyncedSetDao(db: ScanRiftDatabase): SyncedSetDao = db.syncedSetDao()
 }

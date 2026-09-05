@@ -5,6 +5,8 @@ import com.scanrift.android.core.log.Log
 import com.scanrift.android.data.local.ScanRiftDatabase
 import com.scanrift.android.data.local.dao.CardDao
 import com.scanrift.android.data.local.dao.MaintenanceDao
+import com.scanrift.android.data.local.dao.SyncedSetDao
+import com.scanrift.android.data.local.entity.SyncedSetEntity
 import com.scanrift.android.data.remote.datasource.RiftboundDataSource
 import com.scanrift.android.data.remote.dto.CardDto
 import com.scanrift.android.di.IoDispatcher
@@ -31,6 +33,7 @@ class CardDatabaseService @Inject constructor(
     private val db: ScanRiftDatabase,
     private val cardDao: CardDao,
     private val maintenanceDao: MaintenanceDao,
+    private val syncedSetDao: SyncedSetDao,
     private val source: RiftboundDataSource,
     @param:IoDispatcher private val io: CoroutineDispatcher,
 ) {
@@ -61,6 +64,7 @@ class CardDatabaseService @Inject constructor(
             val identities = cardDao.getAllIdentities()
             val updatedOnById = identities.associate { it.id to it.updatedOn }
             val localCountBySourceSet = cardDao.countBySourceSet().associate { it.sourceSetId to it.count }
+            val lastSeenCountBySet = syncedSetDao.getAll().associate { it.setId to it.apiCardCount }
 
             var report = SyncReport()
             onProgress?.invoke(0, apiSets.size)
@@ -69,13 +73,20 @@ class CardDatabaseService @Inject constructor(
                 coroutineContext.ensureActive()
                 report = report.copy(setsChecked = report.setsChecked + 1)
 
-                val localCount = localCountBySourceSet[set.setId] ?: 0
-                if (set.cardCount > localCount) {
+                if (shouldRefetch(set.setId, set.cardCount, lastSeenCountBySet, localCountBySourceSet)) {
                     val dtos = CardDedup.dedupedByRiftboundId(source.fetchCardsInSet(set.setId))
                     // One transaction per set, so a mid-sync failure leaves whole sets
                     // consistent rather than half-written.
                     val setReport = db.withTransaction { applyDtos(dtos, updatedOnById) }
                     report = report + setReport.copy(setsRefetched = 1)
+                    // Record what the API said, so the next sync compares like with like.
+                    syncedSetDao.upsert(
+                        SyncedSetEntity(
+                            setId = set.setId,
+                            apiCardCount = set.cardCount,
+                            lastSyncedAt = System.currentTimeMillis(),
+                        ),
+                    )
                 }
 
                 onProgress?.invoke(index + 1, apiSets.size)
@@ -95,6 +106,32 @@ class CardDatabaseService @Inject constructor(
                 )
             }
         }
+
+    /**
+     * Decides whether a set needs refetching.
+     *
+     * The obvious test — `set.cardCount > localCount` — is wrong, and iOS has the bug
+     * today. The two numbers count different things: `cardCount` is the number of raw
+     * records the API serves, while the local count is what survives de-duplication.
+     * Vendetta serves 358 records that collapse to 227 real cards, so `358 > 227`
+     * holds forever and the entire set refetches on every sync. The promo sets do the
+     * same at smaller scale.
+     *
+     * Comparing against the `cardCount` we saw last time fixes that, and also catches a
+     * set *shrinking*, which a `>` test never could. The local-count fallback only
+     * applies before we have ever recorded the set.
+     */
+    private fun shouldRefetch(
+        setId: String,
+        apiCardCount: Int,
+        lastSeenCountBySet: Map<String, Int>,
+        localCountBySourceSet: Map<String, Int>,
+    ): Boolean {
+        val lastSeen = lastSeenCountBySet[setId]
+        if (lastSeen != null) return apiCardCount != lastSeen
+        // Never fetched this set before: fall back to "do we have anything at all".
+        return apiCardCount > (localCountBySourceSet[setId] ?: 0)
+    }
 
     /**
      * Upserts a batch, skipping rows the API says are unchanged.

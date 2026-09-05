@@ -43,6 +43,7 @@ class CardDatabaseServiceTest {
             db = db,
             cardDao = db.cardDao(),
             maintenanceDao = db.maintenanceDao(),
+            syncedSetDao = db.syncedSetDao(),
             source = source,
             io = Dispatchers.Unconfined,
         )
@@ -189,12 +190,50 @@ class CardDatabaseServiceTest {
     }
 
     @Test
+    fun `a set is not refetched forever just because dedup shrank it`() = runTest {
+        // The bug this guards, which iOS still has: card_count counts the raw records
+        // the API serves, while the local count is what survives de-duplication.
+        // Vendetta serves 358 records that collapse to 227 real cards, so a
+        // `cardCount > localCount` test is true forever and refetches the whole set on
+        // every sync. Here the 4 Akali records collapse to 2 against a count of 4.
+        source.cards = AkaliFixture.decode()
+        source.sets = listOf(venSet(cardCount = 4))
+
+        val first = service.syncDelta()
+        assertThat(first.setsRefetched).isEqualTo(1)
+        assertThat(db.cardDao().count()).isEqualTo(2)
+
+        // 4 > 2 still holds, but the API's number has not changed, so nothing refetches.
+        source.fetchedSetIds.clear()
+        val second = service.syncDelta()
+        assertThat(second.setsRefetched).isEqualTo(0)
+        assertThat(source.fetchedSetIds).isEmpty()
+    }
+
+    @Test
+    fun `a set is refetched when the api count changes in either direction`() = runTest {
+        source.cards = AkaliFixture.decode()
+        source.sets = listOf(venSet(cardCount = 4))
+        service.syncDelta()
+
+        // Growth.
+        source.fetchedSetIds.clear()
+        source.sets = listOf(venSet(cardCount = 5))
+        assertThat(service.syncDelta().setsRefetched).isEqualTo(1)
+
+        // And shrinkage, which a `>` test could never have caught.
+        source.fetchedSetIds.clear()
+        source.sets = listOf(venSet(cardCount = 3))
+        assertThat(service.syncDelta().setsRefetched).isEqualTo(1)
+    }
+
+    @Test
     fun `an unchanged updated_on skips the write`() = runTest {
         source.cards = AkaliFixture.decode()
         source.sets = listOf(venSet(cardCount = 2))
         service.syncDelta()
 
-        // Force a refetch by claiming the set grew, but return the same data.
+        // Force a refetch by changing the API's count, but return the same data.
         source.sets = listOf(venSet(cardCount = 99))
         val report = service.syncDelta()
 

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "80ff8052974239bfbeaac33086062e83",
+    "identityHash": "1eeb38b0cf06732d6a0634fab4b3cd35",
     "entities": [
       {
         "tableName": "cards",
@@ -776,11 +776,41 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "synced_sets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`setId` TEXT NOT NULL, `apiCardCount` INTEGER NOT NULL, `lastSyncedAt` INTEGER NOT NULL, PRIMARY KEY(`setId`))",
+        "fields": [
+          {
+            "fieldPath": "setId",
+            "columnName": "setId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "apiCardCount",
+            "columnName": "apiCardCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSyncedAt",
+            "columnName": "lastSyncedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "setId"
+          ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '80ff8052974239bfbeaac33086062e83')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1eeb38b0cf06732d6a0634fab4b3cd35')"
     ]
   }
 }
