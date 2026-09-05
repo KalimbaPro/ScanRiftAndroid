@@ -276,25 +276,28 @@ class DeckValidatorTest {
     // ── Rule 13: sideboard ───────────────────────────────────────────────────
 
     @Test
-    fun `rule 13 - the sideboard is a maximum of eight`() {
-        val extras = (1..9).map { entry(card(name = "Side $it"), section = DeckSection.SIDEBOARD) }
+    fun `rule 13 - the sideboard is a maximum of ten`() {
+        val extras = (1..11).map { entry(card(name = "Side $it"), section = DeckSection.SIDEBOARD) }
         val deck = validDeck(extraEntries = extras)
-        assertThat(DeckValidator.validate(deck)).contains(DeckValidationError.SideboardTooLarge(9, 8))
+        assertThat(DeckValidator.validate(deck)).contains(DeckValidationError.SideboardTooLarge(11, 10))
     }
 
     @Test
-    fun `rule 13 - exactly eight is fine`() {
-        val extras = (1..8).map { entry(card(name = "Side $it"), section = DeckSection.SIDEBOARD) }
+    fun `rule 13 - exactly ten is fine`() {
+        val extras = (1..10).map { entry(card(name = "Side $it"), section = DeckSection.SIDEBOARD) }
         assertThat(DeckValidator.validate(validDeck(extraEntries = extras))).isEmpty()
     }
 
     // ── Builder helpers ──────────────────────────────────────────────────────
 
     @Test
-    fun `runes get a copy limit of twelve and everything else three`() {
+    fun `copy limits are twelve for runes, one for battlefields and three otherwise`() {
+        // A deck needs 12 runes but three *different* battlefields, never three copies
+        // of one — so the flat 3 is wrong at both ends.
         assertThat(DeckValidator.maxCopies(card(type = CardType.RUNE))).isEqualTo(12)
+        assertThat(DeckValidator.maxCopies(card(type = CardType.BATTLEFIELD))).isEqualTo(1)
         assertThat(DeckValidator.maxCopies(card(type = CardType.UNIT))).isEqualTo(3)
-        assertThat(DeckValidator.maxCopies(card(type = CardType.BATTLEFIELD))).isEqualTo(3)
+        assertThat(DeckValidator.maxCopies(card(type = CardType.SPELL))).isEqualTo(3)
     }
 
     @Test

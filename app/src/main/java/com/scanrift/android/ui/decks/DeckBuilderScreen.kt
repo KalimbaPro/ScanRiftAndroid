@@ -3,6 +3,9 @@ package com.scanrift.android.ui.decks
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,6 +28,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -42,12 +47,16 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -93,10 +102,22 @@ fun DeckBuilderScreen(
     ) { padding ->
         BoxWithConstraints(Modifier.padding(padding).fillMaxSize()) {
             if (AdaptiveRules.useSplitDeckBuilder(maxWidth)) {
+                // The split starts even but is draggable — how much room the browser
+                // versus the editor deserves depends on what you are doing, and on a
+                // fold there is enough width for the choice to matter.
+                var browserFraction by rememberSaveable { mutableFloatStateOf(0.5f) }
+                val totalWidth = maxWidth
+                val density = LocalDensity.current
+
                 Row(Modifier.fillMaxSize()) {
-                    CardBrowser(state, viewModel, Modifier.weight(1f))
-                    VerticalDivider()
-                    DeckEditor(state, viewModel, Modifier.weight(1f))
+                    CardBrowser(state, viewModel, Modifier.weight(browserFraction))
+                    ResizeHandle(
+                        onDrag = { deltaPx ->
+                            val deltaFraction = with(density) { deltaPx.toDp() } / totalWidth
+                            browserFraction = (browserFraction + deltaFraction).coerceIn(0.25f, 0.75f)
+                        },
+                    )
+                    DeckEditor(state, viewModel, Modifier.weight(1f - browserFraction))
                 }
             } else {
                 var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -120,6 +141,29 @@ fun DeckBuilderScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * The draggable divider between the browser and the editor.
+ *
+ * Wider than the hairline it draws so it is actually grabbable, and it advertises a
+ * resize cursor for anyone on a desktop-class device.
+ */
+@Composable
+private fun ResizeHandle(onDrag: (Float) -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(12.dp)
+            .pointerHoverIcon(PointerIcon.Hand)
+            .draggable(
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { onDrag(it) },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        VerticalDivider(Modifier.fillMaxHeight())
     }
 }
 
@@ -265,8 +309,22 @@ private fun DeckEditor(
     val deck = state.deck ?: return
     LazyColumn(modifier.padding(horizontal = 16.dp)) {
         item {
-            SlotRow("Legend", deck.legend?.name) { viewModel.setLegend(null) }
-            SlotRow("Champion", deck.champion?.name) { viewModel.setChampion(null) }
+            SlotRow(
+                label = "Legend",
+                card = deck.legend,
+                emptyHint = "Pick one from the Legend tab",
+                onClear = { viewModel.setLegend(null) },
+            )
+            SlotRow(
+                label = "Champion",
+                card = deck.champion,
+                emptyHint = if (deck.legend == null) {
+                    "Pick one from the Champion tab"
+                } else {
+                    "Pick one of ${deck.legend!!.tags.firstOrNull() ?: "this legend"}'s champions"
+                },
+                onClear = { viewModel.setChampion(null) },
+            )
         }
 
         DeckSection.entries.forEach { section ->
@@ -281,23 +339,38 @@ private fun DeckEditor(
     }
 }
 
+/** One of the two singleton slots. Shows the card's art once filled. */
 @Composable
-private fun SlotRow(label: String, value: String?, onClear: () -> Unit) {
+private fun SlotRow(label: String, card: Card?, emptyHint: String, onClear: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (card != null) {
+            CardThumbnail(
+                card = card,
+                quantity = 1,
+                showQuantityBadge = false,
+                cornerRadius = 4.dp,
+                modifier = Modifier.width(44.dp).aspectRatio(Dimens.CARD_ASPECT_RATIO),
+            )
+        }
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             Text(
-                text = value ?: "Not set — pick one from the card browser",
+                text = card?.name ?: emptyHint,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (value == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                color = if (card == null) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
             )
         }
-        if (value != null) {
+        if (card != null) {
             IconButton(onClick = onClear) {
-                Icon(Icons.Filled.Warning, contentDescription = "Clear $label")
+                Icon(Icons.Filled.Close, contentDescription = "Clear $label")
             }
         }
     }

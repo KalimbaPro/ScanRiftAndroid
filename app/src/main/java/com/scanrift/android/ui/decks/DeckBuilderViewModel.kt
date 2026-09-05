@@ -86,8 +86,25 @@ class DeckBuilderViewModel @Inject constructor(
     fun setLegend(card: Card?) = withDeck { deckRepository.setLegend(it.id, card?.id) }
     fun setChampion(card: Card?) = withDeck { deckRepository.setChampion(it.id, card) }
 
-    fun addCard(card: Card, section: DeckSection = DeckValidator.inferSection(card)) =
-        withDeck { deckRepository.addCard(it, card, section) }
+    /**
+     * What tapping a card in the browser does.
+     *
+     * Legends and champions are **slots**, not deck entries: a deck has exactly one of
+     * each, so tapping one fills or replaces the slot rather than adding a copy to the
+     * main deck. Previously a legend tapped in the browser was routed to the main deck
+     * by `inferSection`, which produced a deck with a legend among its 40 cards and no
+     * legend set.
+     */
+    fun addCard(card: Card, section: DeckSection? = null) = withDeck { deck ->
+        when {
+            card.type == CardType.LEGEND -> deckRepository.setLegend(deck.id, card.id)
+            section == null && card.isChampionUnit -> deckRepository.setChampion(deck.id, card)
+            else -> deckRepository.addCard(deck, card, section ?: DeckValidator.inferSection(card))
+        }
+    }
+
+    /** Explicitly promote a card already in the deck to the champion slot. */
+    fun setChampionFromBrowser(card: Card) = withDeck { deckRepository.setChampion(it.id, card) }
 
     fun setQuantity(entry: DeckEntry, quantity: Int) =
         withDeck { deckRepository.setEntryQuantity(it, entry, quantity) }
@@ -102,13 +119,23 @@ class DeckBuilderViewModel @Inject constructor(
     }
 
     /**
-     * The browser's filter chain, in iOS's order.
+     * The browser's filter chain.
      *
-     * The interesting parts: once a legend is chosen, other legends disappear unless
-     * you filter for them explicitly; signature cards only show if they share a tag
-     * with the legend; and domain identity hides off-colour cards unless "show all" is
-     * on. Battlefields and colourless cards are always allowed through the domain
-     * filter, which is the same carve-out the validator makes.
+     * A legend and its champions are the same character — and the data makes that
+     * easy: every legend carries exactly one tag, the character's name, and every
+     * champion carries that same tag plus its regions. So "Ahri's champions" is just a
+     * tag intersection, no name parsing required.
+     *
+     * The two slots constrain each other in both directions, which is what makes the
+     * builder usable from either end:
+     *
+     * - **Legend chosen, champion empty** -> the Champion tab shows only that
+     *   character's champions.
+     * - **Champion chosen, legend empty** -> the Legend tab shows only that character's
+     *   legends.
+     * - **Neither chosen** -> both tabs show everything, so you can start from
+     *   whichever you have in mind. (Showing nothing here was the bug that made the
+     *   Champion tab look empty.)
      */
     private fun filterBrowser(
         allCards: List<Card>,
@@ -118,28 +145,24 @@ class DeckBuilderViewModel @Inject constructor(
         showAll: Boolean,
     ): List<Card> {
         val legend = deck?.legend
+        val champion = deck?.champion
         val legendTags = legend?.tags?.toSet().orEmpty()
+        val championTags = champion?.tags?.toSet().orEmpty()
         val legendDomains = legend?.domains?.toSet().orEmpty()
         val normalizedQuery = query.trim().lowercase()
 
         return allCards.asSequence()
+            .filter { card -> matchesTab(card, type, legendTags, championTags) }
             .filter { card ->
-                when {
-                    type == CHAMPION_FILTER ->
-                        card.type == CardType.UNIT && card.supertype == CardSupertype.CHAMPION &&
-                            legendTags.intersect(card.tags.toSet()).isNotEmpty()
-                    type != null -> card.type == type
-                    // With a legend set, hide the other legends from the general browser.
-                    legend != null -> card.type != CardType.LEGEND
-                    else -> true
-                }
-            }
-            .filter { card ->
-                if (!card.signature) return@filter true
-                legendTags.isNotEmpty() && legendTags.intersect(card.tags.toSet()).isNotEmpty()
+                // A signature card belongs to one character. With no legend chosen we
+                // cannot know which, so they all stay visible rather than all vanish.
+                if (!card.signature || legendTags.isEmpty()) return@filter true
+                legendTags.intersect(card.tags.toSet()).isNotEmpty()
             }
             .filter { card ->
                 if (showAll || legend == null) return@filter true
+                // Same carve-out the validator makes: battlefields and colourless cards
+                // are legal in any deck.
                 card.type == CardType.BATTLEFIELD ||
                     card.domains.isEmpty() ||
                     legendDomains.containsAll(card.domains)
@@ -150,10 +173,39 @@ class DeckBuilderViewModel @Inject constructor(
                     card.type.lowercase().contains(normalizedQuery) ||
                     card.plainText?.lowercase()?.contains(normalizedQuery) == true
             }
-            // Alternate-art printings would otherwise double every entry in the browser.
+            // Alternate-art printings would otherwise double every entry.
             .filterNot { it.isAlternateArt }
             .sortedBy { it.name }
             .toList()
+    }
+
+    private fun matchesTab(
+        card: Card,
+        type: String?,
+        legendTags: Set<String>,
+        championTags: Set<String>,
+    ): Boolean = when (type) {
+        LEGEND_FILTER -> {
+            if (card.type != CardType.LEGEND) {
+                false
+            } else if (championTags.isEmpty()) {
+                true
+            } else {
+                // A champion is already chosen, so only that character's legends apply.
+                card.tags.toSet().intersect(championTags).isNotEmpty()
+            }
+        }
+        CHAMPION_FILTER -> {
+            if (card.type != CardType.UNIT || card.supertype != CardSupertype.CHAMPION) {
+                false
+            } else if (legendTags.isEmpty()) {
+                true
+            } else {
+                card.tags.toSet().intersect(legendTags).isNotEmpty()
+            }
+        }
+        null -> true
+        else -> card.type == type
     }
 
     private inline fun withDeck(crossinline block: suspend (Deck) -> Unit) {
@@ -162,12 +214,20 @@ class DeckBuilderViewModel @Inject constructor(
     }
 
     companion object {
-        /** Pseudo-filter: champions eligible for the current legend. */
+        /** Champions eligible for the current legend. Not a card type of its own. */
         const val CHAMPION_FILTER = "Champion"
 
+        /** Legends eligible for the current champion. */
+        const val LEGEND_FILTER = "Legend"
+
+        /**
+         * Tab order. Legend comes first because it is the choice everything else hangs
+         * off — domain identity, which champions are legal, which signature cards are.
+         */
         val browserFilters = listOf(
+            LEGEND_FILTER, CHAMPION_FILTER,
             CardType.UNIT, CardType.SPELL, CardType.GEAR,
-            CardType.RUNE, CardType.BATTLEFIELD, CardType.LEGEND, CHAMPION_FILTER,
+            CardType.RUNE, CardType.BATTLEFIELD,
         )
     }
 }

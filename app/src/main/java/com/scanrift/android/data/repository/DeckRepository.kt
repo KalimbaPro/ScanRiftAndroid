@@ -83,12 +83,13 @@ class DeckRepository @Inject constructor(
         val limit = DeckValidator.maxCopies(card)
         if (DeckValidator.copiesInDeck(deck, card) + quantity > limit) return@withContext false
 
-        // Battlefields are singleton by name.
+        // Battlefields are singleton by name: one copy, and never a second printing of
+        // the same battlefield. The deck needs exactly three *different* ones.
         if (section == DeckSection.BATTLEFIELD) {
-            val duplicate = deck.entries.any {
+            val alreadyPresent = deck.entries.any {
                 it.section == DeckSection.BATTLEFIELD && it.card?.cleanName == card.cleanName
             }
-            if (duplicate) return@withContext false
+            if (alreadyPresent) return@withContext false
         }
 
         val existing = deckDao.findEntry(deck.id, card.id, section.value)
@@ -96,6 +97,8 @@ class DeckRepository @Inject constructor(
             deckDao.upsertEntry(
                 DeckEntryEntity(deckId = deck.id, cardId = card.id, quantity = quantity, section = section.value),
             )
+        } else if (section == DeckSection.BATTLEFIELD) {
+            return@withContext false
         } else {
             deckDao.upsertEntry(existing.copy(quantity = existing.quantity + quantity))
         }
@@ -106,6 +109,9 @@ class DeckRepository @Inject constructor(
     suspend fun setEntryQuantity(deck: Deck, entry: DeckEntry, quantity: Int) = withContext(io) {
         val cardId = entry.cardId ?: return@withContext
         val stored = deckDao.findEntry(deck.id, cardId, entry.section.value) ?: return@withContext
+
+        // A battlefield is singleton; the stepper must not be able to push it past one.
+        if (entry.section == DeckSection.BATTLEFIELD && quantity > 1) return@withContext
 
         if (quantity <= 0) {
             deckDao.deleteEntry(stored)

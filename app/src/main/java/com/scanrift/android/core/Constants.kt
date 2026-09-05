@@ -79,7 +79,7 @@ object Constants {
         const val MAIN_DECK_MINIMUM = 40
         const val RUNE_COUNT = 12
         const val BATTLEFIELD_COUNT = 3
-        const val SIDEBOARD_MAXIMUM = 8
+        const val SIDEBOARD_MAXIMUM = 10
         const val MAX_COPIES_PER_NAME = 3
         const val MAX_SIGNATURE_CARDS = 3
 

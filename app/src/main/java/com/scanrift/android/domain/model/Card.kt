@@ -54,6 +54,20 @@ data class Card(
     val isLandscape: Boolean
         get() = orientation == CardOrientation.LANDSCAPE
 
+    /** A champion occupies a deck slot rather than a main-deck entry. */
+    val isChampionUnit: Boolean
+        get() = type == CardType.UNIT && supertype == CardSupertype.CHAMPION
+
+    /**
+     * The character this card belongs to.
+     *
+     * Legends carry exactly one tag — the character — and champions carry that same tag
+     * plus their regions, so an intersection is all that is ever needed to ask "are
+     * these the same character?".
+     */
+    val characterTags: Set<String>
+        get() = tags.toSet()
+
     /**
      * True for "SP" special-print variants, whose `riftboundId` number segment starts
      * with "sp" (e.g. `ven-sp2-006`). These reuse low collector numbers that collide

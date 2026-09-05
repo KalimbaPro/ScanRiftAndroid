@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -31,6 +32,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -68,6 +72,7 @@ fun CollectionBrowsePane(
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    var showFilters by rememberSaveable { mutableStateOf(false) }
 
     val navigator = rememberListDetailPaneScaffoldNavigator<String>(
         scaffoldDirective = calculatePaneScaffoldDirectiveWithTwoPanesOnMediumWidth(currentWindowAdaptiveInfo()),
@@ -86,17 +91,28 @@ fun CollectionBrowsePane(
         listPane = {
             AnimatedPane {
                 ProvideContentWidth {
-                    CollectionGrid(
-                        state = state,
-                        gridState = gridState,
-                        selectedId = navigator.currentDestination?.contentKey,
-                        onCardClick = { displayCard ->
-                            viewModel.selectCard(displayCard.id)
-                            scope.launch {
-                                navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, displayCard.id)
-                            }
-                        },
-                    )
+                    Column(Modifier.fillMaxSize()) {
+                        CollectionToolbar(
+                            state = state,
+                            onSearchChange = viewModel::setSearchQuery,
+                            onOpenFilters = { showFilters = true },
+                            onOwnershipChange = viewModel::setOwnership,
+                            onSortChange = viewModel::setSortOption,
+                            onRemoveFilter = { updated -> viewModel.updateFilters(updated) },
+                            onClearFilters = viewModel::clearFilters,
+                        )
+                        CollectionGrid(
+                            state = state,
+                            gridState = gridState,
+                            selectedId = navigator.currentDestination?.contentKey,
+                            onCardClick = { displayCard ->
+                                viewModel.selectCard(displayCard.id)
+                                scope.launch {
+                                    navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, displayCard.id)
+                                }
+                            },
+                        )
+                    }
                 }
             }
         },
@@ -114,6 +130,15 @@ fun CollectionBrowsePane(
             }
         },
     )
+
+    if (showFilters) {
+        CollectionFilterSheet(
+            state = state,
+            onFiltersChange = viewModel::updateFilters,
+            onClearAll = { viewModel.clearFilters(); showFilters = false },
+            onDismiss = { showFilters = false },
+        )
+    }
 }
 
 @Composable

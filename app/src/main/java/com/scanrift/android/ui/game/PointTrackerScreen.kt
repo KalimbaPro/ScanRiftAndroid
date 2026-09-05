@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +55,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -60,6 +63,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.scanrift.android.core.Constants
 import com.scanrift.android.domain.model.ScoreCategory
 import com.scanrift.android.ui.LocalImmersiveMode
 import com.scanrift.android.ui.theme.Dimens
@@ -82,6 +86,9 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
     val immersive = LocalImmersiveMode.current
     var confirmReset by rememberSaveable { mutableStateOf(false) }
     var showSave by rememberSaveable { mutableStateOf(false) }
+    var setupSeat by rememberSaveable { mutableStateOf<Int?>(null) }
+    val legends by viewModel.legends.collectAsStateWithLifecycle()
+    val decks by viewModel.decks.collectAsStateWithLifecycle()
 
     // Hide the system bars *and* the app's navigation container in fullscreen, and
     // keep the screen awake — a 45-minute game shouldn't dim, which is an
@@ -120,10 +127,11 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
                     isStarting = state.startingPlayerIndex == index && !state.isRandomizing,
                     isCandidate = state.startingPlayerIndex == index && state.isRandomizing,
                     isFullBleed = state.isFullScreen,
-                    legendDomain = player.legendCardId
-                        ?.let { state.legendsById[it] }?.domains?.firstOrNull(),
+                    legend = player.legendCardId?.let { state.legendsById[it] },
+                    deckName = player.deckId?.let { id -> decks.firstOrNull { it.id == id }?.name },
                     onAdd = { category -> viewModel.addPoint(index, category) },
                     onRemove = { category -> viewModel.removePoint(index, category) },
+                    onOpenSetup = { setupSeat = index },
                 )
             }
         },
@@ -139,6 +147,22 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
             },
             dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } },
         )
+    }
+
+    setupSeat?.let { seat ->
+        state.players.getOrNull(seat)?.let { player ->
+            PlayerSetupSheet(
+                player = player,
+                legends = legends,
+                decks = decks,
+                legendsById = state.legendsById,
+                onRename = { viewModel.rename(player.id, it) },
+                onPickLegend = { viewModel.assignLegend(player.id, it) },
+                onPickDeck = { viewModel.assignDeck(player.id, it) },
+                onClear = { viewModel.clearAssignment(player.id) },
+                onDismiss = { setupSeat = null },
+            )
+        }
     }
 
     if (showSave) {
@@ -193,16 +217,37 @@ private fun CenterControlBar(
     ) {
         IconButton(onClick = onReset) { Icon(Icons.Filled.Refresh, contentDescription = "Reset scores") }
 
-        // Tap cycles 2 → 3 → 4 → 2, which is quicker than opening a sheet for three options.
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                .clip(CircleShape)
-                .clickable { onChangePlayerCount(if (playerCount >= 4) 2 else playerCount + 1) },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("$playerCount", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+        // Player count decides the seat layout — 2 face to face, 3 with two side
+        // seats, 4 in quadrants — so it is worth showing the options rather than
+        // making you cycle blindly through them.
+        var countMenuOpen by remember { mutableStateOf(false) }
+        Box {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    .clip(CircleShape)
+                    .clickable { countMenuOpen = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("$playerCount", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            }
+            DropdownMenu(expanded = countMenuOpen, onDismissRequest = { countMenuOpen = false }) {
+                (Constants.PointTracker.MIN_PLAYERS..Constants.PointTracker.MAX_PLAYERS).forEach { count ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                when (count) {
+                                    2 -> "2 players — face to face"
+                                    3 -> "3 players — one top, two side"
+                                    else -> "4 players — quadrants"
+                                },
+                            )
+                        },
+                        onClick = { onChangePlayerCount(count); countMenuOpen = false },
+                    )
+                }
+            }
         }
 
         IconButton(onClick = onRandomize) { Icon(Icons.Filled.Casino, contentDescription = "Random first player") }
@@ -227,9 +272,11 @@ private fun PlayerSeat(
     isStarting: Boolean,
     isCandidate: Boolean,
     isFullBleed: Boolean,
-    legendDomain: String?,
+    legend: com.scanrift.android.domain.model.Card?,
+    deckName: String?,
     onAdd: (ScoreCategory) -> Unit,
     onRemove: (ScoreCategory) -> Unit,
+    onOpenSetup: () -> Unit,
 ) {
     val borderColor by animateColorAsState(
         targetValue = when {
@@ -239,7 +286,7 @@ private fun PlayerSeat(
         },
         label = "seatBorder",
     )
-    val tint = legendDomain?.let { domainColor(it) } ?: MaterialTheme.colorScheme.primary
+    val tint = legend?.domains?.firstOrNull()?.let { domainColor(it) } ?: MaterialTheme.colorScheme.primary
     val shape = RoundedCornerShape(if (isFullBleed) 0.dp else 18.dp)
 
     // One rotation layer wrapping everything — Compose hit-tests through graphicsLayer,
@@ -256,16 +303,50 @@ private fun PlayerSeat(
                     )
                     .border(if (borderColor == Color.Transparent) 0.dp else 4.dp, borderColor, shape),
             ) {
+                legend?.imageUrl?.let { url ->
+                    coil3.compose.AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        alignment = Alignment.TopCenter,
+                        modifier = Modifier.matchParentSize(),
+                    )
+                    // A flat veil rather than a gradient: the score has to stay legible
+                    // over whatever the art happens to be.
+                    Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.45f)))
+                }
+
                 val minDimension = min(maxWidth.value, maxHeight.value)
                 val buttonDiameter = min(60f, max(40f, minDimension * 0.16f)).dp
                 val scoreSize = max(56f, minDimension * 0.45f).sp
 
-                Text(
-                    text = player.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp),
-                )
+                // The name chip is the entry point to everything about this seat:
+                // rename, legend, deck. Tapping the tile background would fight with
+                // the score buttons, so the chip is the only tap target.
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 10.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .clickable(onClick = onOpenSetup)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = player.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                    )
+                    Text(
+                        text = deckName ?: legend?.name ?: "Tap to pick a legend",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
 
                 Text(
                     text = "${player.score}",

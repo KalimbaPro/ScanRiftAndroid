@@ -147,12 +147,16 @@ object DeckValidator {
     /**
      * Copy limit for a single card.
      *
-     * Runes are the exception: a legal deck needs 12 of them, so the 3-copy limit
-     * cannot apply. Enforced by the deck builder at add time rather than by [validate],
-     * which counts runes in their own exact-count rule instead.
+     * Two exceptions to the flat 3: runes, because a legal deck needs 12 of them, and
+     * battlefields, which are singleton — a deck needs three *different* ones, never
+     * three copies of one. Enforced by the builder at add time; [validate] covers the
+     * same ground through its own exact-count and duplicate-name rules.
      */
-    fun maxCopies(card: Card): Int =
-        if (card.type == CardType.RUNE) Constants.Deck.MAX_RUNE_COPIES else Constants.Deck.MAX_COPIES_PER_NAME
+    fun maxCopies(card: Card): Int = when (card.type) {
+        CardType.RUNE -> Constants.Deck.MAX_RUNE_COPIES
+        CardType.BATTLEFIELD -> 1
+        else -> Constants.Deck.MAX_COPIES_PER_NAME
+    }
 
     /** Copies of a card already in the deck, counted by `cleanName` across all sections. */
     fun copiesInDeck(deck: Deck, card: Card): Int =

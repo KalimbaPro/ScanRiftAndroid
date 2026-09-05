@@ -67,6 +67,9 @@ data class CollectionFilters(
 
 data class CollectionBrowseState(
     val cards: List<DisplayCard> = emptyList(),
+    val availableTypes: List<String> = emptyList(),
+    val availableRarities: List<String> = emptyList(),
+    val availableSets: List<String> = emptyList(),
     val ownedCount: Int = 0,
     val totalCount: Int = 0,
     val searchQuery: String = "",
@@ -105,6 +108,19 @@ class CollectionBrowseViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Facet values come from the cards actually in scope, not a hardcoded list — so a
+     * new set appears in the filter the moment it syncs, and a list containing only
+     * two types does not offer six.
+     */
+    private val facets = scopedCards.map { cards ->
+        Triple(
+            cards.map { it.type }.distinct().sorted(),
+            cards.map { it.rarity }.distinct().sortedBy { Rarity.sortRank(it) },
+            cards.map { it.setLabel }.distinct().sorted(),
+        )
+    }
+
     private val displayCards = combine(
         scopedCards,
         collectionRepository.observeEntries(),
@@ -120,14 +136,19 @@ class CollectionBrowseViewModel @Inject constructor(
         combine(sortOption, sortAscending, ::Pair),
         combine(viewMode, ownership, filters, ::Triple),
         combine(searchQuery, selectedCardId, ::Pair),
-        userPreferences.showUnownedInColor,
-    ) { cards, sort, view, searchAndSelection, unownedInColor ->
+        combine(userPreferences.showUnownedInColor, facets, ::Pair),
+    ) { cards, sort, view, searchAndSelection, prefsAndFacets ->
         val (option, ascending) = sort
         val (mode, ownershipFilter, activeFilters) = view
         val (query, selected) = searchAndSelection
+        val (unownedInColor, facetValues) = prefsAndFacets
+        val (types, rarities, sets) = facetValues
         val sorted = sortCards(cards, option, ascending)
         CollectionBrowseState(
             cards = sorted,
+            availableTypes = types,
+            availableRarities = rarities,
+            availableSets = sets,
             ownedCount = sorted.count { it.isOwned },
             totalCount = sorted.size,
             searchQuery = query,
@@ -235,6 +256,4 @@ class CollectionBrowseViewModel @Inject constructor(
         return if (ascending) sorted else sorted.reversed()
     }
 
-    @Suppress("unused")
-    private val rarityOrder = Rarity.displayOrder
 }

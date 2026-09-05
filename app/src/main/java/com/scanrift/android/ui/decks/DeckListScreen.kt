@@ -1,7 +1,7 @@
 package com.scanrift.android.ui.decks
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,8 +19,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
@@ -30,6 +37,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,6 +61,7 @@ fun DeckListScreen(
 ) {
     val decks by viewModel.decks.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    var pendingDelete by remember { mutableStateOf<Deck?>(null) }
 
     Scaffold(
         topBar = { LargeTopAppBar(title = { Text("Decks") }, scrollBehavior = scrollBehavior) },
@@ -82,20 +93,41 @@ fun DeckListScreen(
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
             items(decks, key = { it.id }) { deck ->
-                DeckTile(deck = deck, onClick = { onOpenDeck(deck.id) })
+                DeckTile(
+                    deck = deck,
+                    onClick = { onOpenDeck(deck.id) },
+                    onDelete = { pendingDelete = deck },
+                )
             }
         }
+    }
+
+    pendingDelete?.let { deck ->
+        DeleteDeckDialog(
+            deck = deck,
+            onConfirm = { viewModel.deleteDeck(deck); pendingDelete = null },
+            onDismiss = { pendingDelete = null },
+        )
     }
 }
 
 @Composable
-private fun DeckTile(deck: Deck, onClick: () -> Unit) {
+private fun DeckTile(deck: Deck, onClick: () -> Unit, onDelete: () -> Unit) {
     // Live validation rather than the weaker "40 cards and both slots" heuristic the
     // old build used, which called plainly illegal decks valid.
     val isValid = DeckValidator.validate(deck).isEmpty()
     val totalCards = deck.entries.sumOf { it.quantity }
 
-    Column(Modifier.clickable(onClick = onClick)) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Column(
+        Modifier.combinedClickable(
+            onClick = onClick,
+            // Long-press for delete, so the tile stays a single tap target for the
+            // thing you actually do 99% of the time.
+            onLongClick = { menuOpen = true },
+        ),
+    ) {
         Box {
             val legend = deck.legend
             if (legend != null) {
@@ -123,6 +155,25 @@ private fun DeckTile(deck: Deck, onClick: () -> Unit) {
                 tint = if (isValid) ValidGreen else WarningOrange,
                 modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
             )
+
+            IconButton(
+                onClick = { menuOpen = true },
+                modifier = Modifier.align(Alignment.TopEnd),
+            ) {
+                Icon(
+                    Icons.Filled.MoreVert,
+                    contentDescription = "Deck options",
+                    tint = Color.White,
+                )
+            }
+
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("Delete deck") },
+                    onClick = { menuOpen = false; onDelete() },
+                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                )
+            }
         }
         Text(
             text = deck.name,
@@ -146,6 +197,22 @@ private fun DeckTile(deck: Deck, onClick: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+private fun DeleteDeckDialog(deck: Deck, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete \"${deck.name}\"?") },
+        text = {
+            Text(
+                "The deck and its card list go away. Your collection is untouched, and " +
+                    "any recorded games stay in your history.",
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Delete") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 private val ValidGreen = Color(0xFF34C759)
