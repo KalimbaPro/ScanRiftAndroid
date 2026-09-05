@@ -165,7 +165,9 @@ dependencies {
     implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
-    debugImplementation(libs.okhttp.logging.interceptor)
+    // Referenced from shared code behind a BuildConfig.DEBUG check, so it has to be
+    // on the release classpath too; R8 strips the branch since DEBUG is a constant.
+    implementation(libs.okhttp.logging.interceptor)
 
     // CameraX
     implementation(libs.camerax.core)

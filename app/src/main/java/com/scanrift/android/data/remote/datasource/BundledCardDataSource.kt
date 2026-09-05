@@ -5,6 +5,7 @@ import com.scanrift.android.R
 import com.scanrift.android.data.remote.dto.CardDto
 import com.scanrift.android.data.remote.dto.PaginatedCardsResponse
 import com.scanrift.android.data.remote.dto.RiftboundSetDto
+import com.scanrift.android.di.ApiJson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -20,7 +21,7 @@ import kotlinx.serialization.json.decodeFromStream
  */
 class BundledCardDataSource @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val json: Json,
+    @param:ApiJson private val json: Json,
 ) : RiftboundDataSource {
 
     @OptIn(ExperimentalSerializationApi::class)
