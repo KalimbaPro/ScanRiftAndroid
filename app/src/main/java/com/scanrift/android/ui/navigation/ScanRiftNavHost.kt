@@ -14,6 +14,7 @@ import androidx.navigation.navigation
 import com.scanrift.android.ui.collection.CollectionBrowsePane
 import com.scanrift.android.ui.collection.CollectionHubScreen
 import com.scanrift.android.ui.decks.DeckBuilderScreen
+import com.scanrift.android.ui.game.PointTrackerScreen
 import com.scanrift.android.ui.decks.DeckListScreen
 import com.scanrift.android.ui.scanner.CameraPermissionGate
 import com.scanrift.android.ui.scanner.ScannerScreen
@@ -67,7 +68,7 @@ fun ScanRiftNavHost(
         }
 
         navigation<GameGraph>(startDestination = GameRoute) {
-            composable<GameRoute> { Placeholder("Game") }
+            composable<GameRoute> { PointTrackerScreen() }
             composable<GameHistoryRoute> { Placeholder("Game history") }
         }
 
