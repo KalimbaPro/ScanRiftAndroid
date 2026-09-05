@@ -34,7 +34,7 @@ val canSignRelease =
 
 android {
     namespace = "com.scanrift.android"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.scanrift.android"

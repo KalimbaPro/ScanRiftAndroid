@@ -38,7 +38,34 @@ this file says otherwise.
 
 - **Application id**: `com.scanrift.android` (debug builds get a `.debug` suffix)
 - **API**: `https://api.riftcodex.com`, with `res/raw/cards.json` as an offline seed
-- **compileSdk 37 / targetSdk 36 / minSdk 26**
+- **compileSdk 36 / targetSdk 36 / minSdk 26**
+
+## Toolchain is pinned to what Android Studio accepts
+
+**Do not raise AGP past 9.0.0 without updating Android Studio first.** Studio 2025.3
+refuses to sync anything higher ("incompatible version of the Android Gradle plugin"),
+and several AndroidX libraries have since moved to an AGP 9.1.0 floor. The version
+catalog therefore holds the newest release of each that still works with AGP 9.0:
+
+| Library | Pinned | Newest | Why |
+|---|---|---|---|
+| AGP | 9.0.0 | 9.4.0 | Studio 2025.3's ceiling |
+| Compose BOM | 2026.06.01 | 2026.08.00 | Compose 1.12 needs AGP 9.1 |
+| material3-adaptive | 1.2.0 | 1.3.0 | 1.3.0 needs AGP 9.1 + compileSdk 37 |
+| core-ktx | 1.18.0 | 1.19.0 | 1.19 needs AGP 9.1 |
+| lifecycle | 2.10.0 | 2.11.0 | 2.11 needs AGP 9.1 |
+| navigation-compose | 2.9.8 | 2.10.0 | 2.10 needs AGP 9.1 |
+| hilt-navigation-compose | 1.3.0 | 1.4.0 | 1.4 needs AGP 9.1 |
+| Coil | 3.5.0 | 3.6.2 | 3.6 pulls Compose Multiplatform 1.12, which drags all of Compose to 1.12 |
+| OkHttp | 5.4.0 | 5.5.0 | 5.5 needs compileSdk 37 |
+
+Nothing is lost by staying here. In particular `adaptive` 1.2.0 still exposes
+`calculatePaneScaffoldDirectiveWithTwoPanesOnMediumWidth`, which the foldable two-pane
+layout depends on. After updating Studio, raise all of these together.
+
+Note the Coil trap: it is a Kotlin Multiplatform library, so its version silently
+controls the whole `androidx.compose.*` stack through `org.jetbrains.compose`. If the
+Compose version moves unexpectedly, check Coil first.
 
 ## Git workflow
 
