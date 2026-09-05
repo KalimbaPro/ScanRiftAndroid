@@ -13,6 +13,7 @@ import androidx.navigation.toRoute
 import androidx.navigation.navigation
 import com.scanrift.android.ui.collection.CollectionBrowsePane
 import com.scanrift.android.ui.collection.CollectionHubScreen
+import com.scanrift.android.ui.settings.SettingsScreen
 
 /**
  * Five nested graphs, one per tab, so each keeps its own back stack.
@@ -58,7 +59,7 @@ fun ScanRiftNavHost(
         }
 
         navigation<SettingsGraph>(startDestination = SettingsRoute) {
-            composable<SettingsRoute> { Placeholder("Settings") }
+            composable<SettingsRoute> { SettingsScreen() }
         }
     }
 }

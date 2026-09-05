@@ -5,7 +5,6 @@ import android.net.Uri
 import com.scanrift.android.core.log.Log
 import com.scanrift.android.di.IoDispatcher
 import com.scanrift.android.di.SnapshotJson
-import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
@@ -27,7 +26,7 @@ import kotlinx.serialization.json.encodeToStream
  */
 @Singleton
 class BackupService @Inject constructor(
-    @param:ApplicationContext private val contentResolver: ContentResolver,
+    private val contentResolver: ContentResolver,
     private val builder: SnapshotBuilder,
     private val merger: SnapshotMerger,
     @param:SnapshotJson private val json: Json,
