@@ -1,9 +1,18 @@
 package com.scanrift.android.ui.game
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipDescription
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.draganddrop.dragAndDropSource
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,11 +48,18 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.DragAndDropTransferData
+import androidx.compose.ui.draganddrop.mimeTypes
+import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -103,7 +120,16 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
 
     SeatLayout(
         playerCount = state.players.size,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            // Fullscreen is meant to run under the system bars; normal mode is not.
+            .then(
+                if (state.isFullScreen) {
+                    Modifier
+                } else {
+                    Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
+                },
+            ),
         centerBar = {
             CenterControlBar(
                 playerCount = state.players.size,
@@ -132,6 +158,7 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
                     onAdd = { category -> viewModel.addPoint(index, category) },
                     onRemove = { category -> viewModel.removePoint(index, category) },
                     onOpenSetup = { setupSeat = index },
+                    onDropPlayer = { draggedId -> viewModel.swapPlayers(draggedId, index) },
                 )
             }
         },
@@ -263,6 +290,8 @@ private fun CenterControlBar(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
+@Suppress("DEPRECATION")
 @Composable
 private fun PlayerSeat(
     player: PlayerState,
@@ -277,9 +306,41 @@ private fun PlayerSeat(
     onAdd: (ScoreCategory) -> Unit,
     onRemove: (ScoreCategory) -> Unit,
     onOpenSetup: () -> Unit,
+    onDropPlayer: (String) -> Unit,
 ) {
+    var isDropTarget by remember { mutableStateOf(false) }
+
+    // Read through `rememberUpdatedState`, never captured directly.
+    //
+    // A `DragAndDropTarget` is a long-lived object, but the seat it belongs to swaps
+    // occupants. Capturing `player` in the remember block froze the *first* occupant
+    // into the target: after one swap every drop saw its own stale id, took the
+    // `dragged == self` early return, and silently did nothing. Only the seat's
+    // position is fixed; who sits in it is not.
+    val seatOccupantId by rememberUpdatedState(player.id)
+    val dropPlayer by rememberUpdatedState(onDropPlayer)
+    val openSetup by rememberUpdatedState(onOpenSetup)
+
+    // The whole tile is the target, not just its chip, so you have a seat-sized area
+    // to aim at rather than a chip-sized one.
+    val dropTarget = remember {
+        object : DragAndDropTarget {
+            override fun onDrop(event: DragAndDropEvent): Boolean {
+                isDropTarget = false
+                val dragged = event.playerId() ?: return false
+                if (dragged == seatOccupantId) return false
+                dropPlayer(dragged)
+                return true
+            }
+
+            override fun onEntered(event: DragAndDropEvent) { isDropTarget = true }
+            override fun onExited(event: DragAndDropEvent) { isDropTarget = false }
+            override fun onEnded(event: DragAndDropEvent) { isDropTarget = false }
+        }
+    }
     val borderColor by animateColorAsState(
         targetValue = when {
+            isDropTarget -> MaterialTheme.colorScheme.primary
             isStarting -> Color(0xFFFFD60A)
             isCandidate -> MaterialTheme.colorScheme.primary
             else -> Color.Transparent
@@ -289,93 +350,151 @@ private fun PlayerSeat(
     val tint = legend?.domains?.firstOrNull()?.let { domainColor(it) } ?: MaterialTheme.colorScheme.primary
     val shape = RoundedCornerShape(if (isFullBleed) 0.dp else 18.dp)
 
-    // One rotation layer wrapping everything — Compose hit-tests through graphicsLayer,
-    // so no second layer is needed for the buttons to receive taps.
-    RotatedContent(degrees = rotation, modifier = Modifier.fillMaxSize()) {
-        RotatedContent(degrees = legendRotation, modifier = Modifier.fillMaxSize()) {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(if (isFullBleed) 0.dp else 6.dp)
-                    .clip(shape)
-                    .background(
-                        Brush.linearGradient(listOf(tint.copy(alpha = 0.35f), tint.copy(alpha = 0.15f))),
-                    )
-                    .border(if (borderColor == Color.Transparent) 0.dp else 4.dp, borderColor, shape),
-            ) {
-                legend?.imageUrl?.let { url ->
-                    coil3.compose.AsyncImage(
-                        model = url,
-                        contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                        alignment = Alignment.TopCenter,
-                        modifier = Modifier.matchParentSize(),
-                    )
-                    // A flat veil rather than a gradient: the score has to stay legible
-                    // over whatever the art happens to be.
-                    Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.45f)))
-                }
-
-                val minDimension = min(maxWidth.value, maxHeight.value)
-                val buttonDiameter = min(60f, max(40f, minDimension * 0.16f)).dp
-                val scoreSize = max(56f, minDimension * 0.45f).sp
-
-                // The name chip is the entry point to everything about this seat:
-                // rename, legend, deck. Tapping the tile background would fight with
-                // the score buttons, so the chip is the only tap target.
-                Column(
+    // The drop target lives *outside* the rotation, on a plain box filling the seat.
+    //
+    // Compose locates a drop target from `positionInRoot()` plus the node's untransformed
+    // size, so a target inside a rotated `graphicsLayer` reports a rectangle that has
+    // been moved but not turned. In the quadrant layout that made dropping on the
+    // bottom-right seat register as a hit on the top-right one. Touch hit-testing does
+    // honour the transform, which is why taps were unaffected and only drops went astray.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .dragAndDropTarget(
+                shouldStartDragAndDrop = { event ->
+                    event.mimeTypes().contains(ClipDescription.MIMETYPE_TEXT_PLAIN)
+                },
+                target = dropTarget,
+            ),
+    ) {
+        // One rotation layer wrapping everything — Compose hit-tests through graphicsLayer,
+        // so no second layer is needed for the buttons to receive taps.
+        RotatedContent(degrees = rotation, modifier = Modifier.fillMaxSize()) {
+            RotatedContent(degrees = legendRotation, modifier = Modifier.fillMaxSize()) {
+                BoxWithConstraints(
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 10.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .clickable(onClick = onOpenSetup)
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = player.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
-                    )
-                    Text(
-                        text = deckName ?: legend?.name ?: "Tap to pick a legend",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.85f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-
-                Text(
-                    text = "${player.score}",
-                    fontSize = scoreSize,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.SansSerif,
-                    color = Color.White,
-                    textAlign = TextAlign.Center,
-                    // The score deliberately does not animate; iOS kills its animation
-                    // explicitly. The per-category counts below do animate.
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(bottom = buttonDiameter + 36.dp),
-                )
-
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(buttonDiameter * 0.45f),
-                ) {
-                    ScoreCategory.entries.forEach { category ->
-                        CategoryScoreButton(
-                            category = category,
-                            count = player.count(category),
-                            diameter = buttonDiameter,
-                            onAdd = { onAdd(category) },
-                            onRemove = { onRemove(category) },
+                        .fillMaxSize()
+                        .padding(if (isFullBleed) 0.dp else 6.dp)
+                        .clip(shape)
+                        .background(
+                            Brush.linearGradient(listOf(tint.copy(alpha = 0.35f), tint.copy(alpha = 0.15f))),
                         )
+                        .border(if (borderColor == Color.Transparent) 0.dp else 4.dp, borderColor, shape),
+                ) {
+                    legend?.imageUrl?.let { url ->
+                        coil3.compose.AsyncImage(
+                            model = url,
+                            contentDescription = null,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            alignment = Alignment.TopCenter,
+                            modifier = Modifier.matchParentSize(),
+                        )
+                        // A flat veil rather than a gradient: the score has to stay legible
+                        // over whatever the art happens to be.
+                        Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.45f)))
+                    }
+
+                    val minDimension = min(maxWidth.value, maxHeight.value)
+                    val buttonDiameter = min(60f, max(40f, minDimension * 0.16f)).dp
+                    val scoreSize = max(56f, minDimension * 0.45f).sp
+
+                    // The name chip does double duty: tap opens this seat's setup, and
+                    // long-press drags it onto another seat to swap the two. It is the
+                    // only tap target on the tile, since the rest belongs to the score
+                    // buttons.
+                    val chipLabel = deckName ?: legend?.name
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 10.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black.copy(alpha = 0.35f))
+                            // Tap and long-press-drag share one detector, deliberately.
+                            //
+                            // `clickable` and the current `dragAndDropSource(transferData)`
+                            // cannot coexist on the same element: that overload's start
+                            // detector runs a tap gesture with `onTap = null` and consumes
+                            // the press, and its detector is not a public parameter. Put
+                            // the source inside and taps die; put it outside and drags do.
+                            // The deprecated suspend overload hands us the pointer scope,
+                            // so one `detectTapGestures` can own both gestures — and it
+                            // still draws the chip itself as the drag shadow, which is
+                            // exactly the affordance we want.
+                            //
+                            // Like the drop target, this handler is captured once and
+                            // never refreshed, so it reads the occupant through the
+                            // updated state rather than closing over `player`.
+                            // `block =` is required: a bare trailing lambda is ambiguous
+                            // against the `transferData` overload.
+                            .dragAndDropSource(block = {
+                                detectTapGestures(
+                                    onTap = { openSetup() },
+                                    onLongPress = {
+                                        startTransfer(
+                                            DragAndDropTransferData(
+                                                ClipData.newPlainText(PLAYER_DRAG_LABEL, seatOccupantId),
+                                            ),
+                                        )
+                                    },
+                                )
+                            })
+                            // The gesture above is invisible to accessibility services, so
+                            // the chip advertises its tap action explicitly.
+                            .semantics {
+                                role = Role.Button
+                                onClick(label = "Open player setup") { openSetup(); true }
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = player.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                        )
+                        // Only shown once there is something to show — an empty seat gets
+                        // its name and nothing else.
+                        if (chipLabel != null) {
+                            Text(
+                                text = chipLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.85f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "${player.score}",
+                        fontSize = scoreSize,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.SansSerif,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        // The score deliberately does not animate; iOS kills its animation
+                        // explicitly. The per-category counts below do animate.
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(bottom = buttonDiameter + 36.dp),
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(buttonDiameter * 0.45f),
+                    ) {
+                        ScoreCategory.entries.forEach { category ->
+                            CategoryScoreButton(
+                                category = category,
+                                count = player.count(category),
+                                diameter = buttonDiameter,
+                                onAdd = { onAdd(category) },
+                                onRemove = { onRemove(category) },
+                            )
+                        }
                     }
                 }
             }
@@ -475,3 +594,11 @@ private fun KeepScreenOn() {
         onDispose { view.keepScreenOn = false }
     }
 }
+
+/** Label on the drag clip; also what identifies our own drags from someone else's. */
+private const val PLAYER_DRAG_LABEL = "scanrift/playerId"
+
+private fun DragAndDropEvent.playerId(): String? =
+    runCatching { toAndroidDragEvent().clipData?.getItemAt(0)?.text?.toString() }
+        .getOrNull()
+        ?.takeIf { it.isNotBlank() }

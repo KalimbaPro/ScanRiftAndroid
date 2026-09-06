@@ -15,6 +15,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.components.CardThumbnail
@@ -44,18 +51,24 @@ import com.scanrift.android.ui.theme.rarityColor
 fun CardDetailPane(
     displayCard: DisplayCard,
     modifier: Modifier = Modifier,
+    onAddCopy: () -> Unit = {},
+    onSetQuantity: (Int) -> Unit = {},
 ) {
     BoxWithConstraints(modifier.fillMaxSize()) {
         if (AdaptiveRules.useTwoColumnCardDetail(maxWidth)) {
-            TwoColumnDetail(displayCard)
+            TwoColumnDetail(displayCard, onAddCopy, onSetQuantity)
         } else {
-            SingleColumnDetail(displayCard)
+            SingleColumnDetail(displayCard, onAddCopy, onSetQuantity)
         }
     }
 }
 
 @Composable
-private fun SingleColumnDetail(displayCard: DisplayCard) {
+private fun SingleColumnDetail(
+    displayCard: DisplayCard,
+    onAddCopy: () -> Unit,
+    onSetQuantity: (Int) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,12 +79,17 @@ private fun SingleColumnDetail(displayCard: DisplayCard) {
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         CardArt(displayCard, Modifier.fillMaxWidth(0.7f))
+        OwnershipControls(displayCard, onAddCopy, onSetQuantity, Modifier.fillMaxWidth())
         CardInfo(displayCard, Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-private fun TwoColumnDetail(displayCard: DisplayCard) {
+private fun TwoColumnDetail(
+    displayCard: DisplayCard,
+    onAddCopy: () -> Unit,
+    onSetQuantity: (Int) -> Unit,
+) {
     Row(Modifier.fillMaxSize().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
         Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
             CardArt(displayCard, Modifier.widthIn(max = Dimens.DetailImageMax))
@@ -90,6 +108,7 @@ private fun TwoColumnDetail(displayCard: DisplayCard) {
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
+            OwnershipControls(displayCard, onAddCopy, onSetQuantity, Modifier.fillMaxWidth())
             CardInfo(displayCard, Modifier.fillMaxWidth(), showName = false)
         }
     }
@@ -142,14 +161,6 @@ private fun CardInfo(
             }
         }
 
-        displayCard.entry?.let { entry ->
-            Text(
-                text = "In your collection: ${entry.quantity} × ${entry.condition.shortName}" +
-                    if (entry.isFoil) " (foil)" else "",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-
         // plainText is the field that carries the :rb_xxx: / [Keyword] / (reminder)
         // markup — iOS renders that one too, deliberately, not richText.
         (card.plainText ?: card.richText)?.takeIf { it.isNotBlank() }?.let { text ->
@@ -162,6 +173,64 @@ private fun CardInfo(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/**
+ * Add a copy, or adjust how many you own, without leaving the card.
+ *
+ * Browsing the catalogue and recording what you own are the same activity in practice,
+ * so the control lives on the card rather than behind a separate flow.
+ */
+@Composable
+private fun OwnershipControls(
+    displayCard: DisplayCard,
+    onAddCopy: () -> Unit,
+    onSetQuantity: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val entry = displayCard.entry
+
+    if (entry == null) {
+        Button(onClick = onAddCopy, modifier = modifier) {
+            Icon(Icons.Filled.Add, contentDescription = null)
+            Text("Add to collection", modifier = Modifier.padding(start = 8.dp))
+        }
+        return
+    }
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("In your collection", style = MaterialTheme.typography.labelMedium)
+            Text(
+                text = entry.condition.value + if (entry.isFoil) " · foil" else "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Stepping to zero removes the stack rather than leaving an empty one.
+            IconButton(onClick = { onSetQuantity(entry.quantity - 1) }) {
+                Icon(Icons.Filled.Remove, contentDescription = "One fewer")
+            }
+            Text(
+                text = "${entry.quantity}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.widthIn(min = 28.dp),
+                textAlign = TextAlign.Center,
+            )
+            IconButton(onClick = { onSetQuantity(entry.quantity + 1) }) {
+                Icon(Icons.Filled.Add, contentDescription = "One more")
+            }
         }
     }
 }

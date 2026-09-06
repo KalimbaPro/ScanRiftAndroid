@@ -121,6 +121,32 @@ appear on the target device.
 `DeckSection` stores `"mainDeck"`, `GameResult` stores `"win"`. They go into the
 database, the backup snapshot and every export verbatim. Never store `name` or ordinal.
 
+**Compose drag-and-drop has three traps, all of them silent.** The seat drag in
+`PointTrackerScreen` hit every one.
+
+1. *Drop targets must live outside any rotation.* Compose locates a target from
+   `positionInRoot()` plus the node's **untransformed** size, so a target inside a
+   rotated `graphicsLayer` reports a rectangle that has been moved but not turned. Touch
+   hit-testing does honour the transform, so taps look fine while drops land on the
+   wrong element. Put `dragAndDropTarget` on a plain box wrapping the rotated content.
+2. *Neither the target nor the source handler is refreshed on recomposition.* Both are
+   captured once. Anything they read that can change — here, which player occupies the
+   seat — has to come through `rememberUpdatedState`, or the first value is frozen in
+   and every later gesture no-ops.
+3. *`clickable` and `dragAndDropSource(transferData)` cannot share an element.* That
+   overload's start detector runs a tap gesture with `onTap = null` and consumes the
+   press, and the detector is not a public parameter. Whichever modifier is innermost
+   wins and the other never fires. The deprecated suspend overload
+   (`dragAndDropSource(block = ...)`) hands over the pointer scope so one
+   `detectTapGestures` can own both gestures; pass `block =` explicitly, because a bare
+   trailing lambda is ambiguous against the `transferData` overload. It bypasses
+   accessibility, so add the tap action back via `semantics { onClick(...) }`.
+
+**A `DisplayCard.id` is not a stable identity.** It encodes the owned variant, so it
+changes the moment a card is added to the collection. The collection navigator is keyed
+on `card.id` for that reason — keying on the row id dropped the detail pane the instant
+you pressed its own Add button.
+
 **Export formats are byte-exact.** riftbound.gg parses the CSV it emitted, spaces after
 commas and all, in the header *and* the data rows. Golden tests pin this.
 

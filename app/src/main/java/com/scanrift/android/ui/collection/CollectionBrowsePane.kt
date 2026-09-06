@@ -2,11 +2,14 @@ package com.scanrift.android.ui.collection
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +40,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,6 +78,7 @@ fun CollectionBrowsePane(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var showFilters by rememberSaveable { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
 
     val navigator = rememberListDetailPaneScaffoldNavigator<String>(
         scaffoldDirective = calculatePaneScaffoldDirectiveWithTwoPanesOnMediumWidth(currentWindowAdaptiveInfo()),
@@ -88,6 +94,10 @@ fun CollectionBrowsePane(
 
     NavigableListDetailPaneScaffold(
         navigator = navigator,
+        // This screen has no Scaffold of its own, so nothing else consumes the status
+        // bar, navigation bar or display cutout — without this the toolbar sits under
+        // the clock and the grid runs behind the gesture bar.
+        modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
         listPane = {
             AnimatedPane {
                 ProvideContentWidth {
@@ -104,12 +114,16 @@ fun CollectionBrowsePane(
                         CollectionGrid(
                             state = state,
                             gridState = gridState,
-                            selectedId = navigator.currentDestination?.contentKey,
+                            selectedCardId = navigator.currentDestination?.contentKey,
                             onCardClick = { displayCard ->
-                                viewModel.selectCard(displayCard.id)
+                                viewModel.selectCard(displayCard.card.id)
                                 scope.launch {
-                                    navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, displayCard.id)
+                                    navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, displayCard.card.id)
                                 }
+                            },
+                            onQuickAdd = { displayCard ->
+                                viewModel.addCopy(displayCard.card)
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             },
                         )
                     }
@@ -120,11 +134,17 @@ fun CollectionBrowsePane(
             AnimatedPane {
                 ProvideContentWidth {
                     val key = navigator.currentDestination?.contentKey
-                    val selected = state.cards.firstOrNull { it.id == key }
+                    val selected = resolveSelected(state.cards, key)
                     when {
                         key == null -> EmptyDetail("Select a card")
                         selected == null -> EmptyDetail("That card is no longer in this view")
-                        else -> CardDetailPane(displayCard = selected)
+                        else -> CardDetailPane(
+                            displayCard = selected,
+                            onAddCopy = { viewModel.addCopy(selected.card) },
+                            onSetQuantity = { quantity ->
+                                selected.entry?.let { viewModel.setQuantity(it, quantity) }
+                            },
+                        )
                     }
                 }
             }
@@ -139,6 +159,24 @@ fun CollectionBrowsePane(
             onDismiss = { showFilters = false },
         )
     }
+}
+
+/**
+ * Finds the row for a selected **card id**.
+ *
+ * The navigator is keyed on the card rather than on `DisplayCard.id`, which has to
+ * encode the owned variant — a foil and a normal copy are two separate rows. That
+ * makes `DisplayCard.id` change the moment you add the card to your collection, which
+ * would have dropped the detail pane right as you pressed its own Add button. A card
+ * id is stable through that.
+ *
+ * When a card does have several variants, the owned one wins, so the quantity stepper
+ * acts on real data rather than an empty placeholder row.
+ */
+private fun resolveSelected(cards: List<DisplayCard>, cardId: String?): DisplayCard? {
+    if (cardId == null) return null
+    val matches = cards.filter { it.card.id == cardId }
+    return matches.firstOrNull { it.isOwned } ?: matches.firstOrNull()
 }
 
 @Composable
@@ -156,8 +194,9 @@ private fun EmptyDetail(message: String) {
 private fun CollectionGrid(
     state: CollectionBrowseState,
     gridState: LazyGridState,
-    selectedId: String?,
+    selectedCardId: String?,
     onCardClick: (DisplayCard) -> Unit,
+    onQuickAdd: (DisplayCard) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val paneWidth = maxWidth
@@ -196,13 +235,19 @@ private fun CollectionGrid(
                         .fillMaxWidth()
                         .aspectRatio(Dimens.CARD_ASPECT_RATIO)
                         .then(
-                            if (displayCard.id == selectedId) {
+                            if (displayCard.card.id == selectedCardId) {
                                 Modifier.border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                             } else {
                                 Modifier
                             },
                         )
-                        .clickable { onCardClick(displayCard) },
+                        // Tap opens the card; long-press adds a copy on the spot, for
+                        // when you are working through a stack of cards rather than
+                        // reading them.
+                        .combinedClickable(
+                            onClick = { onCardClick(displayCard) },
+                            onLongClick = { onQuickAdd(displayCard) },
+                        ),
                 )
             }
         }
