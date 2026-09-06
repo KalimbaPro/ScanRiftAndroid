@@ -117,6 +117,19 @@ the navigation container and the pane count. Everything inside a pane reads
 splits at 840dp, and an unfolded Fold in portrait is ~700dp, so the feature would never
 appear on the target device.
 
+**`NavigableListDetailPaneScaffold` does not react to a fold.** It renders from
+`navigator.scaffoldState`, which the navigator builds once and re-syncs *only* on
+navigation. Folding updates `scaffoldDirective` and therefore `scaffoldValue`, but
+nothing pushes that into `scaffoldState`, so the panes keep the old arrangement until
+you next navigate — switching tabs, which disposes the navigator, is what made it
+appear to fix itself. Use the `ListDetailPaneScaffold(directive, value = ...)`
+overload: `scaffoldValue` is derived state, and that overload animates to it on every
+change. The trade is the predictive-back preview, so keep an explicit `BackHandler`.
+
+Note the asymmetry that makes this easy to misdiagnose: unfolding *looks* fine,
+because a stale single-pane value on a wide screen just shows a wider list. Only
+refolding is visibly wrong.
+
 **Enum raw values are a wire format.** `CardCondition` stores `"Near Mint"`,
 `DeckSection` stores `"mainDeck"`, `GameResult` stores `"win"`. They go into the
 database, the backup snapshot and every export verbatim. Never store `name` or ordinal.

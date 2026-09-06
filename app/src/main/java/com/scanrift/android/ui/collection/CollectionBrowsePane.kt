@@ -26,9 +26,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.layout.AnimatedPane
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirectiveWithTwoPanesOnMediumWidth
-import androidx.compose.material3.adaptive.navigation.NavigableListDetailPaneScaffold
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -92,8 +92,21 @@ fun CollectionBrowsePane(
     // recomposes the pane structure around it.
     val gridState = rememberLazyGridState()
 
-    NavigableListDetailPaneScaffold(
-        navigator = navigator,
+    // Driven by `scaffoldValue`, not by the navigator's `scaffoldState`.
+    //
+    // `NavigableListDetailPaneScaffold` renders from `navigator.scaffoldState`, which
+    // the navigator builds once and only re-syncs on navigation. Folding the device
+    // updates `scaffoldDirective` and therefore `scaffoldValue`, but nothing pushes
+    // that into `scaffoldState` — so refolding left both panes on screen until the
+    // next navigation, which in practice meant switching tabs. `scaffoldValue` is
+    // derived state and always current, and this overload animates to it on every
+    // change.
+    //
+    // The cost is the predictive-back preview that the Navigable wrapper installs.
+    // Back itself is unaffected; the `BackHandler` above already drives the navigator.
+    ListDetailPaneScaffold(
+        directive = navigator.scaffoldDirective,
+        value = navigator.scaffoldValue,
         // This screen has no Scaffold of its own, so nothing else consumes the status
         // bar, navigation bar or display cutout — without this the toolbar sits under
         // the clock and the grid runs behind the gesture bar.
