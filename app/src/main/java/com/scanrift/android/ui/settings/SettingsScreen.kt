@@ -46,6 +46,7 @@ import com.scanrift.android.service.sync.BootstrapState
 import com.scanrift.android.ui.theme.Dimens
 import java.text.SimpleDateFormat
 import java.util.Date
+import androidx.compose.ui.platform.LocalLocale
 import java.util.Locale
 
 /**
@@ -236,8 +237,11 @@ private fun BootstrapRow(state: BootstrapState) {
 
 @Composable
 private fun SectionHeader(title: String) {
+    // `LocalLocale`, not `Locale.getDefault()`: the latter is not observable state, so
+    // a header uppercased at first composition would keep the old locale's casing after
+    // the user changes language. Turkish is the case that actually differs.
     Text(
-        text = title.uppercase(Locale.getDefault()),
+        text = title.uppercase(LocalLocale.current.platformLocale),
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,
