@@ -13,6 +13,12 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+# The default GITHUB_TOKEN is read-only here, so the tag build could compile and
+# sign an APK and then 403 on the one step that publishes it. Releases need
+# contents: write.
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
