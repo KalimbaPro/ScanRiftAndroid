@@ -1,135 +1,96 @@
 package com.scanrift.android.service.scanning
 
-import com.scanrift.android.data.local.entity.CardEntity
-import timber.log.Timber
+import com.scanrift.android.domain.model.Card
+import java.util.Locale
 
 /**
- * Candidate match result from the card matching service.
- */
-data class MatchCandidate(
-    val card: CardEntity,
-    val confidence: Double,
-    val matchedText: String
-)
-
-/**
- * Card matching service — direct port of iOS CardMatchingService.swift.
+ * Turns OCR text into a card.
  *
- * Uses regex patterns to extract card codes like "OGN-021", "OGN-021a", "OGN-300*"
- * from OCR text and matches them against the card database.
+ * Despite the "matching" name this is **not** fuzzy: it reads the printed card code
+ * (`OGN-021a`) with three regexes and then requires an exact triple match on set id,
+ * collector number and public code. A match is either certain or absent, which is why
+ * every result carries `confidence = 1.0` and there is no candidate ranking.
+ *
+ * That design has a consequence worth knowing: it depends entirely on `publicCode`
+ * being correct. Every card the live API returns has `public_code: null`, so the
+ * derivation in `CardDto.resolvedPublicCode` is load-bearing — get it wrong and the
+ * scanner silently matches nothing at all.
+ *
+ * The Levenshtein helpers in `core/text` are unused here, exactly as on iOS.
  */
-class CardMatchingService(private val cards: List<CardEntity>) {
+class CardMatchingService(private val cards: List<Card>) {
 
-    // Regex patterns for card codes
-    // Group 1: set code, Group 2: number, Group 3: optional suffix (a, b, *, etc.)
-    private val codePatterns = listOf(
-        Regex("""([A-Z]{2,4})\s*[-\u2013\u2014]\s*(\d{1,3})([a-zA-Z*]?)""", RegexOption.IGNORE_CASE),  // OGN-021a or OGN - 021
-        Regex("""([A-Z]{2,4})(\d{3})([a-zA-Z*]?)""", RegexOption.IGNORE_CASE),                          // OGN021a (no separator)
-        Regex("""([A-Z]{2,4})\s+(\d{1,3})([a-zA-Z*]?)""", RegexOption.IGNORE_CASE)                      // OGN 021a (space separator)
+    /**
+     * Set code, collector number, optional suffix. Ordered most- to least-specific.
+     *
+     * The en dash and em dash alternatives in the first pattern matter: OCR frequently
+     * renders the hyphen in `OGN-021` as one of those.
+     */
+    private val patterns = listOf(
+        Regex("""([A-Z]{2,4})\s*[-–—]\s*(\d{1,3})([a-zA-Z*]?)""", RegexOption.IGNORE_CASE),
+        Regex("""([A-Z]{2,4})(\d{3})([a-zA-Z*]?)""", RegexOption.IGNORE_CASE),
+        Regex("""([A-Z]{2,4})\s+(\d{1,3})([a-zA-Z*]?)""", RegexOption.IGNORE_CASE),
     )
 
-    init {
-        Timber.d("CardMatchingService initialized with %d cards", cards.size)
+    /** Cheap gate so the pipeline ignores frames that clearly aren't a card. */
+    fun looksLikeCard(text: String): Boolean = patterns.any { it.containsMatchIn(text) }
+
+    fun findMatch(ocr: OcrResult): MatchCandidate? {
+        if (!looksLikeCard(ocr.extractedText)) return null
+        findByCardCode(ocr.extractedText)?.let { return it }
+        // The set-code band alone is a useful second pass: it is where the code is
+        // printed, so it has far less noise than the full-frame text.
+        ocr.setCodeRegion?.let { region -> findByCardCode(region)?.let { return it } }
+        return null
     }
 
-    /**
-     * Check if text looks like it could be from a card (has card code pattern).
-     */
-    fun looksLikeCard(text: String): Boolean {
-        return codePatterns.any { it.containsMatchIn(text) }
-    }
-
-    /**
-     * Find the best match — returns null if no confident match found.
-     */
-    fun findMatch(ocrResult: OCRResult): MatchCandidate? {
-        val fullText = ocrResult.extractedText
-
-        // First check if this looks like a card at all
-        if (!looksLikeCard(fullText)) {
-            Timber.d("Text doesn't look like a card, skipping")
-            return null
-        }
-
-        Timber.d("Full OCR text: %s", fullText)
-
-        // Try to find card code pattern in full text
-        findByCardCode(fullText)?.let {
-            Timber.d("Found by card code")
-            return it
-        }
-
-        // Try set code region specifically
-        ocrResult.setCodeRegion?.takeIf { it.isNotEmpty() }?.let { setCode ->
-            Timber.d("Trying set code region: %s", setCode)
-            findByCardCode(setCode)?.let {
-                Timber.d("Found by set code region")
-                return it
+    fun findByCardCode(text: String): MatchCandidate? {
+        for (pattern in patterns) {
+            for (match in pattern.findAll(text)) {
+                tryMatch(match)?.let { return it }
             }
         }
-
-        Timber.d("No confident match found")
         return null
     }
 
-    /**
-     * Search cards by name for manual correction.
-     */
-    fun searchCards(query: String): List<CardEntity> {
-        val normalizedQuery = query.lowercase().trim()
-        if (normalizedQuery.length < 2) return emptyList()
+    private fun tryMatch(match: MatchResult): MatchCandidate? {
+        val setCode = match.groupValues[1].uppercase(Locale.ROOT)
+        val number = match.groupValues[2].toIntOrNull() ?: return null
+        val suffix = match.groupValues.getOrNull(3).orEmpty()
 
-        return cards.filter { card ->
-            card.name.lowercase().contains(normalizedQuery) ||
-                    card.cleanName.lowercase().contains(normalizedQuery) ||
-                    card.publicCode.lowercase().contains(normalizedQuery)
-        }.take(20)
+        // Locale.ROOT: an Arabic-locale device would otherwise produce Arabic-Indic
+        // digits here and no card would ever match.
+        val padded = "%03d".format(Locale.ROOT, number)
+        val expectedCode = "$setCode-$padded$suffix".uppercase(Locale.ROOT)
+
+        val card = cards.firstOrNull {
+            it.setId.uppercase(Locale.ROOT) == setCode &&
+                it.collectorNumber == number &&
+                it.publicCodePrefix.uppercase(Locale.ROOT) == expectedCode
+        } ?: return null
+
+        return MatchCandidate(card = card, confidence = 1.0, matchedText = "$setCode-$padded$suffix")
     }
 
-    private fun findByCardCode(text: String): MatchCandidate? {
-        for (pattern in codePatterns) {
-            tryCodePattern(pattern, text)?.let { return it }
-        }
-        return null
+    /** Manual-correction search: substring over name, cleanName and public code. */
+    fun searchCards(query: String): List<Card> {
+        val trimmed = query.trim().lowercase(Locale.ROOT)
+        if (trimmed.length < MIN_SEARCH_LENGTH) return emptyList()
+        return cards.filter {
+            it.name.lowercase(Locale.ROOT).contains(trimmed) ||
+                it.cleanName.lowercase(Locale.ROOT).contains(trimmed) ||
+                it.publicCode.lowercase(Locale.ROOT).contains(trimmed)
+        }.take(MAX_SEARCH_RESULTS)
     }
 
-    private fun tryCodePattern(pattern: Regex, text: String): MatchCandidate? {
-        val matches = pattern.findAll(text)
-
-        for (match in matches) {
-            val setCode = match.groupValues[1].uppercase()
-            val numberStr = match.groupValues[2]
-            val suffix = match.groupValues.getOrElse(3) { "" }
-
-            val number = numberStr.toIntOrNull() ?: continue
-            val paddedNumber = "%03d".format(number)
-            val expectedCode = "$setCode-$paddedNumber$suffix".uppercase()
-
-            Timber.d("Extracted code - Set: '%s', Number: %d, Suffix: '%s', Expected: '%s'",
-                setCode, number, suffix, expectedCode)
-
-            // Find matching card by setId, collectorNumber, AND exact code (including suffix)
-            for (card in cards) {
-                val cardSetId = card.setId.uppercase()
-
-                if (cardSetId == setCode && card.collectorNumber == number) {
-                    // Extract the code portion of publicCode (before "/" if present)
-                    val cardCodePart = card.publicCode.uppercase().split("/").firstOrNull()
-                        ?: card.publicCode.uppercase()
-
-                    if (cardCodePart == expectedCode) {
-                        Timber.d("Verified match '%s' - code %s, publicCode: %s",
-                            card.name, expectedCode, card.publicCode)
-                        return MatchCandidate(
-                            card = card,
-                            confidence = 1.0,
-                            matchedText = "$setCode-$paddedNumber$suffix"
-                        )
-                    }
-                }
-            }
-        }
-
-        return null
+    private companion object {
+        const val MIN_SEARCH_LENGTH = 2
+        const val MAX_SEARCH_RESULTS = 20
     }
 }
+
+data class MatchCandidate(
+    val card: Card,
+    val confidence: Double,
+    val matchedText: String,
+)

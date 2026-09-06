@@ -6,11 +6,8 @@ import androidx.room.Relation
 
 data class CollectionEntryWithCard(
     @Embedded val entry: CollectionEntryEntity,
-    @Relation(
-        parentColumn = "cardId",
-        entityColumn = "id"
-    )
-    val card: CardEntity
+    @Relation(parentColumn = "cardId", entityColumn = "id")
+    val card: CardEntity?,
 )
 
 data class CardListWithCards(
@@ -21,26 +18,24 @@ data class CardListWithCards(
         associateBy = Junction(
             value = CardListCrossRef::class,
             parentColumn = "listId",
-            entityColumn = "cardId"
-        )
+            entityColumn = "cardId",
+        ),
     )
-    val cards: List<CardEntity>
-)
-
-data class DeckWithEntries(
-    @Embedded val deck: DeckEntity,
-    @Relation(
-        parentColumn = "id",
-        entityColumn = "deckId"
-    )
-    val entries: List<DeckEntryEntity>
+    val cards: List<CardEntity>,
 )
 
 data class DeckEntryWithCard(
     @Embedded val entry: DeckEntryEntity,
-    @Relation(
-        parentColumn = "cardId",
-        entityColumn = "id"
-    )
-    val card: CardEntity
+    @Relation(parentColumn = "cardId", entityColumn = "id")
+    val card: CardEntity?,
+)
+
+data class DeckWithEntries(
+    @Embedded val deck: DeckEntity,
+    @Relation(parentColumn = "id", entityColumn = "deckId", entity = DeckEntryEntity::class)
+    val entries: List<DeckEntryWithCard>,
+    @Relation(parentColumn = "legendCardId", entityColumn = "id")
+    val legend: CardEntity?,
+    @Relation(parentColumn = "championCardId", entityColumn = "id")
+    val champion: CardEntity?,
 )

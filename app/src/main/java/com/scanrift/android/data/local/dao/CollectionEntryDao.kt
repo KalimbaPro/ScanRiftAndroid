@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import com.scanrift.android.data.local.entity.CollectionEntryEntity
 import com.scanrift.android.data.local.entity.CollectionEntryWithCard
 import kotlinx.coroutines.flow.Flow
@@ -14,11 +15,11 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CollectionEntryDao {
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(entry: CollectionEntryEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(entries: List<CollectionEntryEntity>)
+    @Upsert
+    suspend fun upsertAll(entries: List<CollectionEntryEntity>)
 
     @Update
     suspend fun update(entry: CollectionEntryEntity)
@@ -28,27 +29,44 @@ interface CollectionEntryDao {
 
     @Transaction
     @Query("SELECT * FROM collection_entries ORDER BY dateAdded DESC")
-    fun getAllWithCards(): Flow<List<CollectionEntryWithCard>>
+    fun observeAllWithCards(): Flow<List<CollectionEntryWithCard>>
 
     @Transaction
     @Query("SELECT * FROM collection_entries ORDER BY dateAdded DESC")
-    suspend fun getAllWithCardsList(): List<CollectionEntryWithCard>
+    suspend fun getAllWithCards(): List<CollectionEntryWithCard>
+
+    @Query("SELECT * FROM collection_entries")
+    suspend fun getAll(): List<CollectionEntryEntity>
 
     @Query("SELECT * FROM collection_entries WHERE cardId = :cardId")
-    suspend fun getEntriesForCard(cardId: String): List<CollectionEntryEntity>
+    suspend fun getForCard(cardId: String): List<CollectionEntryEntity>
 
-    @Query("SELECT * FROM collection_entries WHERE cardId = :cardId AND isFoil = :isFoil LIMIT 1")
-    suspend fun findEntry(cardId: String, isFoil: Boolean): CollectionEntryEntity?
-
-    @Query("SELECT COUNT(*) FROM collection_entries")
-    fun getEntryCount(): Flow<Int>
+    /** Lookup by the identity triple that every upsert path keys on. */
+    @Query(
+        """
+        SELECT * FROM collection_entries
+        WHERE cardId = :cardId AND isFoil = :isFoil AND condition = :condition
+        LIMIT 1
+        """,
+    )
+    suspend fun findEntry(cardId: String, isFoil: Boolean, condition: String): CollectionEntryEntity?
 
     @Query("SELECT SUM(quantity) FROM collection_entries")
-    fun getTotalCardCount(): Flow<Int?>
+    fun observeTotalCardCount(): Flow<Int?>
 
     @Query("SELECT COUNT(DISTINCT cardId) FROM collection_entries")
-    fun getUniqueCardCount(): Flow<Int>
+    fun observeUniqueCardCount(): Flow<Int>
+
+    /** Card id to total owned quantity, for the collection grid's ownership overlays. */
+    @Query("SELECT cardId, SUM(quantity) AS quantity FROM collection_entries WHERE cardId IS NOT NULL GROUP BY cardId")
+    fun observeOwnedQuantities(): Flow<List<OwnedQuantity>>
 
     @Query("DELETE FROM collection_entries")
     suspend fun deleteAll()
+
+    /** Reclaims rows whose card genuinely left the catalogue (FK set them to NULL). */
+    @Query("DELETE FROM collection_entries WHERE cardId IS NULL")
+    suspend fun deleteOrphaned(): Int
 }
+
+data class OwnedQuantity(val cardId: String, val quantity: Int)

@@ -2,82 +2,87 @@ package com.scanrift.android.service.feedback
 
 import android.content.Context
 import android.media.AudioAttributes
-import android.media.SoundPool
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import timber.log.Timber
+import com.scanrift.android.core.log.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
- * Haptic and sound feedback service for the scanner.
+ * Haptics and sound for the scanner.
+ *
+ * Sound uses [ToneGenerator] rather than a SoundPool. The previous version wired up a
+ * SoundPool but never loaded any samples — the ids stayed 0 — so the Settings toggle
+ * did nothing at all. There are no sound assets in the project and iOS falls back to
+ * system sounds anyway, so short tones are the honest equivalent.
  */
-class FeedbackService(private val context: Context) {
-
-    private val vibrator: Vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val manager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-        manager.defaultVibrator
-    } else {
-        @Suppress("DEPRECATION")
-        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-    }
-
-    private val soundPool: SoundPool = SoundPool.Builder()
-        .setMaxStreams(3)
-        .setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-        )
-        .build()
-
-    // Sound IDs will be loaded when available
-    private var scanSuccessSound: Int = 0
-    private var errorSound: Int = 0
-
-    /**
-     * Trigger haptic feedback for a successful scan.
-     */
-    fun scanSuccess(hapticEnabled: Boolean, soundEnabled: Boolean) {
-        if (hapticEnabled) {
-            vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-        }
-        if (soundEnabled && scanSuccessSound != 0) {
-            soundPool.play(scanSuccessSound, 0.5f, 0.5f, 1, 0, 1f)
+@Singleton
+class FeedbackService @Inject constructor(
+    @param:ApplicationContext private val context: Context,
+) {
+    private val vibrator: Vibrator? by lazy {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         }
     }
 
-    /**
-     * Trigger haptic feedback for an error.
-     */
-    fun error(hapticEnabled: Boolean, soundEnabled: Boolean) {
-        if (hapticEnabled) {
-            vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+    private var toneGenerator: ToneGenerator? = null
+
+    private fun tones(): ToneGenerator? {
+        if (toneGenerator == null) {
+            toneGenerator = runCatching {
+                ToneGenerator(AudioManager.STREAM_NOTIFICATION, TONE_VOLUME)
+            }.onFailure { Log.general.w(it, "Could not create the tone generator") }.getOrNull()
         }
-        if (soundEnabled && errorSound != 0) {
-            soundPool.play(errorSound, 0.3f, 0.3f, 1, 0, 1f)
-        }
+        return toneGenerator
     }
 
-    /**
-     * Light haptic tick (e.g., when motion is detected).
-     */
-    fun tick(hapticEnabled: Boolean) {
-        if (hapticEnabled) {
-            vibrate(VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE))
-        }
+    fun scanSuccess(haptics: Boolean, sound: Boolean) {
+        if (haptics) vibrate(SUCCESS_MS)
+        if (sound) tones()?.startTone(ToneGenerator.TONE_PROP_BEEP, SHORT_TONE_MS)
     }
 
-    private fun vibrate(effect: VibrationEffect) {
-        try {
-            vibrator.vibrate(effect)
-        } catch (e: Exception) {
-            Timber.w(e, "Vibration failed")
-        }
+    fun error(haptics: Boolean, sound: Boolean) {
+        if (haptics) vibrate(ERROR_MS)
+        if (sound) tones()?.startTone(ToneGenerator.TONE_PROP_NACK, LONG_TONE_MS)
+    }
+
+    fun sessionComplete(haptics: Boolean, sound: Boolean) {
+        if (haptics) vibrate(COMPLETE_MS)
+        if (sound) tones()?.startTone(ToneGenerator.TONE_PROP_ACK, LONG_TONE_MS)
+    }
+
+    /** Light tick for steppers and selection changes. */
+    fun tick(haptics: Boolean) {
+        if (haptics) vibrate(TICK_MS)
+    }
+
+    private fun vibrate(durationMs: Long) {
+        val device = vibrator ?: return
+        if (!device.hasVibrator()) return
+        device.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
     }
 
     fun release() {
-        soundPool.release()
+        toneGenerator?.release()
+        toneGenerator = null
+    }
+
+    private companion object {
+        const val TONE_VOLUME = 70
+        const val SHORT_TONE_MS = 120
+        const val LONG_TONE_MS = 200
+        const val SUCCESS_MS = 50L
+        const val ERROR_MS = 100L
+        const val COMPLETE_MS = 150L
+        const val TICK_MS = 10L
     }
 }
