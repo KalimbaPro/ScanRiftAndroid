@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.scanrift.android.data.prefs.UserPreferences
 import com.scanrift.android.data.repository.CollectionRepository
+import com.scanrift.android.domain.model.ScoreInputMode
 import com.scanrift.android.service.backup.BackupService
 import com.scanrift.android.service.backup.RestoreResult
 import com.scanrift.android.service.sync.BootstrapState
@@ -40,6 +41,7 @@ data class SettingsState(
     val dynamicColor: Boolean = false,
     val lastDatabaseSync: Long? = null,
     val lastBackup: Long? = null,
+    val scoreInputMode: ScoreInputMode = ScoreInputMode.TAP_ZONES,
 )
 
 @HiltViewModel
@@ -75,7 +77,8 @@ class SettingsViewModel @Inject constructor(
             ::Triple,
         ),
         combine(userPreferences.lastDatabaseSync, userPreferences.lastBackup, ::Pair),
-    ) { counts, feedback, display, timestamps ->
+        userPreferences.scoreInputMode,
+    ) { counts, feedback, display, timestamps, scoreInputMode ->
         SettingsState(
             cardCount = counts.first,
             totalCards = counts.second,
@@ -88,6 +91,7 @@ class SettingsViewModel @Inject constructor(
             dynamicColor = display.third,
             lastDatabaseSync = timestamps.first,
             lastBackup = timestamps.second,
+            scoreInputMode = scoreInputMode,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsState())
 
@@ -97,6 +101,7 @@ class SettingsViewModel @Inject constructor(
     fun setDebugMode(value: Boolean) = update { userPreferences.setDebugMode(value) }
     fun setShowUnownedInColor(value: Boolean) = update { userPreferences.setShowUnownedInColor(value) }
     fun setDynamicColor(value: Boolean) = update { userPreferences.setDynamicColor(value) }
+    fun setScoreInputMode(value: ScoreInputMode) = update { userPreferences.setScoreInputMode(value) }
 
     fun clearCollection() = update { collectionRepository.clearCollection() }
 

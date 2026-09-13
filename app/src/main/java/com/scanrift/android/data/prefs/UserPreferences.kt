@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.scanrift.android.core.Constants
+import com.scanrift.android.domain.model.ScoreInputMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,6 +42,7 @@ class UserPreferences @Inject constructor(
         val lastBackup = longPreferencesKey(Constants.PreferenceKeys.LAST_BACKUP)
         val backupUri = stringPreferencesKey(Constants.PreferenceKeys.BACKUP_URI)
         val pointTrackerRoster = stringPreferencesKey(Constants.PreferenceKeys.POINT_TRACKER_ROSTER)
+        val scoreInputMode = stringPreferencesKey(Constants.PreferenceKeys.SCORE_INPUT_MODE)
     }
 
     val hapticFeedback: Flow<Boolean> = boolean(Keys.hapticFeedback, default = true)
@@ -66,6 +68,13 @@ class UserPreferences @Inject constructor(
     val backupUri: Flow<String?> = context.dataStore.data.map { it[Keys.backupUri] }
     val pointTrackerRoster: Flow<String?> = context.dataStore.data.map { it[Keys.pointTrackerRoster] }
 
+    /**
+     * Which point-tracker layout the seats use. Stored as the enum's raw value, never
+     * its name or ordinal; an unknown value falls back to the default.
+     */
+    val scoreInputMode: Flow<ScoreInputMode> =
+        context.dataStore.data.map { ScoreInputMode.fromValue(it[Keys.scoreInputMode]) }
+
     suspend fun setHapticFeedback(value: Boolean) = put(Keys.hapticFeedback, value)
     suspend fun setSoundFeedback(value: Boolean) = put(Keys.soundFeedback, value)
     suspend fun setAutoAddToCollection(value: Boolean) = put(Keys.autoAddToCollection, value)
@@ -80,6 +89,7 @@ class UserPreferences @Inject constructor(
         if (value == null) prefs.remove(Keys.backupUri) else prefs[Keys.backupUri] = value
     }
     suspend fun setPointTrackerRoster(value: String) = put(Keys.pointTrackerRoster, value)
+    suspend fun setScoreInputMode(value: ScoreInputMode) = put(Keys.scoreInputMode, value.value)
 
     private fun boolean(key: Preferences.Key<Boolean>, default: Boolean): Flow<Boolean> =
         context.dataStore.data.map { it[key] ?: default }

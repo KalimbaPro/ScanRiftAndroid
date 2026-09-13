@@ -12,6 +12,10 @@ import com.scanrift.android.domain.model.DeckEntry
 import com.scanrift.android.domain.model.DeckSection
 import com.scanrift.android.service.deck.DeckValidationError
 import com.scanrift.android.service.deck.DeckValidator
+import com.scanrift.android.service.export.CollectionExporter
+import com.scanrift.android.service.importer.DeckImportResult
+import com.scanrift.android.service.importer.DeckImportService
+import com.scanrift.android.service.importer.DeckListParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -48,6 +52,7 @@ data class DeckBuilderState(
 @HiltViewModel
 class DeckBuilderViewModel @Inject constructor(
     private val deckRepository: DeckRepository,
+    private val deckImportService: DeckImportService,
     collectionRepository: CollectionRepository,
 ) : ViewModel() {
 
@@ -116,6 +121,28 @@ class DeckBuilderViewModel @Inject constructor(
     fun remainingCopies(card: Card): Int {
         val currentDeck = state.value.deck ?: return DeckValidator.maxCopies(card)
         return (DeckValidator.maxCopies(card) - DeckValidator.copiesInDeck(currentDeck, card)).coerceAtLeast(0)
+    }
+
+    /** Set when an import finishes, so the screen can report what happened once. */
+    private val _importResult = MutableStateFlow<DeckImportResult?>(null)
+    val importResult: StateFlow<DeckImportResult?> = _importResult
+
+    fun clearImportResult() { _importResult.value = null }
+
+    /** Null until the deck has loaded — there is nothing to share before then. */
+    fun exportAsText(): String? = state.value.deck?.let { CollectionExporter.exportAsText(it) }
+
+    fun exportAsTts(): String? = state.value.deck?.let { CollectionExporter.exportAsTts(it) }
+
+    fun importText(raw: String) = runImport { DeckListParser.parseText(raw) }
+
+    fun importTts(raw: String) = runImport { DeckListParser.parseTts(raw) }
+
+    private fun runImport(parse: () -> com.scanrift.android.service.importer.ParsedDeckList) {
+        val id = deckId.value ?: return
+        viewModelScope.launch {
+            _importResult.value = deckImportService.import(id, parse())
+        }
     }
 
     /**

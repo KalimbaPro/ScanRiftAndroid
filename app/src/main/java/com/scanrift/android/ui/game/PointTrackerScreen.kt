@@ -3,9 +3,23 @@ package com.scanrift.android.ui.game
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipDescription
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
@@ -16,13 +30,17 @@ import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -30,10 +48,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -44,8 +64,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -58,8 +81,11 @@ import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragAndDropTransferData
 import androidx.compose.ui.draganddrop.mimeTypes
 import androidx.compose.ui.draganddrop.toAndroidDragEvent
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -73,6 +99,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -82,15 +110,19 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.core.Constants
 import com.scanrift.android.domain.model.ScoreCategory
+import com.scanrift.android.domain.model.ScoreInputMode
 import com.scanrift.android.ui.LocalImmersiveMode
 import com.scanrift.android.ui.theme.Dimens
-import com.scanrift.android.ui.theme.ScoreAbility
-import com.scanrift.android.ui.theme.ScoreConquer
-import com.scanrift.android.ui.theme.ScoreHold
+import com.scanrift.android.ui.theme.Motion
+import com.scanrift.android.ui.theme.TrackFrame
 import com.scanrift.android.ui.theme.domainColor
 import com.scanrift.android.ui.util.tapOrLongPress
+import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlinx.coroutines.delay
 
 /**
  * The Game tab.
@@ -155,8 +187,11 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
                     isFullBleed = state.isFullScreen,
                     legend = player.legendCardId?.let { state.legendsById[it] },
                     deckName = player.deckId?.let { id -> decks.firstOrNull { it.id == id }?.name },
+                    inputMode = state.inputMode,
                     onAdd = { category -> viewModel.addPoint(index, category) },
                     onRemove = { category -> viewModel.removePoint(index, category) },
+                    onUndo = { viewModel.undoPoint(index) },
+                    onSetXp = { value -> viewModel.setXp(index, value) },
                     onOpenSetup = { setupSeat = index },
                     onDropPlayer = { draggedId -> viewModel.swapPlayers(draggedId, index) },
                 )
@@ -303,8 +338,11 @@ private fun PlayerSeat(
     isFullBleed: Boolean,
     legend: com.scanrift.android.domain.model.Card?,
     deckName: String?,
+    inputMode: ScoreInputMode,
     onAdd: (ScoreCategory) -> Unit,
     onRemove: (ScoreCategory) -> Unit,
+    onUndo: () -> Unit,
+    onSetXp: (Int) -> Unit,
     onOpenSetup: () -> Unit,
     onDropPlayer: (String) -> Unit,
 ) {
@@ -397,6 +435,23 @@ private fun PlayerSeat(
                     val minDimension = min(maxWidth.value, maxHeight.value)
                     val buttonDiameter = min(60f, max(40f, minDimension * 0.16f)).dp
                     val scoreSize = max(56f, minDimension * 0.45f).sp
+                    val picker = rememberScorePickerState()
+
+                    // Reset the picker when the seat changes hands, so a swap never
+                    // leaves someone else's half-made choice hanging over the tile.
+                    LaunchedEffect(player.id, inputMode) { picker.close() }
+
+                    // The gesture layer sits directly over the art and under everything
+                    // else, so the name chip and the XP pill still win the hit test.
+                    if (inputMode == ScoreInputMode.TAP_ZONES) {
+                        ScoreTapLayer(
+                            state = picker,
+                            canUndo = player.score > 0,
+                            dotDiameter = buttonDiameter * 1.05f,
+                            onUndo = onUndo,
+                            onScore = onAdd,
+                        )
+                    }
 
                     // The name chip does double duty: tap opens this seat's setup, and
                     // long-press drags it onto another seat to swap the two. It is the
@@ -466,6 +521,14 @@ private fun PlayerSeat(
                         }
                     }
 
+                    XpPill(
+                        xp = player.xp,
+                        onSetXp = onSetXp,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(10.dp),
+                    )
+
                     Text(
                         text = "${player.score}",
                         fontSize = scoreSize,
@@ -477,28 +540,522 @@ private fun PlayerSeat(
                         // explicitly. The per-category counts below do animate.
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .padding(bottom = buttonDiameter + 36.dp),
+                            // Reserve only what is actually below: the breakdown bar is
+                            // a good deal shorter than the button row plus its captions.
+                            .padding(
+                                bottom = when (inputMode) {
+                                    ScoreInputMode.CATEGORY_BUTTONS -> buttonDiameter + 36.dp
+                                    ScoreInputMode.TAP_ZONES -> buttonDiameter * 0.55f + 20.dp
+                                },
+                            ),
                     )
 
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(buttonDiameter * 0.45f),
-                    ) {
-                        ScoreCategory.entries.forEach { category ->
-                            CategoryScoreButton(
-                                category = category,
-                                count = player.count(category),
-                                diameter = buttonDiameter,
-                                onAdd = { onAdd(category) },
-                                onRemove = { onRemove(category) },
-                            )
+                    when (inputMode) {
+                        ScoreInputMode.CATEGORY_BUTTONS -> Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(buttonDiameter * 0.45f),
+                        ) {
+                            ScoreCategory.entries.forEach { category ->
+                                CategoryScoreButton(
+                                    category = category,
+                                    count = player.count(category),
+                                    diameter = buttonDiameter,
+                                    onAdd = { onAdd(category) },
+                                    onRemove = { onRemove(category) },
+                                )
+                            }
                         }
+
+                        // Without the permanent category counts, the breakdown bar is
+                        // the only thing that says what the total is made of — and it is
+                        // what makes "undo the last point" legible as it shrinks.
+                        ScoreInputMode.TAP_ZONES -> ScoreTrack(
+                            player = player,
+                            cellHeight = buttonDiameter * 0.5f,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                        )
+                    }
+
+                    // Drawn last so the dots sit over the score and the track, but it
+                    // takes no input of its own — the layer below owns the whole gesture.
+                    if (inputMode == ScoreInputMode.TAP_ZONES) {
+                        ScorePickerDots(state = picker, dotDiameter = buttonDiameter * 1.05f)
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Where the fan of category dots sits, and which one the finger is over.
+ *
+ * Positions are held in the tile's own pixel space — the layer lives inside both
+ * rotation layers, so "up" and "right" are already the player's own.
+ */
+@Stable
+private class ScorePickerState {
+    var anchor by mutableStateOf(Offset.Unspecified)
+    var pointer by mutableStateOf(Offset.Unspecified)
+    var radius by mutableFloatStateOf(0f)
+    var dotRadius by mutableFloatStateOf(0f)
+
+    /**
+     * False until the finger has actually travelled.
+     *
+     * Opening the fan puts a dot close to the touch point, so hit-testing from the
+     * moment it appears would highlight whatever happens to sit under the thumb and
+     * score it on release — turning "tap to open the dots" into "tap to score a random
+     * category". Selection only arms once the drag starts.
+     */
+    var isArmed by mutableStateOf(false)
+
+    val isOpen: Boolean get() = anchor.isSpecified
+
+    /** The dot the finger is currently choosing, or null while the gesture is unarmed. */
+    val hovered: ScoreCategory? get() = if (isArmed) categoryAt(pointer) else null
+
+    /**
+     * The arc. Dots bloom up and out from the touch point rather than in a straight
+     * row, so the middle one is not hidden under the finger that opened them.
+     */
+    fun center(index: Int): Offset {
+        val radians = Math.toRadians(FAN_ANGLES[index].toDouble())
+        return Offset(
+            anchor.x + (radius * cos(radians)).toFloat(),
+            anchor.y + (radius * sin(radians)).toFloat(),
+        )
+    }
+
+    /** The dot under [point], with a generous slop so sliding between them feels sticky. */
+    fun categoryAt(point: Offset): ScoreCategory? {
+        if (!isOpen || point.isUnspecified) return null
+        val reach = dotRadius * 1.45f
+        var best: Int? = null
+        var bestDistance = Float.MAX_VALUE
+        ScoreCategory.entries.indices.forEach { index ->
+            val distance = (point - center(index)).getDistance()
+            if (distance <= reach && distance < bestDistance) {
+                best = index
+                bestDistance = distance
+            }
+        }
+        return best?.let { ScoreCategory.entries[it] }
+    }
+
+    /**
+     * Keeps the whole fan on the tile. Without this, opening near an edge throws two of
+     * the three dots off-screen and the gesture has nothing to land on.
+     *
+     * The bounds come from [FAN_ANGLES] rather than being hardcoded, so re-aiming the
+     * fan cannot silently leave the clamp describing the old geometry.
+     */
+    fun open(at: Offset, size: IntSize, radiusPx: Float, dotRadiusPx: Float) {
+        radius = radiusPx
+        dotRadius = dotRadiusPx
+        val margin = dotRadiusPx + 6f
+
+        var minDx = 0f
+        var maxDx = 0f
+        var minDy = 0f
+        var maxDy = 0f
+        FAN_ANGLES.forEach { angle ->
+            val radians = Math.toRadians(angle.toDouble())
+            val dx = (radiusPx * cos(radians)).toFloat()
+            val dy = (radiusPx * sin(radians)).toFloat()
+            minDx = min(minDx, dx)
+            maxDx = max(maxDx, dx)
+            minDy = min(minDy, dy)
+            maxDy = max(maxDy, dy)
+        }
+
+        anchor = Offset(
+            x = clamp(at.x, margin - minDx, size.width - margin - maxDx),
+            y = clamp(at.y, margin - minDy, size.height - margin - maxDy),
+        )
+        pointer = at
+        isArmed = false
+    }
+
+    /** Centres instead of clamping when the tile is too small to hold the fan at all. */
+    private fun clamp(value: Float, low: Float, high: Float) =
+        if (low <= high) value.coerceIn(low, high) else (low + high) / 2f
+
+    fun close() {
+        anchor = Offset.Unspecified
+        pointer = Offset.Unspecified
+        isArmed = false
+    }
+
+    private companion object {
+        /**
+         * Where the fan points and how wide it opens, in screen angles — negative is
+         * upward, so -90 aims it straight up out of the touch, the spread splitting
+         * evenly either side of the finger.
+         */
+        const val FAN_CENTER = -90f
+        const val FAN_SPREAD = 50f
+        val FAN_ANGLES = floatArrayOf(FAN_CENTER - FAN_SPREAD, FAN_CENTER, FAN_CENTER + FAN_SPREAD)
+    }
+}
+
+@Composable
+private fun rememberScorePickerState() = remember { ScorePickerState() }
+
+/**
+ * The whole tap-zone interaction, as one gesture.
+ *
+ * Left half takes a point back. Pressing the right half blooms the three category dots
+ * out of the touch point; keep the finger down, slide onto one and lift to score it —
+ * the same press-drag-release the Pinterest reaction picker uses. Lifting without moving
+ * leaves the dots up so they can be tapped instead, which is what you want when the
+ * phone is flat on a table and you are not holding it.
+ *
+ * One `pointerInput` owns all of it rather than two `clickable` zones plus an overlay:
+ * a drag that starts on the zone and ends on a dot is a single gesture, and splitting it
+ * across composables would end it the moment the finger left the zone.
+ */
+@Composable
+private fun BoxScope.ScoreTapLayer(
+    state: ScorePickerState,
+    canUndo: Boolean,
+    dotDiameter: androidx.compose.ui.unit.Dp,
+    onUndo: () -> Unit,
+    onScore: (ScoreCategory) -> Unit,
+) {
+    val undo by rememberUpdatedState(onUndo)
+    val score by rememberUpdatedState(onScore)
+    val allowUndo by rememberUpdatedState(canUndo)
+    val density = LocalDensity.current
+    val dotRadiusPx = with(density) { dotDiameter.toPx() } / 2f
+    val radiusPx = with(density) { (dotDiameter * 1.65f).toPx() }
+
+    Box(
+        Modifier
+            .matchParentSize()
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val openedNow = !state.isOpen
+
+                    if (openedNow) {
+                        if (down.position.x < size.width / 2f) {
+                            // Left half: a plain button, so it only fires if the finger
+                            // lifts on the same side it went down.
+                            val up = waitForUpOrCancellation()
+                            if (up != null && up.position.x < size.width / 2f && allowUndo) undo()
+                            return@awaitEachGesture
+                        }
+                        state.open(down.position, size, radiusPx, dotRadiusPx)
+                    } else {
+                        // The fan was already up, so this gesture is aimed at a dot from
+                        // the start — no travel needed before it can select one.
+                        state.isArmed = true
+                    }
+
+                    state.pointer = down.position
+                    var travelled = 0f
+                    drag(down.id) { change ->
+                        travelled += change.positionChange().getDistance()
+                        if (travelled > viewConfiguration.touchSlop) state.isArmed = true
+                        state.pointer = change.position
+                        change.consume()
+                    }
+
+                    // Order matters: a tap that merely opened the fan must not score,
+                    // even though a dot may well have bloomed under the finger.
+                    val opening = openedNow && travelled <= viewConfiguration.touchSlop
+                    val picked = if (opening) null else state.categoryAt(state.pointer)
+                    when {
+                        picked != null -> { state.close(); score(picked) }
+                        opening -> Unit
+                        else -> state.close()
+                    }
+                }
+            },
+    ) {
+        // Screen-position markers, purely decorative — the layer above owns the input.
+        Row(Modifier.matchParentSize()) {
+            ZoneMarker(Icons.Filled.Remove, enabled = canUndo, Alignment.CenterStart, Modifier.weight(1f))
+            ZoneMarker(Icons.Filled.Add, enabled = true, Alignment.CenterEnd, Modifier.weight(1f))
+        }
+        // TalkBack cannot press-and-drag, so both actions are exposed explicitly.
+        Box(
+            Modifier.matchParentSize().semantics {
+                customActions = ScoreCategory.entries.map { category ->
+                    CustomAccessibilityAction("Score ${category.displayName}") { score(category); true }
+                } + CustomAccessibilityAction("Take back the last point") { undo(); true }
+            },
+        )
+    }
+}
+
+@Composable
+private fun ZoneMarker(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    enabled: Boolean,
+    alignment: Alignment,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier.fillMaxHeight(), contentAlignment = alignment) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = if (enabled) 0.5f else 0.2f),
+            modifier = Modifier.padding(horizontal = 16.dp).size(28.dp),
+        )
+    }
+}
+
+/**
+ * The dots themselves, drawn at the positions [ScorePickerState] computed.
+ *
+ * Takes no input: the gesture that opened them is still running, and a `clickable` here
+ * would fight it for the pointer.
+ */
+@Composable
+private fun BoxScope.ScorePickerDots(
+    state: ScorePickerState,
+    dotDiameter: androidx.compose.ui.unit.Dp,
+) {
+    if (!state.isOpen) return
+    val hovered = state.hovered
+
+    // Scrim, so the tile reads as "pick one" rather than "something is floating here".
+    Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.45f)))
+
+    ScoreCategory.entries.forEachIndexed { index, category ->
+        FannedCategoryDot(
+            category = category,
+            index = index,
+            center = state.center(index),
+            diameter = dotDiameter,
+            isHovered = category == hovered,
+        )
+    }
+}
+
+/**
+ * One dot, springing out of the touch point with a short per-index delay so the three
+ * arrive in sequence rather than as a block.
+ */
+@Composable
+private fun BoxScope.FannedCategoryDot(
+    category: ScoreCategory,
+    index: Int,
+    center: Offset,
+    diameter: androidx.compose.ui.unit.Dp,
+    isHovered: Boolean,
+) {
+    val bloom = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(index * FAN_STAGGER_MS)
+        bloom.animateTo(1f, Motion.press())
+    }
+    val hoverScale by animateFloatAsState(
+        targetValue = if (isHovered) 1.22f else 1f,
+        animationSpec = Motion.press(),
+        label = "dotHover",
+    )
+    val density = LocalDensity.current
+    val radiusPx = with(density) { diameter.toPx() } / 2f
+
+    Box(
+        modifier = Modifier
+            .offset {
+                IntOffset((center.x - radiusPx).roundToInt(), (center.y - radiusPx).roundToInt())
+            }
+            .size(diameter)
+            .scale(bloom.value * hoverScale)
+            .alpha(bloom.value)
+            .clip(CircleShape)
+            .background(Brush.linearGradient(listOf(category.color, category.color.copy(alpha = 0.75f))))
+            .then(
+                if (isHovered) Modifier.border(3.dp, Color.White, CircleShape) else Modifier,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = category.icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(diameter * 0.44f),
+        )
+    }
+}
+
+private const val FAN_STAGGER_MS = 45L
+
+/**
+ * The scoring track: one cell per point, in the order the points were taken.
+ *
+ * A proportional "3 conquer, 2 hold" summary cannot show sequence, and sequence is what
+ * the tap-zone layout needs — the single decrement button takes the *last* point back, so
+ * you have to be able to see which one that is. The rightmost cell is always the one the
+ * next undo removes.
+ *
+ * Cells keep a fixed size while they fit, so the rail visibly grows as the game goes on;
+ * past that they share the width equally and drop their icons rather than overflowing.
+ * A 99-point game is legal, even if no real one gets there.
+ */
+@Composable
+private fun ScoreTrack(
+    player: PlayerState,
+    cellHeight: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+) {
+    val points = remember(player.scoreLog, player.conquer, player.hold, player.ability) {
+        player.orderedPoints()
+    }
+
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+        if (points.isEmpty()) return@BoxWithConstraints
+
+        val gap = 2.dp
+        // Fixed width until the rail runs out of room, then an equal share of what is left.
+        val fitted = (maxWidth - gap * (points.size - 1)) / points.size
+        val cellWidth = min(cellHeight.value, fitted.value).coerceAtLeast(3f).dp
+        val showIcons = cellWidth >= 13.dp
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color.Black.copy(alpha = 0.45f))
+                .border(1.dp, TrackFrame, RoundedCornerShape(6.dp))
+                .padding(3.dp)
+                .animateContentSize(Motion.snappy())
+                .semantics {
+                    contentDescription = "Scored " + points.joinToString(", ") { it.displayName }
+                },
+        ) {
+            points.forEach { category ->
+                ScoreTrackCell(category, cellWidth, cellHeight, showIcons)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScoreTrackCell(
+    category: ScoreCategory,
+    width: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp,
+    showIcon: Boolean,
+) {
+    Box(
+        modifier = Modifier
+            .size(width = width, height = height)
+            .clip(RoundedCornerShape(3.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(category.color, category.color.copy(alpha = 0.78f)),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (showIcon) {
+            Icon(
+                imageVector = category.icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(min(width.value, height.value).dp * 0.62f),
+            )
+        }
+    }
+}
+
+/**
+ * The XP counter, ported from iOS.
+ *
+ * Collapsed it is just the number; tapping expands it into a stepper. It lives inside
+ * the rotation layers so it turns with the seat, and it swallows its own taps so they
+ * never fall through to the scoring zone underneath.
+ */
+@Composable
+private fun XpPill(
+    xp: Int,
+    onSetXp: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(percent = 50))
+            .background(Color.Black.copy(alpha = 0.45f))
+            .animateContentSize(Motion.pill())
+            .padding(horizontal = if (expanded) 6.dp else 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        if (expanded) {
+            XpStepButton(
+                symbol = "\u2212",
+                label = "Decrease XP",
+                enabled = xp > 0,
+                onClick = { onSetXp(xp - 1) },
+            )
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClickLabel = "Toggle the XP stepper") { expanded = !expanded }
+                .padding(horizontal = 4.dp),
+        ) {
+            Text(
+                text = "$xp",
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp,
+            )
+            Text(
+                text = "XP",
+                color = Color.White.copy(alpha = 0.75f),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 9.sp,
+            )
+        }
+
+        if (expanded) {
+            XpStepButton(
+                symbol = "+",
+                label = "Increase XP",
+                enabled = xp < Constants.PointTracker.XP_MAX,
+                onClick = { onSetXp(xp + 1) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun XpStepButton(
+    symbol: String,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, onClickLabel = label, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = symbol,
+            color = Color.White.copy(alpha = if (enabled) 1f else 0.3f),
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+        )
     }
 }
 
@@ -517,11 +1074,7 @@ private fun CategoryScoreButton(
     onRemove: () -> Unit,
 ) {
     var pressed by remember { mutableStateOf(false) }
-    val color = when (category) {
-        ScoreCategory.CONQUER -> ScoreConquer
-        ScoreCategory.HOLD -> ScoreHold
-        ScoreCategory.ABILITY -> ScoreAbility
-    }
+    val color = category.color
     val scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (pressed) 0.85f else 1f,
         animationSpec = com.scanrift.android.ui.theme.Motion.press(),
