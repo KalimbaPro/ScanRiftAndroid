@@ -42,8 +42,8 @@ android {
         targetSdk = 36
         // Play refuses a re-upload at a versionCode that has already been used, so
         // this only ever goes up, once per release, whether or not Play saw the last one.
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

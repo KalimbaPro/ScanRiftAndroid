@@ -74,6 +74,31 @@ class DeckRepository @Inject constructor(
         }
     }
 
+    /**
+     * Replaces a deck's contents wholesale — the import path.
+     *
+     * Deliberately not a loop over [addCard]: that adds one card at a time, silently
+     * returns false past a copy limit, and would leave a half-built deck behind if a
+     * later line failed. The caller has already resolved and clamped everything, so
+     * this writes the finished picture in one transaction.
+     */
+    suspend fun replaceContents(
+        deckId: String,
+        legendCardId: String?,
+        championCardId: String?,
+        entries: List<DeckEntryEntity>,
+    ) = withContext(io) {
+        val deck = deckDao.getById(deckId) ?: return@withContext
+        deckDao.replaceContents(
+            deck.copy(
+                legendCardId = legendCardId,
+                championCardId = championCardId,
+                lastModifiedDate = now(),
+            ),
+            entries,
+        )
+    }
+
     suspend fun addCard(
         deck: Deck,
         card: Card,

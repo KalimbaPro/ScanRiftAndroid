@@ -193,18 +193,22 @@ class CollectionExporterTest {
     }
 
     @Test
-    fun `text export groups by section with the legend's tag`() {
-        val legend = card(id = "l", name = "Akali Legend").copy(tags = listOf("Akali"))
+    fun `text export groups by section and writes names in decklist spelling`() {
+        val legend = card(id = "l", name = "Ornn - Fire Below the Mountain").copy(tags = listOf("Ornn"))
+        val champion = card(id = "ch", name = "Ornn - Blacksmith")
         val unit = card(id = "u", name = "Shadow Dancer")
         val deck = Deck(
-            id = "d1", createdDate = 1L, lastModifiedDate = 1L, legend = legend,
+            id = "d1", createdDate = 1L, lastModifiedDate = 1L, legend = legend, champion = champion,
             entries = listOf(
                 DeckEntry(deckId = "d1", cardId = unit.id, card = unit, quantity = 3, section = DeckSection.MAIN_DECK),
             ),
         )
 
         val text = CollectionExporter.exportAsText(deck)
-        assertThat(text).contains("Legend:\n1 Akali, Akali Legend")
+        // The hyphen in the card data becomes the comma every decklist uses. The tag is
+        // *not* prepended: doing so used to emit "1 Ornn, Ornn - Fire Below the Mountain".
+        assertThat(text).contains("Legend:\n1 Ornn, Fire Below the Mountain")
+        assertThat(text).contains("Champion:\n1 Ornn, Blacksmith")
         assertThat(text).contains("MainDeck:\n3 Shadow Dancer")
         // Empty sections are omitted entirely.
         assertThat(text).doesNotContain("Runes:")

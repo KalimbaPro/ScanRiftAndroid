@@ -67,6 +67,23 @@ interface CardDao {
     @Query("SELECT * FROM cards WHERE publicCode = :publicCode ORDER BY alternateArt ASC, id ASC LIMIT 1")
     suspend fun findByPublicCode(publicCode: String): CardEntity?
 
+    /**
+     * Matches on the public-code *prefix*, which is what a TTS export emits.
+     *
+     * `publicCode` is stored whole (`OGN-021/298`) but the TTS format drops everything
+     * from the slash on, so a prefix search is the only way back. Card codes contain no
+     * `%` or `_`, so the LIKE pattern needs no escaping.
+     */
+    @Query(
+        """
+        SELECT * FROM cards
+        WHERE publicCode = :code OR publicCode LIKE :code || '/%'
+        ORDER BY alternateArt ASC, id ASC
+        LIMIT 1
+        """,
+    )
+    suspend fun findByPublicCodePrefix(code: String): CardEntity?
+
     @Query(
         """
         SELECT * FROM cards

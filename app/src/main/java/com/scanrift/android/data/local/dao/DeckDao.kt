@@ -78,6 +78,19 @@ interface DeckDao {
     @Query("DELETE FROM deck_entries WHERE deckId = :deckId")
     suspend fun deleteAllEntriesForDeck(deckId: String)
 
+    /**
+     * Swaps a deck's whole contents in one transaction — the import path.
+     *
+     * The delete and the insert have to be atomic: a crash between them would leave the
+     * user staring at an empty deck with no way back.
+     */
+    @Transaction
+    suspend fun replaceContents(deck: DeckEntity, entries: List<DeckEntryEntity>) {
+        deleteAllEntriesForDeck(deck.id)
+        if (entries.isNotEmpty()) upsertEntries(entries)
+        upsertDeck(deck)
+    }
+
     @Query("DELETE FROM deck_entries WHERE cardId IS NULL")
     suspend fun deleteOrphanedEntries(): Int
 }

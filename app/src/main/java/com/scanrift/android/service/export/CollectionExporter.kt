@@ -172,17 +172,23 @@ object CollectionExporter {
         return tokens.joinToString(" ")
     }
 
-    /** Human-readable deck list. */
+    /**
+     * Human-readable deck list, in the spelling the rest of the ecosystem uses.
+     *
+     * Card data separates a character from their title with a hyphen — `Ornn - Fire
+     * Below the Mountain` — while every decklist in the wild writes a comma. [listName]
+     * does that swap on the way out, and `DeckListParser` undoes it on the way back in,
+     * so an export round-trips through the importer.
+     */
     fun exportAsText(deck: Deck): String = buildString {
         deck.legend?.let { legend ->
             appendLine("Legend:")
-            val tag = legend.tags.firstOrNull()
-            appendLine(if (tag != null) "1 $tag, ${legend.name}" else "1 ${legend.name}")
+            appendLine("1 ${listName(legend)}")
             appendLine()
         }
         deck.champion?.let {
             appendLine("Champion:")
-            appendLine("1 ${it.name}")
+            appendLine("1 ${listName(it)}")
             appendLine()
         }
         listOf(
@@ -194,10 +200,14 @@ object CollectionExporter {
             val entries = deck.entries.filter { it.section == section && it.card != null }
             if (entries.isEmpty()) return@forEach
             appendLine(header)
-            entries.forEach { appendLine("${it.quantity} ${it.card!!.name}") }
+            entries.forEach { appendLine("${it.quantity} ${listName(it.card!!)}") }
             appendLine()
         }
     }.trimEnd().plus("\n")
+
+    /** Decklist spelling of a card name: `Ornn - Blacksmith` becomes `Ornn, Blacksmith`. */
+    private fun listName(card: com.scanrift.android.domain.model.Card): String =
+        card.name.replace(" - ", ", ")
 
     private val PRETTY = Json { prettyPrint = true; prettyPrintIndent = "  " }
 

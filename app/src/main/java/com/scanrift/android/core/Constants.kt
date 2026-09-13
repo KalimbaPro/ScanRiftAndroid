@@ -124,6 +124,7 @@ object Constants {
         const val LAST_BACKUP = "lastBackup"
         const val BACKUP_URI = "backupUri"
         const val POINT_TRACKER_ROSTER = "pointTracker.roster.v1"
+        const val SCORE_INPUT_MODE = "scoreInputMode"
     }
 
     object FileNames {

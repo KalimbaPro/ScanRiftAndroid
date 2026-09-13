@@ -58,6 +58,12 @@ val ScoreConquer = Color(0xFFE8641B)
 val ScoreHold = Color(0xFF2E7CD6)
 val ScoreAbility = Color(0xFF8B5CC9)
 
+/**
+ * Hairline around the scoring track. Warm, but deliberately not the `0xFFFFD60A` used
+ * for the starting-player border — two golds on one tile would read as the same signal.
+ */
+val TrackFrame = Color(0x66C9A227)
+
 // ── Card list presets ────────────────────────────────────────────────────────
 // iOS `CreateListSheet` swatches. Order matters — it drives the 5-per-row picker grid.
 val ListColorPresets: List<Pair<String, String>> = listOf(

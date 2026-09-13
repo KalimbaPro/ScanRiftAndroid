@@ -155,6 +155,72 @@ database, the backup snapshot and every export verbatim. Never store `name` or o
    trailing lambda is ambiguous against the `transferData` overload. It bypasses
    accessibility, so add the tap action back via `semantics { onClick(...) }`.
 
+**Decklists spell a card's name differently from the card data.** The catalogue writes
+`Ornn - Fire Below the Mountain`; every decklist in the wild — riftbound.gg, TTS, the
+paste box — writes `Ornn, Fire Below the Mountain`. `CollectionExporter.listName` swaps
+`" - "` for `", "` on the way out and `DeckListParser.nameVariants` offers both spellings
+on the way in, so an export round-trips through the importer. Do not "fix" the exporter
+back to `card.name`, and do not drop the raw spelling from the front of the variant list:
+`Allay, Eager Admirer` is a real card name with a real comma in it, so the literal
+spelling has to be tried first and win.
+
+The legend line used to be written as `"1 $firstTag, $name"`, which on real data emitted
+`1 Ornn, Ornn - Fire Below the Mountain`. The tag is gone; the comma now comes from the
+name itself.
+
+**Importing a decklist replaces the deck, and must do it in one transaction.** Go through
+`DeckDao.replaceContents`, never a loop over `DeckRepository.addCard` — that adds one card
+at a time, silently returns `false` past a copy limit, and would leave a half-built deck
+behind when a later line failed. The delete and the insert are atomic on purpose: a crash
+between them would leave the user staring at an empty deck with no way back.
+
+Two import traps worth knowing. The champion is a **slot**, and a text list names it under
+`Champion:` *and* again in `MainDeck:` — count it in both places and every champion
+doubles. A TTS export emits one extra token for the champion slot on top of its main-deck
+copies, which is what the `- 1` in the TTS branch takes back off. And TTS carries no
+sections at all, so a sideboard cannot survive that round trip; the summary says so.
+
+**The point tracker has two layouts, and the tap layer lives inside the rotation.** A seat
+reads `ScoreInputMode` (`tapZones` by default, `categoryButtons` for the old three-circle
+layout). Put `ScoreTapLayer` *inside* both `RotatedContent` layers so "left" is the
+player's own left — on the quarter-turned side seats of the three- and four-player layouts
+that reads as a vertical split on screen, which is correct. This is the opposite of the
+drag-and-drop rule above: touch hit-testing honours the transform, so taps are fine inside
+a rotation; only drop targets are not.
+
+**Scoring is one gesture, so it has to be one `pointerInput`.** Pressing the right half
+blooms the category dots out of the touch point; the finger then slides onto one and lifts
+to score it. That press-drag-release is a *single* gesture, so it cannot be split across a
+`clickable` zone and a separate overlay with its own `clickable` dots — the gesture would
+end the moment the finger left the zone. `ScoreTapLayer` owns the whole thing and
+`ScorePickerDots` is pure drawing (`allowsHitTesting` equivalent: no input modifiers at
+all). Releasing without moving deliberately leaves the dots up so they can be tapped
+instead, which is the case when the phone is flat on the table.
+
+`ScorePickerState.open` clamps the anchor so the whole fan stays on the tile. Without it,
+pressing near an edge throws two of the three dots off the tile and the drag has nothing
+to land on — the fan shifts rather than the dots reordering, so left-to-right order stays
+the same wherever you press.
+
+Z-order inside the seat is load-bearing. The tap layer goes first, so the name chip and
+the XP pill are hit-tested before it; the dots are drawn last so they sit over the score
+and the track.
+
+**The scoring track draws one cell per point, not a proportional summary.** A
+"3 conquer, 2 hold" bar cannot show sequence, and sequence is the whole point: the single
+decrement button takes the *last* point back, so the trailing cell has to be the one that
+disappears. `PlayerState.orderedPoints()` reconciles `scoreLog` against the counts so the
+track always has exactly `score` cells even when the log is stale.
+
+**`PlayerState.scoreLog` is what makes a single decrement button unambiguous.** The
+tap-zone layout has one "take a point back" control and no way to ask which category lost
+it, so every seat remembers the order its points were scored in and the undo pops the end.
+Maintain the log in **both** layouts — `scored` appends, `unscored` drops that category's
+last entry — or switching mode mid-game desynchronises it. It falls back to draining the
+largest category when the log cannot answer (a roster restored from a build that had no
+log), and clears the log when it does, because a log that disagrees with the counts has
+already proven itself untrustworthy.
+
 **A `DisplayCard.id` is not a stable identity.** It encodes the owned variant, so it
 changes the moment a card is added to the collection. The collection navigator is keyed
 on `card.id` for that reason — keying on the row id dropped the detail pane the instant
@@ -165,7 +231,7 @@ commas and all, in the header *and* the data rows. Golden tests pin this.
 
 ## Deck rules
 
-40+ main deck, exactly 12 runes, exactly 3 battlefields, max 8 sideboard, max 3 copies
+40+ main deck, exactly 12 runes, exactly 3 battlefields, max 10 sideboard, max 3 copies
 per `cleanName`, max 3 signature cards. The carve-outs are the easy part to get wrong
 and each has a test: empty-domain cards are exempt from domain identity, the signature
 cap counts the **main deck only** while the copy limit spans the sideboard, and runes

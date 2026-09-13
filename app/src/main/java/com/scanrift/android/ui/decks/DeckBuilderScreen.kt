@@ -1,5 +1,6 @@
 package com.scanrift.android.ui.decks
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,7 +30,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -42,6 +48,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -50,12 +57,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -86,6 +95,30 @@ fun DeckBuilderScreen(
 ) {
     LaunchedEffect(deckId) { viewModel.load(deckId) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val importResult by viewModel.importResult.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    var exportMenuOpen by remember { mutableStateOf(false) }
+    var importMenuOpen by remember { mutableStateOf(false) }
+    var importMode by remember { mutableStateOf<DeckImportMode?>(null) }
+    // Held while the replace warning is up, so the pasted text survives the dialog.
+    var pendingImport by remember { mutableStateOf<Pair<DeckImportMode, String>?>(null) }
+
+    fun share(text: String?) {
+        if (text.isNullOrBlank()) return
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share deck"))
+    }
+
+    fun runImport(mode: DeckImportMode, raw: String) {
+        when (mode) {
+            DeckImportMode.TEXT -> viewModel.importText(raw)
+            DeckImportMode.TTS -> viewModel.importTts(raw)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -94,6 +127,33 @@ fun DeckBuilderScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { importMenuOpen = true }) {
+                        Icon(Icons.Filled.FileDownload, contentDescription = "Import deck")
+                    }
+                    DropdownMenu(expanded = importMenuOpen, onDismissRequest = { importMenuOpen = false }) {
+                        DeckImportMode.entries.forEach { mode ->
+                            DropdownMenuItem(
+                                text = { Text(mode.title) },
+                                onClick = { importMenuOpen = false; importMode = mode },
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = { exportMenuOpen = true }) {
+                        Icon(Icons.Filled.IosShare, contentDescription = "Export deck")
+                    }
+                    DropdownMenu(expanded = exportMenuOpen, onDismissRequest = { exportMenuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Export for TTS") },
+                            onClick = { exportMenuOpen = false; share(viewModel.exportAsTts()) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Export as Text") },
+                            onClick = { exportMenuOpen = false; share(viewModel.exportAsText()) },
+                        )
                     }
                 },
             )
@@ -141,6 +201,68 @@ fun DeckBuilderScreen(
                 }
             }
         }
+    }
+
+    importMode?.let { mode ->
+        DeckImportSheet(
+            mode = mode,
+            onDismiss = { importMode = null },
+            onImport = { raw ->
+                importMode = null
+                // An import describes a whole deck, so it replaces what is there. Say so
+                // first when that would actually cost the user something.
+                val deck = state.deck
+                val hasContents = deck != null && (deck.entries.isNotEmpty() || deck.legend != null)
+                if (hasContents) pendingImport = mode to raw else runImport(mode, raw)
+            },
+        )
+    }
+
+    pendingImport?.let { (mode, raw) ->
+        AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text("Replace this deck?") },
+            text = {
+                Text("Importing replaces the ${state.totalCards} cards already in this deck.")
+            },
+            confirmButton = {
+                TextButton(onClick = { pendingImport = null; runImport(mode, raw) }) { Text("Replace") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingImport = null }) { Text("Cancel") }
+            },
+        )
+    }
+
+    importResult?.let { result ->
+        AlertDialog(
+            onDismissRequest = viewModel::clearImportResult,
+            title = { Text("Import complete") },
+            text = {
+                Column {
+                    Text("Added ${result.cardsAdded} cards.")
+                    if (result.skippedLines.isNotEmpty()) {
+                        Text(
+                            "Skipped ${result.skippedLines.size}: " +
+                                result.skippedLines.take(5).joinToString(", ") +
+                                if (result.skippedLines.size > 5) "…" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Text(
+                            "Cards from a set you have not synced yet will not resolve. " +
+                                "Update the card database in Settings and import again.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    result.notes.forEach {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = viewModel::clearImportResult) { Text("OK") } },
+        )
     }
 }
 

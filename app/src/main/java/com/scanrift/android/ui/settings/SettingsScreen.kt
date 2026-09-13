@@ -25,6 +25,9 @@ import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.core.Constants
+import com.scanrift.android.domain.model.ScoreInputMode
 import com.scanrift.android.service.sync.BootstrapState
 import com.scanrift.android.ui.theme.Dimens
 import java.text.SimpleDateFormat
@@ -112,6 +116,10 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 checked = state.dynamicColor,
                 onCheckedChange = viewModel::setDynamicColor,
             )
+
+            SectionDivider()
+            SectionHeader("Game")
+            ScoreInputModeRow(state.scoreInputMode, viewModel::setScoreInputMode)
 
             SectionDivider()
             SectionHeader("Collection")
@@ -266,6 +274,37 @@ private fun StatRow(label: String, value: String, highlight: Boolean = false) {
             text = value,
             style = MaterialTheme.typography.bodyLarge,
             color = if (highlight) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * The point tracker's two seat layouts.
+ *
+ * A segmented row rather than a switch: neither option is "on", and the description
+ * under it has to change with the choice for the labels to mean anything.
+ */
+@Composable
+private fun ScoreInputModeRow(
+    selected: ScoreInputMode,
+    onSelect: (ScoreInputMode) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text("Scoring layout", style = MaterialTheme.typography.bodyLarge)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            ScoreInputMode.entries.forEachIndexed { index, mode ->
+                SegmentedButton(
+                    selected = mode == selected,
+                    onClick = { onSelect(mode) },
+                    shape = SegmentedButtonDefaults.itemShape(index, ScoreInputMode.entries.size),
+                ) { Text(mode.displayName) }
+            }
+        }
+        Text(
+            selected.description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 6.dp),
         )
     }
 }
