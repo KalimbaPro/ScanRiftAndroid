@@ -7,6 +7,8 @@ import com.scanrift.android.data.local.entity.CollectionEntryEntity
 import com.scanrift.android.di.IoDispatcher
 import com.scanrift.android.domain.model.CardCondition
 import com.scanrift.android.domain.model.EntryKey
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -16,8 +18,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
@@ -34,6 +34,9 @@ class CollectionImportService @Inject constructor(
     private val db: ScanRiftDatabase,
     @param:IoDispatcher private val io: CoroutineDispatcher,
 ) {
+
+    suspend fun import(bytes: ByteArray, fileExtension: String?, now: Long): ImportResult =
+        import(decodeUtf8(bytes), fileExtension, now)
 
     suspend fun import(content: String, fileExtension: String?, now: Long): ImportResult =
         withContext(io) {
@@ -61,7 +64,7 @@ class CollectionImportService @Inject constructor(
     // ── Formats ──────────────────────────────────────────────────────────────
 
     private suspend fun importRiftboundGg(content: String, now: Long): ImportResult {
-        val rows = CsvParser.lines(content).drop(1)
+        val rows = dataRows(content)
         return applyRows(now) { session ->
             rows.forEach { line ->
                 val fields = CsvParser.parseLine(line)
@@ -91,7 +94,7 @@ class CollectionImportService @Inject constructor(
     }
 
     private suspend fun importCsv(content: String, now: Long): ImportResult {
-        val rows = CsvParser.lines(content).drop(1)
+        val rows = dataRows(content)
         return applyRows(now) { session ->
             rows.forEach { line ->
                 val fields = CsvParser.parseLine(line)
@@ -113,17 +116,16 @@ class CollectionImportService @Inject constructor(
     }
 
     private suspend fun importJson(content: String, now: Long): ImportResult {
-        val root = LENIENT.parseToJsonElement(content)
+        val root = runCatching { LENIENT.parseToJsonElement(content) }
+            .getOrElse { throw malformed("Invalid JSON: ${it.message}") }
         // Accepts both the legacy bare array and the current { collection: [...] }.
-        val items: JsonArray = when {
-            root is JsonArray -> root
-            root is JsonObject && root["collection"] != null -> root["collection"]!!.jsonArray
-            else -> throw ImportException("Unrecognised JSON structure")
-        }
+        val items = root as? JsonArray
+            ?: (root as? JsonObject)?.get("collection") as? JsonArray
+            ?: throw malformed("Expected a JSON collection array or an object with a \"collection\" array")
 
         return applyRows(now) { session ->
             items.forEach { element ->
-                val item = element.jsonObject
+                val item = element as? JsonObject ?: return@forEach
                 val name = item["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
                 val id = item["id"]?.jsonPrimitive?.contentOrNull
                 val quantity = item["quantity"]?.jsonPrimitive?.intOrNull ?: 1
@@ -141,6 +143,21 @@ class CollectionImportService @Inject constructor(
             }
         }
     }
+
+    private fun dataRows(content: String): List<String> {
+        val lines = CsvParser.lines(content)
+        if (lines.size <= 1) throw malformed("File is empty or has no data rows")
+        return lines.drop(1)
+    }
+
+    private fun decodeUtf8(bytes: ByteArray): String =
+        try {
+            Charsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString().removePrefix("\uFEFF")
+        } catch (_: CharacterCodingException) {
+            throw ImportException("Could not read the file. Make sure it's a valid text file.")
+        }
+
+    private fun malformed(detail: String) = ImportException("Could not parse the file: $detail")
 
     // ── Shared write path ────────────────────────────────────────────────────
 

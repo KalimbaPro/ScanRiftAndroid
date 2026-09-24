@@ -41,6 +41,7 @@ class UserPreferences @Inject constructor(
         val lastUpdateCheck = longPreferencesKey(Constants.PreferenceKeys.LAST_UPDATE_CHECK)
         val lastBackup = longPreferencesKey(Constants.PreferenceKeys.LAST_BACKUP)
         val backupUri = stringPreferencesKey(Constants.PreferenceKeys.BACKUP_URI)
+        val cloudSnapshotAutoSync = booleanPreferencesKey(Constants.PreferenceKeys.CLOUD_SNAPSHOT_AUTO_SYNC)
         val pointTrackerRoster = stringPreferencesKey(Constants.PreferenceKeys.POINT_TRACKER_ROSTER)
         val scoreInputMode = stringPreferencesKey(Constants.PreferenceKeys.SCORE_INPUT_MODE)
     }
@@ -66,6 +67,7 @@ class UserPreferences @Inject constructor(
     val lastUpdateCheck: Flow<Long?> = nullableLong(Keys.lastUpdateCheck)
     val lastBackup: Flow<Long?> = nullableLong(Keys.lastBackup)
     val backupUri: Flow<String?> = context.dataStore.data.map { it[Keys.backupUri] }
+    val cloudSnapshotAutoSync: Flow<Boolean> = boolean(Keys.cloudSnapshotAutoSync, default = true)
     val pointTrackerRoster: Flow<String?> = context.dataStore.data.map { it[Keys.pointTrackerRoster] }
 
     /**
@@ -88,6 +90,7 @@ class UserPreferences @Inject constructor(
     suspend fun setBackupUri(value: String?) = context.dataStore.edit { prefs ->
         if (value == null) prefs.remove(Keys.backupUri) else prefs[Keys.backupUri] = value
     }
+    suspend fun setCloudSnapshotAutoSync(value: Boolean) = put(Keys.cloudSnapshotAutoSync, value)
     suspend fun setPointTrackerRoster(value: String) = put(Keys.pointTrackerRoster, value)
     suspend fun setScoreInputMode(value: ScoreInputMode) = put(Keys.scoreInputMode, value.value)
 

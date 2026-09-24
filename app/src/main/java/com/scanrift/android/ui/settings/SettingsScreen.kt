@@ -1,5 +1,6 @@
 package com.scanrift.android.ui.settings
 
+import com.scanrift.android.ui.util.shareFile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -8,14 +9,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.TableChart
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,25 +42,32 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.scanrift.android.BuildConfig
 import com.scanrift.android.core.Constants
 import com.scanrift.android.domain.model.ScoreInputMode
 import com.scanrift.android.service.sync.BootstrapState
 import com.scanrift.android.ui.theme.Dimens
+import com.scanrift.android.ui.theme.SuccessGreen
 import java.text.SimpleDateFormat
 import java.util.Date
-import androidx.compose.ui.platform.LocalLocale
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 /**
  * Settings.
@@ -66,8 +82,10 @@ import java.util.Locale
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val operation by viewModel.operation.collectAsStateWithLifecycle()
-    val bootstrap by viewModel.bootstrapState.collectAsStateWithLifecycle()
+    val syncState by viewModel.syncState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
     var confirmClear by rememberSaveable { mutableStateOf(false) }
 
@@ -79,6 +97,14 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         // Many providers report .json as octet-stream, so the wildcard is necessary.
         ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let(viewModel::restore) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let(viewModel::importCollection) }
+
+    LaunchedEffect(viewModel) {
+        viewModel.sharedExports.collect { export -> context.shareFile(export.file, export.mimeType) }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -92,15 +118,21 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 .widthIn(max = Dimens.SettingsMaxWidth),
         ) {
             SectionHeader("Card Database")
-            StatRow("Cards in database", state.cardCount.toString(), highlight = state.cardCount == 0)
-            StatRow("Last updated", state.lastDatabaseSync.formatted())
-            BootstrapRow(bootstrap)
+            DatabaseStatusRow(state.cardCount, state.lastDatabaseSync)
+            SyncRow(
+                state = syncState,
+                catalogueIsEmpty = state.cardCount == 0,
+                onLoad = viewModel::loadCardDatabase,
+                onCheckForUpdates = viewModel::checkForUpdates,
+                onSettled = viewModel::resetSyncState,
+            )
+            SectionFooter("Load the card database to enable card scanning.")
 
             SectionDivider()
             SectionHeader("Scanning")
-            ToggleRow("Haptic feedback", state.hapticFeedback, viewModel::setHapticFeedback)
-            ToggleRow("Sound feedback", state.soundFeedback, viewModel::setSoundFeedback)
-            ToggleRow("Auto-add to collection", state.autoAddToCollection, viewModel::setAutoAddToCollection)
+            ToggleRow("Haptic Feedback", state.hapticFeedback, viewModel::setHapticFeedback)
+            ToggleRow("Sound Feedback", state.soundFeedback, viewModel::setSoundFeedback)
+            ToggleRow("Auto-add to Collection", state.autoAddToCollection, viewModel::setAutoAddToCollection)
 
             SectionDivider()
             SectionHeader("Appearance")
@@ -122,61 +154,119 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             ScoreInputModeRow(state.scoreInputMode, viewModel::setScoreInputMode)
 
             SectionDivider()
-            SectionHeader("Collection")
-            StatRow("Total cards", state.totalCards.toString())
-            StatRow("Unique cards", state.uniqueCards.toString())
-
-            SectionDivider()
-            SectionHeader("Backup")
-            Text(
-                text = "A single JSON file holding your collection, lists, decks and game " +
-                    "history. Save it anywhere — a Drive or Dropbox folder syncs it for you. " +
-                    "The format matches the iOS app, so a backup from either restores on the other.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-            ActionRow(
-                label = "Back up everything",
-                icon = Icons.Filled.CloudUpload,
-                onClick = { backupLauncher.launch(Constants.FileNames.BACKUP_SNAPSHOT) },
-            )
-            ActionRow(
-                label = "Restore from backup",
-                icon = Icons.Filled.CloudDownload,
-                onClick = { restoreLauncher.launch(arrayOf("application/json", "text/json", "*/*")) },
-            )
-            StatRow("Last backup", state.lastBackup.formatted())
-
-            SectionDivider()
             SectionHeader("Developer")
-            ToggleRow("Debug mode", state.debugMode, viewModel::setDebugMode)
+            ToggleRow("Debug Mode", state.debugMode, viewModel::setDebugMode)
+            ToggleRow("Lucho Parameter", state.luchoParameter, viewModel::setLuchoParameter)
+            SectionFooter("Shows OCR output and motion detection status while scanning.")
 
             SectionDivider()
-            SectionHeader("Danger zone")
+            SectionHeader("Collection Statistics")
+            StatRow("Total Cards", state.totalCards.toString())
+            StatRow("Unique Cards", state.uniqueCards.toString())
+
+            SectionDivider()
+            SectionHeader("Data Management")
             ActionRow(
-                label = "Clear collection",
+                label = "Clear Collection",
                 icon = Icons.Filled.DeleteForever,
                 destructive = true,
+                enabled = state.hasEntries,
                 onClick = { confirmClear = true },
             )
 
             SectionDivider()
+            SectionHeader("Import")
+            ActionRow(
+                label = "Import Collection",
+                icon = Icons.Filled.FileOpen,
+                enabled = state.cardCount > 0,
+                onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "application/octet-stream")) },
+            )
+
+            SectionDivider()
+            SectionHeader("Export")
+            ActionRow(
+                label = "Export for riftbound.gg",
+                icon = Icons.Filled.UploadFile,
+                enabled = state.hasEntries,
+                onClick = { viewModel.export(ExportFormat.RIFTBOUND_GG) },
+            )
+            ActionRow(
+                label = "Export as CSV",
+                icon = Icons.Filled.TableChart,
+                enabled = state.hasEntries,
+                onClick = { viewModel.export(ExportFormat.CSV) },
+            )
+            ActionRow(
+                label = "Export All as JSON",
+                icon = Icons.Filled.Description,
+                enabled = state.hasEntries || state.hasDecks,
+                onClick = { viewModel.export(ExportFormat.JSON) },
+            )
+            SectionFooter(
+                "\"Export All as JSON\" includes your collection plus every deck and its game history. " +
+                    "CSV exports cover the collection only.",
+            )
+
+            SectionDivider()
+            SectionHeader("Backup")
+            ToggleRow(
+                title = "Automatic backup",
+                subtitle = "Save a snapshot to your backup file every 5 minutes.",
+                checked = state.cloudSnapshotAutoSync,
+                onCheckedChange = viewModel::setCloudSnapshotAutoSync,
+            )
+            ActionRow(
+                label = "Back Up Now",
+                icon = Icons.Filled.CloudUpload,
+                onClick = { viewModel.backUpNow { backupLauncher.launch(Constants.FileNames.BACKUP_SNAPSHOT) } },
+            )
+            ActionRow(
+                label = "Restore from Backup",
+                icon = Icons.Filled.CloudDownload,
+                onClick = { restoreLauncher.launch(arrayOf("application/json", "text/json", "*/*")) },
+            )
+            ActionRow(
+                label = "Choose Backup File",
+                icon = Icons.Filled.FolderOpen,
+                onClick = { backupLauncher.launch(Constants.FileNames.BACKUP_SNAPSHOT) },
+            )
+            StatRow("Backup File", state.backupFileName ?: "Not chosen")
+            StatRow("Last Backup", state.lastBackup.formatted())
+            SectionFooter(
+                "A JSON snapshot of your collection, lists, decks and game history, saved to a file you " +
+                    "choose. Put it in a Drive or Dropbox folder to keep it off this device. The format " +
+                    "matches the iOS app, so a backup from either restores on the other. Restoring merges " +
+                    "and never deletes anything.",
+            )
+
+            SectionDivider()
             SectionHeader("About")
-            StatRow("Version", com.scanrift.android.BuildConfig.VERSION_NAME)
+            StatRow("Version", BuildConfig.VERSION_NAME)
+            ActionRow(
+                label = "Riftbound Website",
+                icon = Icons.Filled.Language,
+                onClick = { uriHandler.openUri("https://riftbound.com") },
+            )
         }
     }
 
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            title = { Text("Clear collection?") },
-            text = { Text("Every owned card is removed. Decks and lists are kept. This cannot be undone.") },
+            title = { Text("Clear Collection") },
+            text = { Text("Are you sure you want to remove all cards from your collection? This cannot be undone.") },
             confirmButton = {
-                TextButton(onClick = { viewModel.clearCollection(); confirmClear = false }) { Text("Clear") }
+                TextButton(onClick = { viewModel.clearCollection(); confirmClear = false }) {
+                    Text("Clear", color = MaterialTheme.colorScheme.error)
+                }
             },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
         )
+    }
+
+    (syncState as? BootstrapState.Failed)?.let { failed ->
+        MessageDialog("Load Error", failed.message, viewModel::dismissSyncError)
     }
 
     OperationDialog(operation, viewModel::dismissOperation)
@@ -197,49 +287,100 @@ private fun OperationDialog(operation: DataOperation, onDismiss: () -> Unit) {
             },
             confirmButton = {},
         )
-        is DataOperation.BackupComplete -> AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text("Backup saved") },
-            text = { Text("Wrote ${operation.itemCount} items.") },
-            confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
-        )
-        is DataOperation.RestoreComplete -> AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text("Restore complete") },
-            text = { Text(operation.result.summary) },
-            confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
-        )
-        is DataOperation.Failed -> AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text("That didn't work") },
-            text = { Text(operation.message) },
-            confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+        is DataOperation.ImportComplete -> MessageDialog("Import Complete", operation.message, onDismiss)
+        is DataOperation.ImportFailed -> MessageDialog("Import Error", operation.message, onDismiss)
+        is DataOperation.RestoreComplete -> MessageDialog("Restore from Backup", operation.message, onDismiss)
+        is DataOperation.BackupFailed -> MessageDialog("Backup Failed", operation.message, onDismiss)
+    }
+}
+
+@Composable
+private fun MessageDialog(title: String, message: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = message.takeIf { it.isNotEmpty() }?.let { { Text(it) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+    )
+}
+
+@Composable
+private fun DatabaseStatusRow(cardCount: Int, lastLoaded: Long?) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Cards in Database", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = lastLoaded?.let { "Last loaded: ${it.formatted()}" } ?: "Never loaded",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = cardCount.toString(),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = if (cardCount == 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
         )
     }
 }
 
 @Composable
-private fun BootstrapRow(state: BootstrapState) {
-    val label = when (state) {
-        BootstrapState.Idle -> null
-        BootstrapState.SeedingBundle -> "Loading the bundled card database…"
-        BootstrapState.CheckingForUpdates -> "Checking for updates…"
-        is BootstrapState.Syncing -> "Updating set ${state.done} of ${state.total}…"
-        is BootstrapState.Ready -> null
-        is BootstrapState.Failed -> state.message
-    } ?: return
+private fun SyncRow(
+    state: BootstrapState,
+    catalogueIsEmpty: Boolean,
+    onLoad: () -> Unit,
+    onCheckForUpdates: () -> Unit,
+    onSettled: () -> Unit,
+) {
+    val sync = if (catalogueIsEmpty) onLoad else onCheckForUpdates
+    when (state) {
+        BootstrapState.Idle -> ActionRow(
+            label = if (catalogueIsEmpty) "Load Card Database" else "Check for Updates",
+            icon = Icons.Filled.Refresh,
+            onClick = sync,
+        )
+        BootstrapState.CheckingForUpdates -> ProgressRow("Checking for updates…")
+        BootstrapState.SeedingBundle -> ProgressRow("Loading…")
+        is BootstrapState.Syncing -> ProgressRow(
+            if (state.total > 0) "Updating set ${state.done} of ${state.total}…" else "Loading…",
+        )
+        BootstrapState.UpToDate -> SettledRow("Up to date", onSettled)
+        is BootstrapState.Updated -> SettledRow(
+            "Updated ${state.cardCount} card${if (state.cardCount == 1) "" else "s"}!",
+            onSettled,
+        )
+        is BootstrapState.Failed -> ActionRow(label = "Retry", icon = Icons.Filled.Refresh, destructive = true, onClick = sync)
+    }
+}
 
+@Composable
+private fun ProgressRow(label: String) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (state is BootstrapState.Failed) {
-            Icon(Icons.Filled.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-        } else {
-            CircularProgressIndicator(modifier = Modifier.padding(2.dp))
-        }
+        CircularProgressIndicator(Modifier.size(24.dp))
         Text(label, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun SettledRow(label: String, onSettled: () -> Unit) {
+    LaunchedEffect(label) {
+        delay(SETTLED_DISPLAY_MS)
+        onSettled()
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = SuccessGreen)
+        Text(label, style = MaterialTheme.typography.bodyLarge)
     }
 }
 
@@ -258,12 +399,22 @@ private fun SectionHeader(title: String) {
 }
 
 @Composable
+private fun SectionFooter(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+    )
+}
+
+@Composable
 private fun SectionDivider() {
     HorizontalDivider(Modifier.padding(top = 12.dp))
 }
 
 @Composable
-private fun StatRow(label: String, value: String, highlight: Boolean = false) {
+private fun StatRow(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -273,7 +424,7 @@ private fun StatRow(label: String, value: String, highlight: Boolean = false) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
-            color = if (highlight) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -290,7 +441,7 @@ private fun ScoreInputModeRow(
     onSelect: (ScoreInputMode) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text("Scoring layout", style = MaterialTheme.typography.bodyLarge)
+        Text("Scoring Layout", style = MaterialTheme.typography.bodyLarge)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 8.dp)) {
             ScoreInputMode.entries.forEachIndexed { index, mode ->
                 SegmentedButton(
@@ -334,26 +485,33 @@ private fun ToggleRow(
 @Composable
 private fun ActionRow(
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     destructive: Boolean = false,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
+    val accent = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val content = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            tint = if (enabled) accent else MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA),
         )
         Text(
             text = label,
             modifier = Modifier.padding(start = 12.dp).weight(1f),
-            color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            color = if (enabled) content else MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA),
         )
     }
 }
+
+private const val SETTLED_DISPLAY_MS = 3_000L
+private const val DISABLED_ALPHA = 0.38f
 
 private fun Long?.formatted(): String =
     this?.let { SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(it)) } ?: "Never"

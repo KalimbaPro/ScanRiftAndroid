@@ -2,6 +2,7 @@ package com.scanrift.android.ui.decks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.scanrift.android.data.repository.CollectionRepository
 import com.scanrift.android.data.repository.DeckRepository
 import com.scanrift.android.domain.model.Deck
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,10 +15,14 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class DeckListViewModel @Inject constructor(
     private val deckRepository: DeckRepository,
+    collectionRepository: CollectionRepository,
 ) : ViewModel() {
 
     val decks: StateFlow<List<Deck>> = deckRepository.observeDecks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val ownedByCardId: StateFlow<Map<String, Int>> = collectionRepository.observeOwnedQuantities()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     fun createDeck(onCreated: (String) -> Unit) {
         viewModelScope.launch { onCreated(deckRepository.createDeck()) }

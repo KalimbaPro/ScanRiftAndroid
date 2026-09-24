@@ -2,20 +2,24 @@ package com.scanrift.android.ui.decks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.scanrift.android.data.repository.CardListRepository
 import com.scanrift.android.data.repository.CollectionRepository
 import com.scanrift.android.data.repository.DeckRepository
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardList
 import com.scanrift.android.domain.model.CardSupertype
 import com.scanrift.android.domain.model.CardType
 import com.scanrift.android.domain.model.Deck
 import com.scanrift.android.domain.model.DeckEntry
 import com.scanrift.android.domain.model.DeckSection
+import com.scanrift.android.domain.model.MissingCard
 import com.scanrift.android.service.deck.DeckValidationError
 import com.scanrift.android.service.deck.DeckValidator
 import com.scanrift.android.service.export.CollectionExporter
 import com.scanrift.android.service.importer.DeckImportResult
 import com.scanrift.android.service.importer.DeckImportService
 import com.scanrift.android.service.importer.DeckListParser
+import com.scanrift.android.service.importer.ParsedDeckList
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,29 +27,32 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+data class BrowserFilters(
+    val searchQuery: String = "",
+    val typeFilter: String? = null,
+    val showAllCards: Boolean = false,
+)
 
 data class DeckBuilderState(
     val deck: Deck? = null,
     val browserCards: List<Card> = emptyList(),
     val validationErrors: List<DeckValidationError> = emptyList(),
-    val searchQuery: String = "",
-    val typeFilter: String? = null,
-    val showAllCards: Boolean = false,
+    val filters: BrowserFilters = BrowserFilters(),
+    val missingCards: List<MissingCard> = emptyList(),
 ) {
-    val isValid: Boolean get() = deck != null && validationErrors.isEmpty()
+    val missingCount: Int get() = missingCards.sumOf { it.deficit }
 
-    fun count(section: DeckSection): Int =
-        deck?.entries?.filter { it.section == section }?.sumOf { it.quantity } ?: 0
+    fun addBlockReason(card: Card): String? =
+        deck?.let { DeckValidator.addBlockReason(it, card, filters.showAllCards) } ?: "Cannot add"
 
-    val totalCards: Int
-        get() {
-            val entries = deck?.entries?.sumOf { it.quantity } ?: 0
-            return entries + (if (deck?.legend != null) 1 else 0)
-        }
+    fun entryFor(card: Card): DeckEntry? = deck?.entries?.firstOrNull { it.cardId == card.id }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -53,75 +60,105 @@ data class DeckBuilderState(
 class DeckBuilderViewModel @Inject constructor(
     private val deckRepository: DeckRepository,
     private val deckImportService: DeckImportService,
+    private val cardListRepository: CardListRepository,
     collectionRepository: CollectionRepository,
 ) : ViewModel() {
 
     private val deckId = MutableStateFlow<String?>(null)
-    private val searchQuery = MutableStateFlow("")
-    private val typeFilter = MutableStateFlow<String?>(null)
-    private val showAllCards = MutableStateFlow(false)
+    private val filters = MutableStateFlow(BrowserFilters())
 
     private val deck = deckId.flatMapLatest { id ->
         if (id == null) flowOf(null) else deckRepository.observeDeck(id)
     }
 
+    private val allCards = collectionRepository.observeAllCards()
+
     val state: StateFlow<DeckBuilderState> = combine(
         deck,
-        collectionRepository.observeAllCards(),
-        searchQuery,
-        typeFilter,
-        showAllCards,
-    ) { currentDeck, allCards, query, type, showAll ->
+        allCards,
+        filters,
+        collectionRepository.observeOwnedQuantities(),
+    ) { currentDeck, cards, currentFilters, owned ->
         DeckBuilderState(
             deck = currentDeck,
-            browserCards = filterBrowser(allCards, currentDeck, query, type, showAll),
+            browserCards = filterBrowser(cards, currentDeck, currentFilters),
             validationErrors = currentDeck?.let { DeckValidator.validate(it) }.orEmpty(),
-            searchQuery = query,
-            typeFilter = type,
-            showAllCards = showAll,
+            filters = currentFilters,
+            missingCards = currentDeck?.missingCards(owned).orEmpty(),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DeckBuilderState())
 
-    fun load(id: String) { deckId.value = id }
-    fun setSearchQuery(value: String) { searchQuery.value = value }
-    fun setTypeFilter(value: String?) { typeFilter.value = value }
-    fun setShowAllCards(value: Boolean) { showAllCards.value = value }
+    val customLists: StateFlow<List<CardList>> = cardListRepository.observeLists()
+        .map { lists -> lists.filterNot { it.isSystem }.sortedBy { it.createdDate } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun rename(name: String) = withDeck { deckRepository.rename(it.id, name) }
-    fun setLegend(card: Card?) = withDeck { deckRepository.setLegend(it.id, card?.id) }
-    fun setChampion(card: Card?) = withDeck { deckRepository.setChampion(it.id, card) }
-
-    /**
-     * What tapping a card in the browser does.
-     *
-     * Legends and champions are **slots**, not deck entries: a deck has exactly one of
-     * each, so tapping one fills or replaces the slot rather than adding a copy to the
-     * main deck. Previously a legend tapped in the browser was routed to the main deck
-     * by `inferSection`, which produced a deck with a legend among its 40 cards and no
-     * legend set.
-     */
-    fun addCard(card: Card, section: DeckSection? = null) = withDeck { deck ->
-        when {
-            card.type == CardType.LEGEND -> deckRepository.setLegend(deck.id, card.id)
-            section == null && card.isChampionUnit -> deckRepository.setChampion(deck.id, card)
-            else -> deckRepository.addCard(deck, card, section ?: DeckValidator.inferSection(card))
+    fun load(id: String) {
+        if (deckId.value == id) return
+        deckId.value = id
+        viewModelScope.launch {
+            if (deckRepository.observeDeck(id).first()?.legend == null) setTypeFilter(LEGEND_FILTER)
         }
     }
 
-    /** Explicitly promote a card already in the deck to the champion slot. */
-    fun setChampionFromBrowser(card: Card) = withDeck { deckRepository.setChampion(it.id, card) }
+    fun setSearchQuery(value: String) { filters.value = filters.value.copy(searchQuery = value) }
+    fun setTypeFilter(value: String?) { filters.value = filters.value.copy(typeFilter = value) }
+    fun setShowAllCards(value: Boolean) { filters.value = filters.value.copy(showAllCards = value) }
 
-    fun setQuantity(entry: DeckEntry, quantity: Int) =
-        withDeck { deckRepository.setEntryQuantity(it, entry, quantity) }
-
-    fun moveToSection(entry: DeckEntry, section: DeckSection) =
-        withDeck { deckRepository.moveToSection(it, entry, section) }
-
-    /** How many more copies of [card] the deck may legally take. */
-    fun remainingCopies(card: Card): Int {
-        val currentDeck = state.value.deck ?: return DeckValidator.maxCopies(card)
-        return (DeckValidator.maxCopies(card) - DeckValidator.copiesInDeck(currentDeck, card)).coerceAtLeast(0)
+    fun rename(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isNotEmpty()) withDeck { deckRepository.rename(it.id, trimmed) }
     }
+
+    fun handleBrowserTap(card: Card) {
+        if (card.type == CardType.LEGEND) setLegend(card) else addCard(card)
+    }
+
+    fun setLegend(card: Card) = withDeck { deck ->
+        setTypeFilter(if (deck.champion == null) CHAMPION_FILTER else null)
+        deckRepository.setLegend(deck.id, card.id)
+    }
+
+    fun clearLegend() = withDeck { deckRepository.setLegend(it.id, null) }
+
+    fun setChampion(card: Card) = withDeck { deck ->
+        setTypeFilter(null)
+        deckRepository.setChampion(deck.id, card)
+    }
+
+    fun clearChampion() = withDeck { deckRepository.setChampion(it.id, null) }
+
+    fun addCard(card: Card, section: DeckSection? = null) = withDeck { deck ->
+        deckRepository.addCard(deck, card, section ?: DeckValidator.inferSection(card))
+    }
+
+    fun setQuantity(entry: DeckEntry, quantity: Int) = withDeck { deck ->
+        deckRepository.setEntryQuantity(deck, entry, quantity.coerceAtMost(DeckValidator.maxQuantity(deck, entry)))
+    }
+
+    fun remove(entry: DeckEntry) = withDeck { deckRepository.setEntryQuantity(it, entry, 0) }
+
+    fun copyToSection(entry: DeckEntry, section: DeckSection) = withDeck { deck ->
+        val card = entry.card ?: return@withDeck
+        if (DeckValidator.canCopy(deck, card, section)) deckRepository.addCard(deck, card, section)
+    }
+
+    fun moveToSection(entry: DeckEntry, section: DeckSection) = withDeck { deck ->
+        if (DeckValidator.canMove(deck, entry, section)) deckRepository.moveToSection(deck, entry, section)
+    }
+
+    fun addMissingCardsToWishlist() {
+        val cardIds = state.value.missingCards.map { it.card.id }
+        viewModelScope.launch {
+            cardListRepository.wishlistId()?.let { cardListRepository.addCards(it, cardIds) }
+        }
+    }
+
+    fun toggleList(list: CardList, cards: List<Card>) {
+        viewModelScope.launch { cardListRepository.toggleCards(list, cards.map { it.id }) }
+    }
+
+    suspend fun saveList(editing: CardList?, name: String, colorHex: String): Boolean =
+        cardListRepository.saveList(editing, name, colorHex)
 
     /** Set when an import finishes, so the screen can report what happened once. */
     private val _importResult = MutableStateFlow<DeckImportResult?>(null)
@@ -138,7 +175,7 @@ class DeckBuilderViewModel @Inject constructor(
 
     fun importTts(raw: String) = runImport { DeckListParser.parseTts(raw) }
 
-    private fun runImport(parse: () -> com.scanrift.android.service.importer.ParsedDeckList) {
+    private fun runImport(parse: () -> ParsedDeckList) {
         val id = deckId.value ?: return
         viewModelScope.launch {
             _importResult.value = deckImportService.import(id, parse())
@@ -164,22 +201,17 @@ class DeckBuilderViewModel @Inject constructor(
      *   whichever you have in mind. (Showing nothing here was the bug that made the
      *   Champion tab look empty.)
      */
-    private fun filterBrowser(
-        allCards: List<Card>,
-        deck: Deck?,
-        query: String,
-        type: String?,
-        showAll: Boolean,
-    ): List<Card> {
+    private fun filterBrowser(allCards: List<Card>, deck: Deck?, filters: BrowserFilters): List<Card> {
         val legend = deck?.legend
         val champion = deck?.champion
         val legendTags = legend?.tags?.toSet().orEmpty()
         val championTags = champion?.tags?.toSet().orEmpty()
-        val legendDomains = legend?.domains?.toSet().orEmpty()
-        val normalizedQuery = query.trim().lowercase()
+        val type = filters.typeFilter
+        val normalizedQuery = filters.searchQuery.trim().lowercase()
 
         return allCards.asSequence()
             .filter { card -> matchesTab(card, type, legendTags, championTags) }
+            .filter { card -> legend == null || type == LEGEND_FILTER || card.type != CardType.LEGEND }
             .filter { card ->
                 // A signature card belongs to one character. With no legend chosen we
                 // cannot know which, so they all stay visible rather than all vanish.
@@ -187,12 +219,10 @@ class DeckBuilderViewModel @Inject constructor(
                 legendTags.intersect(card.tags.toSet()).isNotEmpty()
             }
             .filter { card ->
-                if (showAll || legend == null) return@filter true
                 // Same carve-out the validator makes: battlefields and colourless cards
                 // are legal in any deck.
-                card.type == CardType.BATTLEFIELD ||
-                    card.domains.isEmpty() ||
-                    legendDomains.containsAll(card.domains)
+                filters.showAllCards || card.type == CardType.BATTLEFIELD ||
+                    DeckValidator.isCardLegalForDeck(card, legend)
             }
             .filter { card ->
                 normalizedQuery.isEmpty() ||

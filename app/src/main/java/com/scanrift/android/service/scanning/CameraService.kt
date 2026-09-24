@@ -76,6 +76,10 @@ class CameraService @Inject constructor() {
         try {
             val cameraProvider = ProcessCameraProvider.getInstance(context).await()
             provider = cameraProvider
+            if (!cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)) {
+                _state.value = CameraState.Failed("No camera is available on this device.")
+                return
+            }
 
             val executor = analysisExecutor ?: Executors.newSingleThreadExecutor().also { analysisExecutor = it }
 
@@ -120,7 +124,7 @@ class CameraService @Inject constructor() {
             _state.value = CameraState.Running
         } catch (e: Exception) {
             Log.camera.e(e, "Could not start the camera")
-            _state.value = CameraState.Failed(e.message ?: "Camera unavailable")
+            _state.value = CameraState.Failed("Failed to configure camera session.")
         }
     }
 
@@ -141,7 +145,7 @@ class CameraService @Inject constructor() {
         _torchEnabled.value = next
     }
 
-    /** Tap to focus, in normalised 0..1 preview coordinates. */
+    /** Tap to focus, in preview-view pixel coordinates. */
     fun focusAt(previewView: PreviewView, x: Float, y: Float) {
         val control = camera?.cameraControl ?: return
         val point = previewView.meteringPointFactory.createPoint(x, y)

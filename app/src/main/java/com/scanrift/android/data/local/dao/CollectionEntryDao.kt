@@ -51,6 +51,23 @@ interface CollectionEntryDao {
     )
     suspend fun findEntry(cardId: String, isFoil: Boolean, condition: String): CollectionEntryEntity?
 
+    @Transaction
+    suspend fun adjustQuantity(cardId: String, isFoil: Boolean, condition: String, delta: Int, now: Long) {
+        val existing = findEntry(cardId, isFoil, condition)
+        val quantity = (existing?.quantity ?: 0) + delta
+        when {
+            existing == null -> if (quantity > 0) {
+                insert(
+                    CollectionEntryEntity(
+                        cardId = cardId, quantity = quantity, isFoil = isFoil, dateAdded = now, condition = condition,
+                    ),
+                )
+            }
+            quantity <= 0 -> delete(existing)
+            else -> update(existing.copy(quantity = quantity))
+        }
+    }
+
     @Query("SELECT SUM(quantity) FROM collection_entries")
     fun observeTotalCardCount(): Flow<Int?>
 

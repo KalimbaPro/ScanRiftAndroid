@@ -43,6 +43,10 @@ object Constants {
         /** How long a successful match stays on screen before scanning resumes. */
         const val MATCH_DISPLAY_DURATION_MS = 2_000L
 
+        const val RESUME_DELAY_MS = 500L
+        const val MAX_CAMERA_RETRIES = 3
+        const val CAMERA_RETRY_DELAY_MS = 500L
+
         /** Analyzer target resolution. Unset on the old build, which starved OCR at 640x480. */
         const val ANALYSIS_TARGET_WIDTH = 1280
         const val ANALYSIS_TARGET_HEIGHT = 720
@@ -123,8 +127,18 @@ object Constants {
         const val LAST_UPDATE_CHECK = "lastUpdateCheck"
         const val LAST_BACKUP = "lastBackup"
         const val BACKUP_URI = "backupUri"
+        const val CLOUD_SNAPSHOT_AUTO_SYNC = "cloudSnapshotAutoSync"
         const val POINT_TRACKER_ROSTER = "pointTracker.roster.v1"
         const val SCORE_INPUT_MODE = "scoreInputMode"
+    }
+
+    object ImageCache {
+        const val DIRECTORY = "CardImages"
+        const val DISK_CACHE_BYTES = 200L * 1024 * 1024
+    }
+
+    object Backup {
+        const val AUTO_BACKUP_INTERVAL_MS = 5L * 60L * 1000L
     }
 
     object FileNames {

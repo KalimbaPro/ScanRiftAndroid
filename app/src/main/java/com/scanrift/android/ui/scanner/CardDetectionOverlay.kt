@@ -47,7 +47,7 @@ fun CardDetectionOverlay(
         val h = guideHeight.toPx().coerceAtMost(size.height * 0.8f)
         val left = (size.width - w) / 2f
         val top = (size.height - h) / 2f
-        val armLength = w * 0.15f
+        val armLength = 30.dp.toPx()
         val strokeWidth = 3.dp.toPx()
 
         // Dim everything outside the guide so the eye goes to the card.

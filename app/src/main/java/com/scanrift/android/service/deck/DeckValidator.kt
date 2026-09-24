@@ -5,6 +5,7 @@ import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardSupertype
 import com.scanrift.android.domain.model.CardType
 import com.scanrift.android.domain.model.Deck
+import com.scanrift.android.domain.model.DeckEntry
 import com.scanrift.android.domain.model.DeckSection
 
 /**
@@ -56,8 +57,9 @@ object DeckValidator {
             errors += DeckValidationError.MainDeckTooSmall(mainCount, Constants.Deck.MAIN_DECK_MINIMUM)
         }
 
-        // 6: at most 3 copies per *cleanName* across main + sideboard, plus the
-        // champion counted once. Keying on cleanName rather than id is what stops an
+        // 6: at most 3 copies per *cleanName* across main + sideboard. The champion
+        // slot is not counted on top: it always has its own main-deck entry, which
+        // already counts. Keying on cleanName rather than id is what stops an
         // alternate-art printing being used as a fourth copy. Runes and battlefields
         // are deliberately outside this count — they have their own rules.
         val copiesByName = mutableMapOf<String, Int>()
@@ -65,7 +67,6 @@ object DeckValidator {
             val card = entry.card ?: return@forEach
             copiesByName[card.cleanName] = (copiesByName[card.cleanName] ?: 0) + entry.quantity
         }
-        champion?.let { copiesByName[it.cleanName] = (copiesByName[it.cleanName] ?: 0) + 1 }
         copiesByName.forEach { (name, count) ->
             if (count > Constants.Deck.MAX_COPIES_PER_NAME) {
                 errors += DeckValidationError.TooManyCopies(name, count, Constants.Deck.MAX_COPIES_PER_NAME)
@@ -168,6 +169,58 @@ object DeckValidator {
         CardType.BATTLEFIELD -> DeckSection.BATTLEFIELD
         else -> DeckSection.MAIN_DECK
     }
+
+    fun isCardLegalForDeck(card: Card, legend: Card?): Boolean {
+        val deckDomains = legend?.domains.orEmpty()
+        return deckDomains.isEmpty() || card.domains.isEmpty() || deckDomains.containsAll(card.domains)
+    }
+
+    fun addBlockReason(deck: Deck, card: Card, showAllCards: Boolean): String? = when {
+        card.type == CardType.LEGEND -> if (deck.legend == null) null else "Legend already set"
+        card.type == CardType.BATTLEFIELD -> when {
+            hasBattlefieldNamed(deck, card) -> "Battlefield already in deck"
+            deck.count(DeckSection.BATTLEFIELD) >= Constants.Deck.BATTLEFIELD_COUNT ->
+                "Battlefield slots full (${Constants.Deck.BATTLEFIELD_COUNT}/${Constants.Deck.BATTLEFIELD_COUNT})"
+            else -> null
+        }
+        card.type == CardType.RUNE && deck.count(DeckSection.RUNE) >= Constants.Deck.RUNE_COUNT ->
+            "Rune slots full (${Constants.Deck.RUNE_COUNT}/${Constants.Deck.RUNE_COUNT})"
+        copiesInDeck(deck, card) >= maxCopies(card) -> "Max ${maxCopies(card)} copies"
+        !showAllCards && !isCardLegalForDeck(card, deck.legend) -> "Outside deck domains"
+        else -> null
+    }
+
+    fun canCopy(deck: Deck, card: Card, section: DeckSection): Boolean =
+        copiesInDeck(deck, card) < maxCopies(card) && fitsSection(deck, card, section)
+
+    fun maxQuantity(deck: Deck, entry: DeckEntry): Int {
+        val card = entry.card ?: return entry.quantity
+        val copiesLeft = maxCopies(card) - copiesInDeck(deck, card)
+        val sectionLeft = when (entry.section) {
+            DeckSection.MAIN_DECK -> copiesLeft
+            DeckSection.SIDEBOARD -> Constants.Deck.SIDEBOARD_MAXIMUM - deck.count(DeckSection.SIDEBOARD)
+            DeckSection.RUNE -> Constants.Deck.RUNE_COUNT - deck.count(DeckSection.RUNE)
+            DeckSection.BATTLEFIELD -> 0
+        }
+        return entry.quantity + minOf(copiesLeft, sectionLeft).coerceAtLeast(0)
+    }
+
+    fun canMove(deck: Deck, entry: DeckEntry, section: DeckSection): Boolean {
+        val card = entry.card ?: return false
+        return entry.section != section && fitsSection(deck, card, section)
+    }
+
+    private fun fitsSection(deck: Deck, card: Card, section: DeckSection): Boolean = when (section) {
+        DeckSection.MAIN_DECK -> true
+        DeckSection.SIDEBOARD -> deck.count(DeckSection.SIDEBOARD) < Constants.Deck.SIDEBOARD_MAXIMUM
+        DeckSection.RUNE -> card.type == CardType.RUNE && deck.count(DeckSection.RUNE) < Constants.Deck.RUNE_COUNT
+        DeckSection.BATTLEFIELD -> card.type == CardType.BATTLEFIELD &&
+            deck.count(DeckSection.BATTLEFIELD) < Constants.Deck.BATTLEFIELD_COUNT &&
+            !hasBattlefieldNamed(deck, card)
+    }
+
+    private fun hasBattlefieldNamed(deck: Deck, card: Card): Boolean =
+        deck.entries.any { it.section == DeckSection.BATTLEFIELD && it.card?.cleanName == card.cleanName }
 
     fun isEligibleChampion(card: Card, legend: Card?): Boolean {
         if (card.type != CardType.UNIT || card.supertype != CardSupertype.CHAMPION) return false

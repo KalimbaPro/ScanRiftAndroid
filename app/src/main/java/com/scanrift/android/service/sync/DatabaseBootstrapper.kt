@@ -22,15 +22,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 sealed interface BootstrapState {
     data object Idle : BootstrapState
     data object SeedingBundle : BootstrapState
     data object CheckingForUpdates : BootstrapState
     data class Syncing(val done: Int, val total: Int) : BootstrapState
-    data class Ready(val cardCount: Int) : BootstrapState
+    data object UpToDate : BootstrapState
+    data class Updated(val cardCount: Int) : BootstrapState
     data class Failed(val message: String) : BootstrapState
+
+    val isLoading: Boolean
+        get() = this is SeedingBundle || this is CheckingForUpdates || this is Syncing
 }
 
 /**
@@ -63,11 +70,44 @@ class DatabaseBootstrapper @Inject constructor(
 
     private val started = AtomicBoolean(false)
     private val scope = CoroutineScope(SupervisorJob() + io)
+    private val mutex = Mutex()
 
     /** Idempotent: safe to call from every Activity creation. */
     fun start() {
         if (!started.compareAndSet(false, true)) return
-        scope.launch { runCatching { bootstrap() }.onFailure { failure -> fail(failure) } }
+        scope.launch {
+            runCatching { mutex.withLock { bootstrap() } }.onFailure { failure -> _state.value = failed(failure) }
+        }
+    }
+
+    fun loadCardDatabase() = runManually {
+        _state.value = BootstrapState.Syncing(0, 0)
+        val count = service(bundledSource).fetchAndStoreCards { done, total ->
+            _state.value = BootstrapState.Syncing(done, total)
+        }
+        userPreferences.setLastDatabaseSync(System.currentTimeMillis())
+        BootstrapState.Updated(count)
+    }
+
+    fun checkForUpdates() = runManually {
+        _state.value = BootstrapState.CheckingForUpdates
+        val report = syncDelta(service(remoteSource))
+        if (report.hasChanges) BootstrapState.Updated(report.added + report.updated) else BootstrapState.UpToDate
+    }
+
+    fun resetSyncState() {
+        _state.update { if (it is BootstrapState.UpToDate || it is BootstrapState.Updated) BootstrapState.Idle else it }
+    }
+
+    fun dismissError() {
+        _state.update { if (it is BootstrapState.Failed) BootstrapState.Idle else it }
+    }
+
+    private fun runManually(block: suspend () -> BootstrapState) {
+        if (_state.value.isLoading) return
+        scope.launch {
+            _state.value = runCatching { mutex.withLock { block() } }.getOrElse(::failed)
+        }
     }
 
     private suspend fun bootstrap() {
@@ -77,41 +117,43 @@ class DatabaseBootstrapper @Inject constructor(
         if (cardDao.count() == 0) {
             _state.value = BootstrapState.SeedingBundle
             bundledService.fetchAndStoreCards()
+            userPreferences.setLastDatabaseSync(System.currentTimeMillis())
             // Forced, not TTL-gated: the bundle is always behind the API.
-            syncWith(remoteService, force = true)
+            syncOnLaunch(remoteService, force = true)
         } else {
             remoteService.deduplicateLocalCards()
             maintenanceDao.deleteOrphans()
-            syncWith(remoteService, force = false)
+            syncOnLaunch(remoteService, force = false)
         }
 
         listRepository.reconcileWishlist()
-        _state.value = BootstrapState.Ready(cardDao.count())
     }
 
-    private suspend fun syncWith(service: CardDatabaseService, force: Boolean) {
-        val now = System.currentTimeMillis()
+    private suspend fun syncOnLaunch(service: CardDatabaseService, force: Boolean) {
         if (!force) {
             val lastCheck = userPreferences.lastUpdateCheck.first()
-            if (lastCheck != null && now - lastCheck < Constants.Api.UPDATE_CHECK_TTL_MS) return
+            if (lastCheck != null && System.currentTimeMillis() - lastCheck < Constants.Api.UPDATE_CHECK_TTL_MS) return
         }
 
         _state.value = BootstrapState.CheckingForUpdates
         // A failed network sync must not block launch — the bundled catalogue is
         // already usable, so this degrades to "you have slightly stale data".
-        runCatching {
-            service.syncDelta { done, total -> _state.value = BootstrapState.Syncing(done, total) }
-        }.onSuccess { report ->
-            userPreferences.setLastUpdateCheck(now)
-            if (report.hasChanges) userPreferences.setLastDatabaseSync(now)
-        }.onFailure { error ->
-            Log.database.w(error, "Delta sync failed; continuing with the local catalogue")
-        }
+        runCatching { syncDelta(service) }
+            .onFailure { error -> Log.database.w(error, "Delta sync failed; continuing with the local catalogue") }
+        _state.value = BootstrapState.Idle
     }
 
-    private fun fail(error: Throwable) {
-        Log.database.e(error, "Bootstrap failed")
-        _state.value = BootstrapState.Failed(error.message ?: "Could not load the card database")
+    private suspend fun syncDelta(service: CardDatabaseService): SyncReport {
+        val now = System.currentTimeMillis()
+        val report = service.syncDelta { done, total -> _state.value = BootstrapState.Syncing(done, total) }
+        userPreferences.setLastUpdateCheck(now)
+        if (report.hasChanges) userPreferences.setLastDatabaseSync(now)
+        return report
+    }
+
+    private fun failed(error: Throwable): BootstrapState {
+        Log.database.e(error, "Card database sync failed")
+        return BootstrapState.Failed(error.message ?: "Could not load the card database")
     }
 
     private fun service(source: RiftboundDataSource) =

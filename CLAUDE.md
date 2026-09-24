@@ -189,7 +189,7 @@ drag-and-drop rule above: touch hit-testing honours the transform, so taps are f
 a rotation; only drop targets are not.
 
 **Scoring is one gesture, so it has to be one `pointerInput`.** Pressing the right half
-blooms the category dots out of the touch point; the finger then slides onto one and lifts
+opens the category dots in a row across the middle of the tile; the finger then slides onto one and lifts
 to score it. That press-drag-release is a *single* gesture, so it cannot be split across a
 `clickable` zone and a separate overlay with its own `clickable` dots — the gesture would
 end the moment the finger left the zone. `ScoreTapLayer` owns the whole thing and
@@ -197,10 +197,9 @@ end the moment the finger left the zone. `ScoreTapLayer` owns the whole thing an
 all). Releasing without moving deliberately leaves the dots up so they can be tapped
 instead, which is the case when the phone is flat on the table.
 
-`ScorePickerState.open` clamps the anchor so the whole fan stays on the tile. Without it,
-pressing near an edge throws two of the three dots off the tile and the drag has nothing
-to land on — the fan shifts rather than the dots reordering, so left-to-right order stays
-the same wherever you press.
+`ScorePickerState.open` always lays the dots out in a horizontal row centred on the
+tile, whatever the touch point — a deliberate divergence from iOS, which blooms them in
+an arc from the finger. The spacing shrinks on a narrow tile so all three stay on it.
 
 Z-order inside the seat is load-bearing. The tap layer goes first, so the name chip and
 the XP pill are hit-tested before it; the dots are drawn last so they sit over the score

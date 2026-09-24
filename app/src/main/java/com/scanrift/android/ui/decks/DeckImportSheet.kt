@@ -1,13 +1,16 @@
 package com.scanrift.android.ui.decks
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -20,7 +23,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.unit.dp
 
@@ -63,7 +68,11 @@ fun DeckImportSheet(
                 .padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(mode.title, style = MaterialTheme.typography.titleLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+                Text(mode.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                TextButton(onClick = { onImport(text) }, enabled = text.isNotBlank()) { Text("Import") }
+            }
             Text(
                 mode.hint,
                 style = MaterialTheme.typography.bodySmall,
@@ -74,19 +83,13 @@ fun DeckImportSheet(
                 value = text,
                 onValueChange = { text = it },
                 label = { Text("Decklist") },
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 320.dp),
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { clipboard.getText()?.text?.let { text = it } }) {
-                    Text("Paste from clipboard")
-                }
-                Button(
-                    onClick = { onImport(text) },
-                    enabled = text.isNotBlank(),
-                ) {
-                    Text("Import")
-                }
+            OutlinedButton(onClick = { clipboard.getText()?.text?.takeIf { it.isNotEmpty() }?.let { text = it } }) {
+                Icon(Icons.Filled.ContentPaste, contentDescription = null)
+                Text("Paste from clipboard", modifier = Modifier.padding(start = 8.dp))
             }
         }
     }

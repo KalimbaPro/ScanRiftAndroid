@@ -165,7 +165,7 @@ object CollectionExporter {
             com.scanrift.android.domain.model.DeckSection.RUNE,
             com.scanrift.android.domain.model.DeckSection.SIDEBOARD,
         ).forEach { section ->
-            deck.entries.filter { it.section == section }.forEach { entry ->
+            deck.sortedEntries(section).forEach { entry ->
                 entry.card?.let { addCopies(it.publicCodePrefix, entry.quantity) }
             }
         }
@@ -197,13 +197,13 @@ object CollectionExporter {
             "Runes:" to com.scanrift.android.domain.model.DeckSection.RUNE,
             "Sideboard:" to com.scanrift.android.domain.model.DeckSection.SIDEBOARD,
         ).forEach { (header, section) ->
-            val entries = deck.entries.filter { it.section == section && it.card != null }
+            val entries = deck.sortedEntries(section).filter { it.card != null }
             if (entries.isEmpty()) return@forEach
             appendLine(header)
             entries.forEach { appendLine("${it.quantity} ${listName(it.card!!)}") }
             appendLine()
         }
-    }.trimEnd().plus("\n")
+    }.trimEnd()
 
     /** Decklist spelling of a card name: `Ornn - Blacksmith` becomes `Ornn, Blacksmith`. */
     private fun listName(card: com.scanrift.android.domain.model.Card): String =
