@@ -43,6 +43,10 @@ object Constants {
         /** How long a successful match stays on screen before scanning resumes. */
         const val MATCH_DISPLAY_DURATION_MS = 2_000L
 
+        const val RESUME_DELAY_MS = 500L
+        const val MAX_CAMERA_RETRIES = 3
+        const val CAMERA_RETRY_DELAY_MS = 500L
+
         /** Analyzer target resolution. Unset on the old build, which starved OCR at 640x480. */
         const val ANALYSIS_TARGET_WIDTH = 1280
         const val ANALYSIS_TARGET_HEIGHT = 720

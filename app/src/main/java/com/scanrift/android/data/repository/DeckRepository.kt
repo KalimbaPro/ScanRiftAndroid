@@ -131,6 +131,10 @@ class DeckRepository @Inject constructor(
         true
     }
 
+    suspend fun addCopies(deckId: String, section: DeckSection, copies: Map<String, Int>) = withContext(io) {
+        deckDao.addCopies(deckId, section.value, copies, now())
+    }
+
     suspend fun setEntryQuantity(deck: Deck, entry: DeckEntry, quantity: Int) = withContext(io) {
         val cardId = entry.cardId ?: return@withContext
         val stored = deckDao.findEntry(deck.id, cardId, entry.section.value) ?: return@withContext
