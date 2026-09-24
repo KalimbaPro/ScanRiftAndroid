@@ -91,6 +91,18 @@ interface DeckDao {
         upsertDeck(deck)
     }
 
+    @Transaction
+    suspend fun addCopies(deckId: String, section: String, copies: Map<String, Int>, timestamp: Long) {
+        copies.forEach { (cardId, quantity) ->
+            val existing = findEntry(deckId, cardId, section)
+            upsertEntry(
+                existing?.copy(quantity = existing.quantity + quantity)
+                    ?: DeckEntryEntity(deckId = deckId, cardId = cardId, quantity = quantity, section = section),
+            )
+        }
+        touch(deckId, timestamp)
+    }
+
     @Query("DELETE FROM deck_entries WHERE cardId IS NULL")
     suspend fun deleteOrphanedEntries(): Int
 }

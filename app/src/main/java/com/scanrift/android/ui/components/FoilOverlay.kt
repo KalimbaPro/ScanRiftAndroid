@@ -6,12 +6,18 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
@@ -19,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.ui.theme.Motion
@@ -59,6 +66,20 @@ private val SheenColors = listOf(
     Color(0xFFAF52DE).copy(alpha = 0.30f),
     Color(0xFFFF2D55).copy(alpha = 0.30f),
 )
+
+@Composable
+fun FoilBadge(modifier: Modifier = Modifier) {
+    Text(
+        text = "Foil",
+        color = Color.White,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        modifier = modifier
+            .clip(CircleShape)
+            .background(Brush.horizontalGradient(listOf(Color(0xFFAF52DE), Color(0xFF007AFF), Color(0xFFFF2D55))))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
 
 /**
  * Draws the sheen over whatever this modifier is applied to.

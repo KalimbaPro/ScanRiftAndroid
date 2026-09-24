@@ -1,20 +1,32 @@
 package com.scanrift.android.ui.scanner
 
+import android.content.Context
 import androidx.camera.core.ImageProxy
+import androidx.camera.view.PreviewView
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.scanrift.android.core.Constants
 import com.scanrift.android.core.log.Log
 import com.scanrift.android.data.prefs.UserPreferences
 import com.scanrift.android.data.repository.CollectionRepository
+import com.scanrift.android.data.repository.DeckRepository
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.Deck
+import com.scanrift.android.domain.model.DeckSection
 import com.scanrift.android.service.feedback.FeedbackService
 import com.scanrift.android.service.scanning.CameraService
+import com.scanrift.android.service.scanning.CameraState
 import com.scanrift.android.service.scanning.CardMatchingService
 import com.scanrift.android.service.scanning.MotionDetector
+import com.scanrift.android.service.scanning.OcrResult
 import com.scanrift.android.service.scanning.OcrService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.text.DateFormat
+import java.util.Date
 import javax.inject.Inject
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,18 +38,11 @@ import kotlinx.coroutines.launch
 
 enum class ScannerOverlayState { IDLE, DETECTING, PROCESSING, MATCHED, ERROR }
 
-/** A card captured during this session, before it is committed to the collection. */
-data class ScanResult(
-    val card: Card,
-    val quantity: Int = 1,
-    val isFoil: Boolean = card.isAlwaysFoil,
-)
-
 data class ScannerDebugState(
     val ocrText: String = "",
     val motionStatus: String = "Idle",
-    val lastMatchedCode: String = "",
-    val lastConfidence: Double = 0.0,
+    val lastProcessTime: String = "",
+    val matchCount: Int = 0,
 )
 
 data class ScannerUiState(
@@ -47,9 +52,12 @@ data class ScannerUiState(
     val lastScanned: Card? = null,
     val debug: ScannerDebugState = ScannerDebugState(),
     val debugEnabled: Boolean = false,
-    val errorMessage: String? = null,
+    val correctingId: String? = null,
+    val correctionQuery: String = "",
+    val correctionResults: List<Card> = emptyList(),
 ) {
     val scannedCount: Int get() = results.sumOf { it.quantity }
+    val correcting: ScanResult? get() = results.firstOrNull { it.id == correctingId }
 }
 
 @HiltViewModel
@@ -57,6 +65,7 @@ class ScannerViewModel @Inject constructor(
     val cameraService: CameraService,
     private val ocrService: OcrService,
     private val collectionRepository: CollectionRepository,
+    private val deckRepository: DeckRepository,
     private val feedbackService: FeedbackService,
     private val userPreferences: UserPreferences,
 ) : ViewModel() {
@@ -68,17 +77,19 @@ class ScannerViewModel @Inject constructor(
     val torchEnabled = cameraService.torchEnabled
     val hasFlashUnit = cameraService.hasFlashUnit
 
+    val decks: StateFlow<List<Deck>> = deckRepository.observeDecks()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val motionDetector = MotionDetector()
     private var matcher: CardMatchingService? = null
 
     private var frameCounter = 0
     private var lastScanAtMs = 0L
+    private var isPaused = false
+    private var resumeJob: Job? = null
 
     @Volatile
     private var isProcessingFrame = false
-
-    val cardCount: StateFlow<Int> = collectionRepository.observeCardCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     init {
         viewModelScope.launch {
@@ -93,13 +104,43 @@ class ScannerViewModel @Inject constructor(
         }
     }
 
+    suspend fun startCamera(context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+        repeat(Constants.Scanning.MAX_CAMERA_RETRIES + 1) { attempt ->
+            if (attempt > 0) delay(Constants.Scanning.CAMERA_RETRY_DELAY_MS)
+            cameraService.start(context, lifecycleOwner, previewView, ::onFrame)
+            if (cameraService.state.value == CameraState.Running) {
+                startScanning()
+                return
+            }
+        }
+    }
+
     fun startScanning() {
+        resumeJob?.cancel()
+        isPaused = false
         motionDetector.reset(waitForChange = false)
         _uiState.update { it.copy(isScanning = true, overlayState = ScannerOverlayState.DETECTING) }
     }
 
     fun stopScanning() {
+        resumeJob?.cancel()
         _uiState.update { it.copy(isScanning = false, overlayState = ScannerOverlayState.IDLE) }
+    }
+
+    fun pauseScanning() {
+        isPaused = true
+        stopScanning()
+    }
+
+    fun resumeScanning() {
+        if (!isPaused) return
+        isPaused = false
+        resumeJob = viewModelScope.launch {
+            delay(Constants.Scanning.RESUME_DELAY_MS)
+            lastScanAtMs = System.currentTimeMillis()
+            motionDetector.reset(waitForChange = true)
+            _uiState.update { it.copy(isScanning = true, overlayState = ScannerOverlayState.DETECTING) }
+        }
     }
 
     /**
@@ -109,7 +150,8 @@ class ScannerViewModel @Inject constructor(
      * the analyser stalls once `imageQueueDepth` frames are outstanding.
      */
     fun onFrame(imageProxy: ImageProxy) {
-        if (!_uiState.value.isScanning || isProcessingFrame) {
+        val state = _uiState.value
+        if (!state.isScanning || state.overlayState != ScannerOverlayState.DETECTING || isProcessingFrame) {
             imageProxy.close()
             return
         }
@@ -121,9 +163,16 @@ class ScannerViewModel @Inject constructor(
             return
         }
 
+        val matcher = matcher
+        if (matcher == null) {
+            updateDebug { it.copy(ocrText = "ERROR: Card matching service not initialized") }
+            imageProxy.close()
+            return
+        }
+
         val moved = runCatching { detectMotion(imageProxy) }.getOrDefault(false)
         val ready = motionDetector.processMotionResult(moved)
-        _uiState.update { it.copy(debug = it.debug.copy(motionStatus = motionDetector.scanStatus)) }
+        updateDebug { it.copy(motionStatus = motionDetector.scanStatus) }
 
         val now = System.currentTimeMillis()
         if (!ready || now - lastScanAtMs < Constants.Scanning.SCAN_DEBOUNCE_MS) {
@@ -132,128 +181,131 @@ class ScannerViewModel @Inject constructor(
         }
 
         isProcessingFrame = true
+        motionDetector.readyToScan = false
         _uiState.update { it.copy(overlayState = ScannerOverlayState.PROCESSING) }
 
         viewModelScope.launch {
             try {
                 // extractText closes the proxy in its own finally.
                 val ocr = ocrService.extractText(imageProxy)
-                handleOcr(ocr, now)
+                handleOcr(ocr, matcher)
             } catch (e: Exception) {
                 Log.ocr.w(e, "OCR failed for this frame")
-                _uiState.update { it.copy(overlayState = ScannerOverlayState.DETECTING) }
+                updateDebug { it.copy(ocrText = "ERROR: ${e.message}") }
+                motionDetector.markRetry()
             } finally {
                 isProcessingFrame = false
+                _uiState.update {
+                    if (it.overlayState == ScannerOverlayState.PROCESSING) {
+                        it.copy(overlayState = ScannerOverlayState.DETECTING)
+                    } else {
+                        it
+                    }
+                }
             }
         }
     }
 
-    private suspend fun handleOcr(ocr: com.scanrift.android.service.scanning.OcrResult, now: Long) {
-        _uiState.update {
+    private suspend fun handleOcr(ocr: OcrResult, matcher: CardMatchingService) {
+        updateDebug {
             it.copy(
-                debug = it.debug.copy(
-                    ocrText = ocr.extractedText.take(200),
-                    lastConfidence = ocr.confidence,
-                ),
+                ocrText = ocr.extractedText,
+                lastProcessTime = DateFormat.getTimeInstance(DateFormat.MEDIUM).format(Date()),
             )
         }
 
-        if (ocr.confidence <= Constants.Scanning.MINIMUM_OCR_CONFIDENCE) {
-            _uiState.update { it.copy(overlayState = ScannerOverlayState.DETECTING) }
-            return
-        }
-
-        val match = matcher?.findMatch(ocr)
+        val match = if (ocr.confidence > Constants.Scanning.MINIMUM_OCR_CONFIDENCE) matcher.findMatch(ocr) else null
+        updateDebug { it.copy(matchCount = if (match == null) 0 else 1) }
         if (match == null) {
-            // Allow another attempt at the same card without needing it to move.
             motionDetector.markRetry()
-            _uiState.update { it.copy(overlayState = ScannerOverlayState.DETECTING) }
             return
         }
 
-        lastScanAtMs = now
+        lastScanAtMs = System.currentTimeMillis()
         motionDetector.markScanned()
-        addScanned(match.card)
 
-        val haptics = userPreferences.hapticFeedback.first()
-        val sound = userPreferences.soundFeedback.first()
-        feedbackService.scanSuccess(haptics, sound)
+        val autoAdd = userPreferences.autoAddToCollection.first()
+        if (autoAdd) collectionRepository.addCopies(match.card)
 
         _uiState.update {
             it.copy(
                 overlayState = ScannerOverlayState.MATCHED,
                 lastScanned = match.card,
-                debug = it.debug.copy(lastMatchedCode = match.matchedText),
+                results = if (autoAdd) it.results else it.results.addingScan(match.card),
             )
         }
 
-        if (userPreferences.autoAddToCollection.first()) {
-            collectionRepository.addCopies(match.card)
-        }
+        feedbackService.scanSuccess(
+            haptics = userPreferences.hapticFeedback.first(),
+            sound = userPreferences.soundFeedback.first(),
+        )
 
-        kotlinx.coroutines.delay(Constants.Scanning.MATCH_DISPLAY_DURATION_MS)
+        delay(Constants.Scanning.MATCH_DISPLAY_DURATION_MS)
         _uiState.update {
-            if (it.isScanning) it.copy(overlayState = ScannerOverlayState.DETECTING) else it
+            if (it.overlayState == ScannerOverlayState.MATCHED) it.copy(overlayState = ScannerOverlayState.DETECTING) else it
         }
     }
 
-    /** Merges into an existing result for the same card and foil state. */
-    private fun addScanned(card: Card) {
-        _uiState.update { state ->
-            val index = state.results.indexOfFirst { it.card.id == card.id && it.isFoil == card.isAlwaysFoil }
-            val results = if (index >= 0) {
-                state.results.toMutableList().apply {
-                    this[index] = this[index].copy(quantity = this[index].quantity + 1)
-                }
-            } else {
-                state.results + ScanResult(card)
-            }
-            state.copy(results = results)
-        }
+    private fun updateResults(transform: (List<ScanResult>) -> List<ScanResult>) = _uiState.update { state ->
+        val results = transform(state.results)
+        val lastScanned = state.lastScanned?.takeIf { card -> results.any { it.card.id == card.id } }
+        state.copy(results = results, lastScanned = lastScanned)
     }
 
-    fun setQuantity(index: Int, quantity: Int) = _uiState.update { state ->
-        if (index !in state.results.indices) return@update state
-        val results = state.results.toMutableList()
-        if (quantity <= 0) results.removeAt(index) else results[index] = results[index].copy(quantity = quantity)
-        state.copy(results = results)
+    fun setQuantity(id: String, quantity: Int) = updateResults { it.withQuantity(id, quantity) }
+
+    fun toggleFoil(id: String) = updateResults { it.togglingFoil(id) }
+
+    fun remove(id: String) = setQuantity(id, 0)
+
+    fun startCorrection(result: ScanResult) = _uiState.update {
+        it.copy(correctingId = result.id, correctionQuery = "", correctionResults = emptyList())
     }
 
-    fun toggleFoil(index: Int) = _uiState.update { state ->
-        if (index !in state.results.indices) return@update state
-        val result = state.results[index]
-        // Rare, Epic and Showcase only exist as foils, so the toggle is inert there.
-        if (result.card.isAlwaysFoil) return@update state
-        val results = state.results.toMutableList()
-        results[index] = result.copy(isFoil = !result.isFoil)
-        state.copy(results = results)
+    fun startCorrectionForLastCard() {
+        val last = _uiState.value.lastScanned ?: return
+        _uiState.value.results.firstOrNull { it.card.id == last.id }?.let(::startCorrection)
     }
 
-    fun remove(index: Int) = setQuantity(index, 0)
-
-    fun replaceResult(index: Int, card: Card) = _uiState.update { state ->
-        if (index !in state.results.indices) return@update state
-        val results = state.results.toMutableList()
-        results[index] = ScanResult(card, quantity = results[index].quantity)
-        state.copy(results = results)
+    fun searchForCorrection(query: String) = _uiState.update {
+        it.copy(correctionQuery = query, correctionResults = matcher?.searchCards(query).orEmpty())
     }
 
-    fun searchCards(query: String): List<Card> = matcher?.searchCards(query).orEmpty()
+    fun applyCorrection(card: Card) {
+        val id = _uiState.value.correctingId ?: return
+        _uiState.update { it.copy(results = it.results.correcting(id, card), lastScanned = card) }
+        dismissCorrection()
+    }
 
-    fun addSessionToCollection(onDone: () -> Unit = {}) {
+    fun dismissCorrection() = _uiState.update {
+        it.copy(correctingId = null, correctionQuery = "", correctionResults = emptyList())
+    }
+
+    fun addSessionToCollection() {
         val results = _uiState.value.results
         viewModelScope.launch {
-            results.forEach { result ->
-                collectionRepository.addCopies(result.card, result.quantity, result.isFoil)
+            results.forEach { collectionRepository.addCopies(it.card, it.quantity, it.isFoil) }
+            clearSession()
+        }
+    }
+
+    fun addToDeck(deck: Deck, section: DeckSection, results: List<ScanResult>, alsoToCollection: Boolean) {
+        viewModelScope.launch {
+            val copies = results.groupBy { it.card.id }.mapValues { (_, rows) -> rows.sumOf { it.quantity } }
+            deckRepository.addCopies(deck.id, section, copies)
+            if (alsoToCollection) {
+                results.forEach { collectionRepository.addCopies(it.card, it.quantity, it.isFoil) }
             }
-            _uiState.update { it.copy(results = emptyList(), lastScanned = null) }
-            onDone()
         }
     }
 
     fun clearSession() = _uiState.update { it.copy(results = emptyList(), lastScanned = null) }
 
     fun toggleTorch() = cameraService.toggleTorch()
+
+    private fun updateDebug(transform: (ScannerDebugState) -> ScannerDebugState) {
+        if (_uiState.value.debugEnabled) _uiState.update { it.copy(debug = transform(it.debug)) }
+    }
 
     private fun detectMotion(imageProxy: ImageProxy): Boolean {
         val plane = imageProxy.planes.firstOrNull() ?: return false
