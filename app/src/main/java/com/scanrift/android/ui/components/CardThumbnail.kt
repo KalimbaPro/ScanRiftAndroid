@@ -99,7 +99,7 @@ fun CardThumbnail(
         }
 
         // Rare, Epic and Showcase only exist as foils, so they always shimmer.
-        val showFoil = isOwned && (isFoil || card.isAlwaysFoil)
+        val showFoil = isFoil || (isOwned && card.isAlwaysFoil)
         if (showFoil) {
             Box(Modifier.matchParentSize().clip(shape).foilSheen())
         }

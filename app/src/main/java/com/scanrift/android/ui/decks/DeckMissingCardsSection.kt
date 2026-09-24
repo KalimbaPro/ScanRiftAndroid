@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.ui.components.CardThumbnail
+import com.scanrift.android.ui.components.AddToListSheet
 import com.scanrift.android.ui.util.mediumImpact
 
 @Composable
@@ -137,7 +138,7 @@ fun DeckMissingCardsSection(state: DeckBuilderState, viewModel: DeckBuilderViewM
             cards = missing.map { it.card },
             lists = lists,
             onToggle = viewModel::toggleList,
-            onCreateList = viewModel::createList,
+            onSaveList = viewModel::saveList,
             onDismiss = { showAddToList = false },
         )
     }

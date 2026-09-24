@@ -38,9 +38,8 @@ class CollectionHubViewModel @Inject constructor(
         viewModelScope.launch { listRepository.reconcileWishlist() }
     }
 
-    fun createList(name: String, colorHex: String) {
-        viewModelScope.launch { listRepository.createList(name, colorHex) }
-    }
+    suspend fun saveList(editing: CardList?, name: String, colorHex: String): Boolean =
+        listRepository.saveList(editing, name, colorHex)
 
     fun deleteList(listId: String) {
         viewModelScope.launch { listRepository.delete(listId) }

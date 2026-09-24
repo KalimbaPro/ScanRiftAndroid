@@ -1,6 +1,6 @@
 package com.scanrift.android.ui.settings
 
-import android.content.Intent
+import com.scanrift.android.ui.util.shareFile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -56,7 +56,6 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.BuildConfig
@@ -104,15 +103,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     ) { uri -> uri?.let(viewModel::importCollection) }
 
     LaunchedEffect(viewModel) {
-        viewModel.sharedExports.collect { export ->
-            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", export.file)
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = export.mimeType
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(Intent.createChooser(intent, null))
-        }
+        viewModel.sharedExports.collect { export -> context.shareFile(export.file, export.mimeType) }
     }
 
     Scaffold(

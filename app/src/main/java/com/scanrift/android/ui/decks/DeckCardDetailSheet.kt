@@ -1,21 +1,16 @@
 package com.scanrift.android.ui.decks
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -33,39 +28,31 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardType
 import com.scanrift.android.domain.model.DeckSection
 import com.scanrift.android.service.deck.DeckValidator
 import com.scanrift.android.ui.components.CardInfo
-import com.scanrift.android.ui.components.CardThumbnail
+import com.scanrift.android.ui.components.CardTextSection
+import com.scanrift.android.ui.components.TiltingCardImage
 import com.scanrift.android.ui.components.TappableQuantityStepper
-import com.scanrift.android.ui.theme.Dimens
-import com.scanrift.android.ui.theme.Motion
 import com.scanrift.android.ui.util.mediumImpact
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -150,7 +137,7 @@ fun DeckCardDetailSheet(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            TiltingCardImage(card)
+            TiltingCardImage(card, maxWidth = 250.dp)
 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 val entry = editorEntry ?: state.entryFor(card)
@@ -180,44 +167,10 @@ fun DeckCardDetailSheet(
                 }
             }
 
-            CardInfo(card, Modifier.fillMaxWidth(), showName = false)
+            CardInfo(card)
+            CardTextSection(card)
         }
     }
-}
-
-@Composable
-private fun TiltingCardImage(card: Card) {
-    val scope = rememberCoroutineScope()
-    val drag = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
-    val aspect = if (card.isLandscape) 1f / Dimens.CARD_ASPECT_RATIO else Dimens.CARD_ASPECT_RATIO
-
-    CardThumbnail(
-        card = card,
-        quantity = 1,
-        showUnownedInColor = true,
-        cornerRadius = 12.dp,
-        showQuantityBadge = false,
-        modifier = Modifier
-            .widthIn(max = 250.dp)
-            .fillMaxWidth()
-            .aspectRatio(aspect)
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragEnd = { scope.launch { drag.animateTo(Offset.Zero, Motion.cardTilt()) } },
-                    onDragCancel = { scope.launch { drag.animateTo(Offset.Zero, Motion.cardTilt()) } },
-                ) { change, amount ->
-                    change.consume()
-                    scope.launch { drag.snapTo(drag.value + amount / density) }
-                }
-            }
-            .graphicsLayer {
-                val offset = drag.value
-                rotationX = -(offset.y / TILT_RANGE).coerceIn(-1f, 1f) * MAX_TILT_DEGREES
-                rotationY = (offset.x / TILT_RANGE).coerceIn(-1f, 1f) * MAX_TILT_DEGREES
-                cameraDistance = 8 * density
-            }
-            .shadow(8.dp, RoundedCornerShape(12.dp), ambientColor = Color.Black.copy(alpha = 0.3f)),
-    )
 }
 
 @Composable
@@ -279,5 +232,3 @@ private fun MenuItem(label: String, icon: ImageVector, onClick: () -> Unit) {
 }
 
 private val ADD_BUTTON_INSET = 40.dp
-private const val TILT_RANGE = 150f
-private const val MAX_TILT_DEGREES = 15f

@@ -77,6 +77,21 @@ class CollectionRepository @Inject constructor(
         if (quantity <= 0) entryDao.delete(stored) else entryDao.update(stored.copy(quantity = quantity))
     }
 
+    suspend fun adjustQuantity(
+        card: Card,
+        entry: CollectionEntry?,
+        delta: Int,
+        now: Long = System.currentTimeMillis(),
+    ) = withContext(io) {
+        entryDao.adjustQuantity(
+            cardId = card.id,
+            isFoil = entry?.isFoil ?: card.isAlwaysFoil,
+            condition = (entry?.condition ?: CardCondition.NEAR_MINT).value,
+            delta = delta,
+            now = now,
+        )
+    }
+
     suspend fun setCondition(entry: CollectionEntry, condition: CardCondition) = withContext(io) {
         val stored = entry.cardId?.let { entryDao.findEntry(it, entry.isFoil, entry.condition.value) }
             ?: return@withContext

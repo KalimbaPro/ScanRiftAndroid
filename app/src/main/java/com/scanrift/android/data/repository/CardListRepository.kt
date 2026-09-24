@@ -44,6 +44,13 @@ class CardListRepository @Inject constructor(
         )
     }
 
+    suspend fun saveList(editing: CardList?, name: String, colorHex: String): Boolean {
+        val trimmed = name.trim()
+        if (withContext(io) { dao.existsWithName(trimmed, editing?.id.orEmpty()) }) return false
+        if (editing == null) createList(trimmed, colorHex) else rename(editing, trimmed, colorHex)
+        return true
+    }
+
     suspend fun delete(listId: String) = withContext(io) { dao.deleteByIds(listOf(listId)) }
 
     suspend fun addCard(listId: String, cardId: String) = withContext(io) {
@@ -56,6 +63,16 @@ class CardListRepository @Inject constructor(
 
     suspend fun removeCard(listId: String, cardId: String) = withContext(io) {
         dao.removeCardFromList(CardListCrossRef(listId, cardId))
+    }
+
+    suspend fun removeCards(listId: String, cardIds: List<String>) = withContext(io) {
+        cardIds.forEach { dao.removeCardFromList(CardListCrossRef(listId, it)) }
+    }
+
+    suspend fun toggleCards(list: CardList, cardIds: List<String>) {
+        val (toAdd, toRemove) = list.membershipChange(cardIds)
+        if (toAdd.isNotEmpty()) addCards(list.id, toAdd)
+        if (toRemove.isNotEmpty()) removeCards(list.id, toRemove)
     }
 
     suspend fun wishlistId(): String? = withContext(io) {

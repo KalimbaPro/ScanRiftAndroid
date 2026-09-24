@@ -43,6 +43,11 @@ data class CardList(
     val cards: List<Card> = emptyList(),
 ) {
     val isWishlist: Boolean get() = systemType == "wishlist"
+
+    fun membershipChange(cardIds: List<String>): Pair<List<String>, List<String>> {
+        val inList = cards.map { it.id }.toSet()
+        return if (cardIds.all { it in inList }) emptyList<String>() to cardIds else cardIds.filterNot { it in inList } to emptyList()
+    }
 }
 
 data class Deck(

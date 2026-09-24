@@ -45,19 +45,6 @@ fun TappableQuantityStepper(
     textStyle: TextStyle = MaterialTheme.typography.titleMedium,
 ) {
     val view = LocalView.current
-    val focusManager = LocalFocusManager.current
-    var text by remember { mutableStateOf(quantity.toString()) }
-    var focused by remember { mutableStateOf(false) }
-
-    LaunchedEffect(quantity, focused) {
-        if (!focused) text = quantity.toString()
-    }
-
-    fun commit() {
-        val value = (text.filter(Char::isDigit).toIntOrNull() ?: minValue).coerceIn(minValue, maxValue)
-        text = value.toString()
-        if (value != quantity) onQuantityChange(value)
-    }
 
     fun step(delta: Int) {
         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
@@ -68,27 +55,7 @@ fun TappableQuantityStepper(
         IconButton(onClick = { step(-1) }, enabled = quantity > minValue) {
             Icon(Icons.Filled.RemoveCircle, contentDescription = "Decrease quantity")
         }
-        BasicTextField(
-            value = text,
-            onValueChange = { text = it },
-            textStyle = textStyle.copy(
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface,
-            ),
-            singleLine = true,
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-            modifier = Modifier
-                .width(IntrinsicSize.Min)
-                .widthIn(min = 24.dp)
-                .onFocusChanged {
-                    if (focused && !it.isFocused) commit()
-                    focused = it.isFocused
-                }
-                .semantics { contentDescription = "Quantity" },
-        )
+        QuantityTextField(quantity, onQuantityChange, textStyle.copy(fontWeight = FontWeight.SemiBold), minValue, maxValue)
         IconButton(onClick = { step(1) }, enabled = quantity < maxValue) {
             Icon(
                 Icons.Filled.AddCircle,
@@ -97,4 +64,46 @@ fun TappableQuantityStepper(
             )
         }
     }
+}
+
+@Composable
+fun QuantityTextField(
+    quantity: Int,
+    onQuantityChange: (Int) -> Unit,
+    textStyle: TextStyle,
+    minValue: Int = 0,
+    maxValue: Int = 999,
+) {
+    val focusManager = LocalFocusManager.current
+    var text by remember { mutableStateOf(quantity.toString()) }
+    var focused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(quantity, focused) {
+        if (!focused) text = quantity.toString()
+    }
+
+    fun commit() {
+        val digits = text.filter(Char::isDigit)
+        val value = (digits.toIntOrNull() ?: if (digits.isEmpty()) minValue else maxValue).coerceIn(minValue, maxValue)
+        text = value.toString()
+        if (value != quantity) onQuantityChange(value)
+    }
+
+    BasicTextField(
+        value = text,
+        onValueChange = { text = it },
+        textStyle = textStyle.copy(textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface),
+        singleLine = true,
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+        modifier = Modifier
+            .width(IntrinsicSize.Min)
+            .widthIn(min = 24.dp)
+            .onFocusChanged {
+                if (focused && !it.isFocused) commit()
+                focused = it.isFocused
+            }
+            .semantics { contentDescription = "Quantity" },
+    )
 }

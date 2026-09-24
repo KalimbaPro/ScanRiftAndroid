@@ -154,19 +154,11 @@ class DeckBuilderViewModel @Inject constructor(
     }
 
     fun toggleList(list: CardList, cards: List<Card>) {
-        val inList = list.cards.map { it.id }.toSet()
-        viewModelScope.launch {
-            if (cards.all { it.id in inList }) {
-                cards.forEach { cardListRepository.removeCard(list.id, it.id) }
-            } else {
-                cardListRepository.addCards(list.id, cards.map { it.id }.filterNot { it in inList })
-            }
-        }
+        viewModelScope.launch { cardListRepository.toggleCards(list, cards.map { it.id }) }
     }
 
-    fun createList(name: String, colorHex: String) {
-        viewModelScope.launch { cardListRepository.createList(name, colorHex) }
-    }
+    suspend fun saveList(editing: CardList?, name: String, colorHex: String): Boolean =
+        cardListRepository.saveList(editing, name, colorHex)
 
     /** Set when an import finishes, so the screen can report what happened once. */
     private val _importResult = MutableStateFlow<DeckImportResult?>(null)
