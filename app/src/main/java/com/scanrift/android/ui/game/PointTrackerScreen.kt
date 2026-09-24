@@ -144,6 +144,7 @@ import com.scanrift.android.ui.theme.Dimens
 import com.scanrift.android.ui.theme.Motion
 import com.scanrift.android.ui.theme.TrackFrame
 import com.scanrift.android.ui.theme.domainColor
+import com.scanrift.android.ui.util.Haptic
 import com.scanrift.android.ui.util.tapOrLongPress
 import kotlin.math.max
 import kotlin.math.min
@@ -293,12 +294,6 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
             onSave = { records -> viewModel.saveGame(records) { showSave = false } },
         )
     }
-}
-
-private object Haptic {
-    val Light = HapticFeedbackType.KeyboardTap
-    val Medium = HapticFeedbackType.VirtualKey
-    val Selection = HapticFeedbackType.SegmentTick
 }
 
 @Composable

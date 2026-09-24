@@ -1,6 +1,5 @@
 package com.scanrift.android.ui.components
 
-import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
@@ -25,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -34,6 +33,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.scanrift.android.ui.util.lightImpact
 
 @Composable
 fun TappableQuantityStepper(
@@ -44,10 +44,10 @@ fun TappableQuantityStepper(
     maxValue: Int = 999,
     textStyle: TextStyle = MaterialTheme.typography.titleMedium,
 ) {
-    val view = LocalView.current
+    val haptics = LocalHapticFeedback.current
 
     fun step(delta: Int) {
-        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        haptics.lightImpact()
         onQuantityChange((quantity + delta).coerceIn(minValue, maxValue))
     }
 

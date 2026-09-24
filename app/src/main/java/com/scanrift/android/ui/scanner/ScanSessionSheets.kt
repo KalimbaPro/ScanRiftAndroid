@@ -1,6 +1,5 @@
 package com.scanrift.android.ui.scanner
 
-import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,7 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -72,6 +71,8 @@ import com.scanrift.android.domain.model.DeckSection
 import com.scanrift.android.ui.components.CardThumbnail
 import com.scanrift.android.ui.components.FoilBadge
 import com.scanrift.android.ui.components.TappableQuantityStepper
+import com.scanrift.android.ui.util.heavyImpact
+import com.scanrift.android.ui.util.mediumImpact
 
 private val FoilYellow = Color(0xFFFFD60A)
 
@@ -89,7 +90,7 @@ fun SessionSummarySheet(
     viewModel: ScannerViewModel,
     onDismiss: () -> Unit,
 ) {
-    val view = LocalView.current
+    val haptics = LocalHapticFeedback.current
     var deckRequest by remember { mutableStateOf<DeckSheetRequest?>(null) }
     val isEmpty = state.results.isEmpty()
 
@@ -137,7 +138,7 @@ fun SessionSummarySheet(
                 modifier = Modifier
                     .weight(1f)
                     .clickable(enabled = !isEmpty) {
-                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        haptics.heavyImpact()
                         viewModel.addSessionToCollection()
                         onDismiss()
                     }
@@ -404,7 +405,7 @@ private fun AddToDeckSheet(
     onDismiss: () -> Unit,
     onCommit: (Deck, DeckSection) -> Unit,
 ) {
-    val view = LocalView.current
+    val haptics = LocalHapticFeedback.current
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     var section by rememberSaveable { mutableStateOf(DeckSection.MAIN_DECK) }
     val selected = decks.firstOrNull { it.id == selectedId } ?: decks.firstOrNull()
@@ -421,7 +422,7 @@ private fun AddToDeckSheet(
                 TextButton(
                     enabled = selected != null && total > 0,
                     onClick = {
-                        view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+                        haptics.mediumImpact()
                         selected?.let { onCommit(it, section) }
                     },
                 ) { Text(if (single) "Add" else "Add $total", fontWeight = FontWeight.SemiBold) }

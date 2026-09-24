@@ -1,6 +1,5 @@
 package com.scanrift.android.ui.scanner
 
-import android.view.HapticFeedbackConstants
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -71,8 +70,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -84,6 +83,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.service.scanning.CameraState
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.theme.Dimens
+import com.scanrift.android.ui.util.heavyImpact
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -414,7 +414,7 @@ private fun SessionSidebar(
     viewModel: ScannerViewModel,
     modifier: Modifier = Modifier,
 ) {
-    val view = LocalView.current
+    val haptics = LocalHapticFeedback.current
     Column(modifier.windowInsetsPadding(WindowInsets.safeDrawing)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Scanned Cards", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -449,7 +449,7 @@ private fun SessionSidebar(
         HorizontalDivider()
         Button(
             onClick = {
-                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                haptics.heavyImpact()
                 viewModel.addSessionToCollection()
             },
             enabled = state.results.isNotEmpty(),
