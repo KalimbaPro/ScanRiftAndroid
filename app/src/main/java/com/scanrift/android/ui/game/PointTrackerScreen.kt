@@ -117,11 +117,9 @@ import com.scanrift.android.ui.theme.Motion
 import com.scanrift.android.ui.theme.TrackFrame
 import com.scanrift.android.ui.theme.domainColor
 import com.scanrift.android.ui.util.tapOrLongPress
-import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlin.math.sin
 import kotlinx.coroutines.delay
 
 /**
@@ -593,7 +591,7 @@ private fun PlayerSeat(
 }
 
 /**
- * Where the fan of category dots sits, and which one the finger is over.
+ * Where the row of category dots sits, and which one the finger is over.
  *
  * Positions are held in the tile's own pixel space — the layer lives inside both
  * rotation layers, so "up" and "right" are already the player's own.
@@ -602,14 +600,14 @@ private fun PlayerSeat(
 private class ScorePickerState {
     var anchor by mutableStateOf(Offset.Unspecified)
     var pointer by mutableStateOf(Offset.Unspecified)
-    var radius by mutableFloatStateOf(0f)
+    var spacing by mutableFloatStateOf(0f)
     var dotRadius by mutableFloatStateOf(0f)
 
     /**
      * False until the finger has actually travelled.
      *
-     * Opening the fan puts a dot close to the touch point, so hit-testing from the
-     * moment it appears would highlight whatever happens to sit under the thumb and
+     * A dot can open under the touch point, so hit-testing from the moment it
+     * appears would highlight whatever happens to sit under the thumb and
      * score it on release — turning "tap to open the dots" into "tap to score a random
      * category". Selection only arms once the drag starts.
      */
@@ -620,17 +618,8 @@ private class ScorePickerState {
     /** The dot the finger is currently choosing, or null while the gesture is unarmed. */
     val hovered: ScoreCategory? get() = if (isArmed) categoryAt(pointer) else null
 
-    /**
-     * The arc. Dots bloom up and out from the touch point rather than in a straight
-     * row, so the middle one is not hidden under the finger that opened them.
-     */
-    fun center(index: Int): Offset {
-        val radians = Math.toRadians(FAN_ANGLES[index].toDouble())
-        return Offset(
-            anchor.x + (radius * cos(radians)).toFloat(),
-            anchor.y + (radius * sin(radians)).toFloat(),
-        )
-    }
+    fun center(index: Int): Offset =
+        Offset(anchor.x + (index - 1) * spacing, anchor.y)
 
     /** The dot under [point], with a generous slop so sliding between them feels sticky. */
     fun categoryAt(point: Offset): ScoreCategory? {
@@ -648,59 +637,18 @@ private class ScorePickerState {
         return best?.let { ScoreCategory.entries[it] }
     }
 
-    /**
-     * Keeps the whole fan on the tile. Without this, opening near an edge throws two of
-     * the three dots off-screen and the gesture has nothing to land on.
-     *
-     * The bounds come from [FAN_ANGLES] rather than being hardcoded, so re-aiming the
-     * fan cannot silently leave the clamp describing the old geometry.
-     */
-    fun open(at: Offset, size: IntSize, radiusPx: Float, dotRadiusPx: Float) {
-        radius = radiusPx
+    fun open(at: Offset, size: IntSize, spacingPx: Float, dotRadiusPx: Float) {
         dotRadius = dotRadiusPx
-        val margin = dotRadiusPx + 6f
-
-        var minDx = 0f
-        var maxDx = 0f
-        var minDy = 0f
-        var maxDy = 0f
-        FAN_ANGLES.forEach { angle ->
-            val radians = Math.toRadians(angle.toDouble())
-            val dx = (radiusPx * cos(radians)).toFloat()
-            val dy = (radiusPx * sin(radians)).toFloat()
-            minDx = min(minDx, dx)
-            maxDx = max(maxDx, dx)
-            minDy = min(minDy, dy)
-            maxDy = max(maxDy, dy)
-        }
-
-        anchor = Offset(
-            x = clamp(at.x, margin - minDx, size.width - margin - maxDx),
-            y = clamp(at.y, margin - minDy, size.height - margin - maxDy),
-        )
+        spacing = min(spacingPx, (size.width / 2f - dotRadiusPx - 6f).coerceAtLeast(0f))
+        anchor = Offset(size.width / 2f, size.height / 2f)
         pointer = at
         isArmed = false
     }
-
-    /** Centres instead of clamping when the tile is too small to hold the fan at all. */
-    private fun clamp(value: Float, low: Float, high: Float) =
-        if (low <= high) value.coerceIn(low, high) else (low + high) / 2f
 
     fun close() {
         anchor = Offset.Unspecified
         pointer = Offset.Unspecified
         isArmed = false
-    }
-
-    private companion object {
-        /**
-         * Where the fan points and how wide it opens, in screen angles — negative is
-         * upward, so -90 aims it straight up out of the touch, the spread splitting
-         * evenly either side of the finger.
-         */
-        const val FAN_CENTER = -90f
-        const val FAN_SPREAD = 50f
-        val FAN_ANGLES = floatArrayOf(FAN_CENTER - FAN_SPREAD, FAN_CENTER, FAN_CENTER + FAN_SPREAD)
     }
 }
 
@@ -710,8 +658,8 @@ private fun rememberScorePickerState() = remember { ScorePickerState() }
 /**
  * The whole tap-zone interaction, as one gesture.
  *
- * Left half takes a point back. Pressing the right half blooms the three category dots
- * out of the touch point; keep the finger down, slide onto one and lift to score it —
+ * Left half takes a point back. Pressing the right half opens the three category dots
+ * in a row across the middle of the tile; keep the finger down, slide onto one and lift to score it —
  * the same press-drag-release the Pinterest reaction picker uses. Lifting without moving
  * leaves the dots up so they can be tapped instead, which is what you want when the
  * phone is flat on a table and you are not holding it.
@@ -733,7 +681,7 @@ private fun BoxScope.ScoreTapLayer(
     val allowUndo by rememberUpdatedState(canUndo)
     val density = LocalDensity.current
     val dotRadiusPx = with(density) { dotDiameter.toPx() } / 2f
-    val radiusPx = with(density) { (dotDiameter * 1.65f).toPx() }
+    val spacingPx = with(density) { (dotDiameter * 1.65f).toPx() }
 
     Box(
         Modifier
@@ -751,7 +699,7 @@ private fun BoxScope.ScoreTapLayer(
                             if (up != null && up.position.x < size.width / 2f && allowUndo) undo()
                             return@awaitEachGesture
                         }
-                        state.open(down.position, size, radiusPx, dotRadiusPx)
+                        state.open(down.position, size, spacingPx, dotRadiusPx)
                     } else {
                         // The fan was already up, so this gesture is aimed at a dot from
                         // the start — no travel needed before it can select one.
@@ -841,7 +789,7 @@ private fun BoxScope.ScorePickerDots(
 }
 
 /**
- * One dot, springing out of the touch point with a short per-index delay so the three
+ * One dot, springing in with a short per-index delay so the three
  * arrive in sequence rather than as a block.
  */
 @Composable
