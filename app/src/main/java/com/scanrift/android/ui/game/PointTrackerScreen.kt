@@ -4,6 +4,39 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipDescription
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.systemBarsIgnoringVisibility
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import com.scanrift.android.ui.theme.ScanRiftBlue
+import kotlin.math.abs
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.animateColorAsState
@@ -16,9 +49,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.drag
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
@@ -43,7 +74,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,8 +86,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -127,15 +155,20 @@ import kotlinx.coroutines.delay
  *
  * Entirely new on Android — the previous build had no equivalent at all.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val immersive = LocalImmersiveMode.current
     var confirmReset by rememberSaveable { mutableStateOf(false) }
     var showSave by rememberSaveable { mutableStateOf(false) }
-    var setupSeat by rememberSaveable { mutableStateOf<Int?>(null) }
+    var showRoster by rememberSaveable { mutableStateOf(false) }
+    var pickerSeat by rememberSaveable { mutableStateOf<Int?>(null) }
+    var pickerShowsName by rememberSaveable { mutableStateOf(true) }
     val legends by viewModel.legends.collectAsStateWithLifecycle()
     val decks by viewModel.decks.collectAsStateWithLifecycle()
+    val haptics = LocalHapticFeedback.current
+    val feedback: (HapticFeedbackType) -> Unit = { if (state.hapticsEnabled) haptics.performHapticFeedback(it) }
 
     // Hide the system bars *and* the app's navigation container in fullscreen, and
     // keep the screen awake — a 45-minute game shouldn't dim, which is an
@@ -148,17 +181,22 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
         onDispose { immersive.value = false }
     }
 
+    val safe = WindowInsets.safeDrawing.asPaddingValues()
+    val edges = WindowInsets.systemBarsIgnoringVisibility.union(WindowInsets.displayCutout).asPaddingValues()
+    val direction = LocalLayoutDirection.current
+    val toggle = tween<Dp>(Motion.FULLSCREEN_TOGGLE_MS, easing = FastOutSlowInEasing)
+    val top by animateDpAsState(if (state.isFullScreen) 0.dp else safe.calculateTopPadding(), toggle, label = "top")
+    val bottom by animateDpAsState(if (state.isFullScreen) 0.dp else safe.calculateBottomPadding(), toggle, label = "bottom")
+
     SeatLayout(
         playerCount = state.players.size,
         modifier = Modifier
             .fillMaxSize()
-            // Fullscreen is meant to run under the system bars; normal mode is not.
-            .then(
-                if (state.isFullScreen) {
-                    Modifier
-                } else {
-                    Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
-                },
+            .padding(
+                start = if (state.isFullScreen) 0.dp else safe.calculateStartPadding(direction),
+                top = top,
+                end = if (state.isFullScreen) 0.dp else safe.calculateEndPadding(direction),
+                bottom = bottom,
             ),
         centerBar = {
             CenterControlBar(
@@ -166,32 +204,38 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
                 isFullScreen = state.isFullScreen,
                 canSave = state.recordablePlayers.isNotEmpty(),
                 onReset = { confirmReset = true },
-                onRandomize = viewModel::randomizeFirstPlayer,
-                onToggleFullScreen = { viewModel.setFullScreen(!state.isFullScreen) },
-                onSave = { showSave = true },
-                onChangePlayerCount = viewModel::setPlayerCount,
+                onPlayers = { showRoster = true },
+                onRandomize = { feedback(Haptic.Medium); viewModel.randomizeFirstPlayer() },
+                onToggleFullScreen = { feedback(Haptic.Light); viewModel.setFullScreen(!state.isFullScreen) },
+                onSave = { feedback(Haptic.Medium); showSave = true },
             )
         },
         seat = { index, rotation, legendRotation ->
             val player = state.players.getOrNull(index)
             if (player != null) {
+                val isQuarterTurn = abs(abs(legendRotation % 180f) - 90f) < 0.5f
                 PlayerSeat(
                     player = player,
                     index = index,
                     rotation = rotation,
                     legendRotation = legendRotation,
-                    isStarting = state.startingPlayerIndex == index && !state.isRandomizing,
-                    isCandidate = state.startingPlayerIndex == index && state.isRandomizing,
+                    isStarting = state.startingPlayerIndex == index,
+                    isChosen = state.startingPlayerIndex == index && !state.isRandomizing,
                     isFullBleed = state.isFullScreen,
+                    edgeInset = when {
+                        !state.isFullScreen || isQuarterTurn -> 0.dp
+                        rotation == 180f -> edges.calculateTopPadding()
+                        else -> edges.calculateBottomPadding()
+                    },
                     legend = player.legendCardId?.let { state.legendsById[it] },
                     deckName = player.deckId?.let { id -> decks.firstOrNull { it.id == id }?.name },
                     inputMode = state.inputMode,
-                    onAdd = { category -> viewModel.addPoint(index, category) },
-                    onRemove = { category -> viewModel.removePoint(index, category) },
-                    onUndo = { viewModel.undoPoint(index) },
-                    onSetXp = { value -> viewModel.setXp(index, value) },
-                    onOpenSetup = { setupSeat = index },
-                    onDropPlayer = { draggedId -> viewModel.swapPlayers(draggedId, index) },
+                    onAdd = { category -> feedback(Haptic.Light); viewModel.addPoint(index, category) },
+                    onRemove = { category -> feedback(Haptic.Medium); viewModel.removePoint(index, category) },
+                    onUndo = { feedback(Haptic.Medium); viewModel.undoPoint(index) },
+                    onSetXp = { value -> feedback(Haptic.Selection); viewModel.setXp(index, value) },
+                    onOpenSetup = { pickerShowsName = true; pickerSeat = index },
+                    onDropPlayer = { draggedId -> feedback(Haptic.Selection); viewModel.swapPlayers(draggedId, index) },
                 )
             }
         },
@@ -200,60 +244,61 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
     if (confirmReset) {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
-            title = { Text("Reset scores?") },
-            text = { Text("Every player goes back to zero.") },
+            title = { Text("Reset Counters") },
+            text = { Text("Reset all player scores to 0?") },
             confirmButton = {
-                TextButton(onClick = { viewModel.resetCounters(); confirmReset = false }) { Text("Reset") }
+                TextButton(onClick = {
+                    viewModel.resetCounters()
+                    feedback(Haptic.Medium)
+                    confirmReset = false
+                }) { Text("Reset", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } },
         )
     }
 
-    setupSeat?.let { seat ->
+    if (showRoster) {
+        PlayerSetupSheet(
+            players = state.players,
+            legendsById = state.legendsById,
+            decks = decks,
+            onChangePlayerCount = viewModel::setPlayerCount,
+            onRename = viewModel::rename,
+            onPick = { seat -> pickerShowsName = false; pickerSeat = seat },
+            onDismiss = { showRoster = false },
+        )
+    }
+
+    pickerSeat?.let { seat ->
         state.players.getOrNull(seat)?.let { player ->
-            PlayerSetupSheet(
+            LegendOrDeckPickerSheet(
                 player = player,
+                showNameField = pickerShowsName,
                 legends = legends,
                 decks = decks,
-                legendsById = state.legendsById,
                 onRename = { viewModel.rename(player.id, it) },
                 onPickLegend = { viewModel.assignLegend(player.id, it) },
                 onPickDeck = { viewModel.assignDeck(player.id, it) },
                 onClear = { viewModel.clearAssignment(player.id) },
-                onDismiss = { setupSeat = null },
+                onDismiss = { pickerSeat = null },
             )
         }
     }
 
     if (showSave) {
-        SaveGameDialog(
-            onDismiss = { showSave = false },
-            onSave = { name -> viewModel.saveGame(name) { showSave = false } },
+        GameRecordSheet(
+            players = state.players,
+            deckNames = decks.associate { it.id to it.name },
+            onSkip = { showSave = false },
+            onSave = { records -> viewModel.saveGame(records) { showSave = false } },
         )
     }
 }
 
-@Composable
-private fun SaveGameDialog(onDismiss: () -> Unit, onSave: (String?) -> Unit) {
-    var name by rememberSaveable { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Save this game?") },
-        text = {
-            Column {
-                Text("One record is saved per player bound to a deck or a legend.")
-                androidx.compose.material3.OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Game name (optional)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                )
-            }
-        },
-        confirmButton = { TextButton(onClick = { onSave(name.ifBlank { null }) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Skip") } },
-    )
+private object Haptic {
+    val Light = HapticFeedbackType.KeyboardTap
+    val Medium = HapticFeedbackType.VirtualKey
+    val Selection = HapticFeedbackType.SegmentTick
 }
 
 @Composable
@@ -262,64 +307,54 @@ private fun CenterControlBar(
     isFullScreen: Boolean,
     canSave: Boolean,
     onReset: () -> Unit,
+    onPlayers: () -> Unit,
     onRandomize: () -> Unit,
     onToggleFullScreen: () -> Unit,
     onSave: () -> Unit,
-    onChangePlayerCount: (Int) -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onReset) { Icon(Icons.Filled.Refresh, contentDescription = "Reset scores") }
-
-        // Player count decides the seat layout — 2 face to face, 3 with two side
-        // seats, 4 in quadrants — so it is worth showing the options rather than
-        // making you cycle blindly through them.
-        var countMenuOpen by remember { mutableStateOf(false) }
-        Box {
+        BarButton(Icons.Filled.Refresh, "Reset", onReset)
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .clickable(onClickLabel = "Players", onClick = onPlayers)
+                .semantics { contentDescription = "Players" },
+            contentAlignment = Alignment.Center,
+        ) {
             Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                    .clip(CircleShape)
-                    .clickable { countMenuOpen = true },
+                Modifier.size(32.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("$playerCount", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            }
-            DropdownMenu(expanded = countMenuOpen, onDismissRequest = { countMenuOpen = false }) {
-                (Constants.PointTracker.MIN_PLAYERS..Constants.PointTracker.MAX_PLAYERS).forEach { count ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                when (count) {
-                                    2 -> "2 players — face to face"
-                                    3 -> "3 players — one top, two side"
-                                    else -> "4 players — quadrants"
-                                },
-                            )
-                        },
-                        onClick = { onChangePlayerCount(count); countMenuOpen = false },
-                    )
-                }
+                Text(
+                    "$playerCount",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
+        BarButton(Icons.Filled.Casino, "Randomize first player", onRandomize)
+        BarButton(
+            if (isFullScreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+            if (isFullScreen) "Exit full screen" else "Enter full screen",
+            onToggleFullScreen,
+        )
+        if (canSave) BarButton(Icons.Filled.SaveAlt, "Save game to deck", onSave)
+    }
+}
 
-        IconButton(onClick = onRandomize) { Icon(Icons.Filled.Casino, contentDescription = "Random first player") }
-        IconButton(onClick = onToggleFullScreen) {
-            Icon(
-                imageVector = if (isFullScreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-                contentDescription = "Toggle fullscreen",
-            )
-        }
-        if (canSave) {
-            IconButton(onClick = onSave) { Icon(Icons.Filled.SaveAlt, contentDescription = "Save game") }
-        }
+@Composable
+private fun BarButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -332,8 +367,9 @@ private fun PlayerSeat(
     rotation: Float,
     legendRotation: Float,
     isStarting: Boolean,
-    isCandidate: Boolean,
+    isChosen: Boolean,
     isFullBleed: Boolean,
+    edgeInset: Dp,
     legend: com.scanrift.android.domain.model.Card?,
     deckName: String?,
     inputMode: ScoreInputMode,
@@ -374,16 +410,24 @@ private fun PlayerSeat(
             override fun onEnded(event: DragAndDropEvent) { isDropTarget = false }
         }
     }
+    val highlight = tween<Color>(Motion.HIGHLIGHT_BORDER_MS, easing = FastOutSlowInEasing)
     val borderColor by animateColorAsState(
         targetValue = when {
+            isStarting -> StartingYellow
             isDropTarget -> MaterialTheme.colorScheme.primary
-            isStarting -> Color(0xFFFFD60A)
-            isCandidate -> MaterialTheme.colorScheme.primary
             else -> Color.Transparent
         },
+        animationSpec = highlight,
         label = "seatBorder",
     )
-    val tint = legend?.domains?.firstOrNull()?.let { domainColor(it) } ?: MaterialTheme.colorScheme.primary
+    val borderWidth = when {
+        isStarting -> 4.dp
+        isDropTarget -> 3.dp
+        else -> 0.dp
+    }
+    val domainTint = legend?.domains?.firstOrNull()?.let { domainColor(it) }
+    val hasArt = legend?.imageUrl != null
+    val labelColor = if (hasArt || isSystemInDarkTheme()) Color.White else Color.Black
     val shape = RoundedCornerShape(if (isFullBleed) 0.dp else 18.dp)
 
     // The drop target lives *outside* the rotation, on a plain box filling the seat.
@@ -410,12 +454,13 @@ private fun PlayerSeat(
                 BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(if (isFullBleed) 0.dp else 6.dp)
+                        .padding(if (isFullBleed) 0.dp else 8.dp)
                         .clip(shape)
                         .background(
-                            Brush.linearGradient(listOf(tint.copy(alpha = 0.35f), tint.copy(alpha = 0.15f))),
+                            domainTint?.let { Brush.linearGradient(listOf(it.copy(alpha = 0.35f), it.copy(alpha = 0.15f))) }
+                                ?: SolidColor(ScanRiftBlue.copy(alpha = 0.18f)),
                         )
-                        .border(if (borderColor == Color.Transparent) 0.dp else 4.dp, borderColor, shape),
+                        .border(borderWidth, borderColor, shape),
                 ) {
                     legend?.imageUrl?.let { url ->
                         coil3.compose.AsyncImage(
@@ -425,19 +470,61 @@ private fun PlayerSeat(
                             alignment = Alignment.TopCenter,
                             modifier = Modifier.matchParentSize(),
                         )
-                        // A flat veil rather than a gradient: the score has to stay legible
-                        // over whatever the art happens to be.
-                        Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.45f)))
+                        Box(
+                            Modifier.matchParentSize()
+                                .background(Color.Gray.copy(alpha = Constants.PointTracker.LEGEND_OVERLAY_OPACITY)),
+                        )
+                        if (isFullBleed) {
+                            val height = constraints.maxHeight.toFloat()
+                            Box(
+                                Modifier.matchParentSize().background(
+                                    Brush.verticalGradient(
+                                        0f to Color.Transparent,
+                                        0.5f to Color.Black.copy(alpha = 0.45f),
+                                        1f to Color.Black.copy(alpha = 0.75f),
+                                        startY = height / 2f,
+                                        endY = height,
+                                    ),
+                                ),
+                            )
+                        }
                     }
 
                     val minDimension = min(maxWidth.value, maxHeight.value)
                     val buttonDiameter = min(60f, max(40f, minDimension * 0.16f)).dp
                     val scoreSize = max(56f, minDimension * 0.45f).sp
                     val picker = rememberScorePickerState()
+                    val pixelsPerDp = LocalDensity.current.density
 
                     // Reset the picker when the seat changes hands, so a swap never
                     // leaves someone else's half-made choice hanging over the tile.
                     LaunchedEffect(player.id, inputMode) { picker.close() }
+
+                    Text(
+                        text = "${player.score}",
+                        fontSize = scoreSize,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.SansSerif,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        style = LocalTextStyle.current.copy(
+                            fontFeatureSettings = "tnum",
+                            shadow = Shadow(Color.Black.copy(alpha = 0.4f), Offset(0f, 2f * pixelsPerDp), 4f * pixelsPerDp),
+                        ),
+                        // The score deliberately does not animate; iOS kills its animation
+                        // explicitly. The per-category counts below do animate.
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            // Reserve only what is actually below: the breakdown bar is
+                            // a good deal shorter than the button row plus its captions.
+                            .padding(
+                                bottom = when (inputMode) {
+                                    ScoreInputMode.CATEGORY_BUTTONS -> buttonDiameter + 36.dp
+                                    ScoreInputMode.TAP_ZONES -> buttonDiameter * 0.5f + 20.dp
+                                },
+                            ),
+                    )
 
                     // The gesture layer sits directly over the art and under everything
                     // else, so the name chip and the XP pill still win the hit test.
@@ -455,13 +542,42 @@ private fun PlayerSeat(
                     // long-press drags it onto another seat to swap the two. It is the
                     // only tap target on the tile, since the rest belongs to the score
                     // buttons.
-                    val chipLabel = deckName ?: legend?.name
-                    Column(
+                    val chipPulse = remember { Animatable(1f) }
+                    LaunchedEffect(isChosen) {
+                        if (isChosen) {
+                            chipPulse.animateTo(
+                                1.12f,
+                                infiniteRepeatable(tween(Motion.CHIP_PULSE_MS, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+                            )
+                        } else {
+                            chipPulse.animateTo(1f, tween(Motion.CHOSEN_FADE_MS, easing = FastOutSlowInEasing))
+                        }
+                    }
+                    val chosenFade = tween<Color>(Motion.CHOSEN_FADE_MS, easing = FastOutSlowInEasing)
+                    val chipColor by animateColorAsState(
+                        if (isChosen) StartingYellow else MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
+                        chosenFade,
+                        label = "chipColor",
+                    )
+                    val chipText by animateColorAsState(
+                        if (isChosen) Color.Black else MaterialTheme.colorScheme.onSurface,
+                        chosenFade,
+                        label = "chipText",
+                    )
+                    Row(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .padding(top = 10.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color.Black.copy(alpha = 0.35f))
+                            .scale(chipPulse.value)
+                            .then(
+                                if (isChosen) {
+                                    Modifier.shadow(10.dp, CircleShape, ambientColor = StartingYellow, spotColor = StartingYellow)
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .clip(CircleShape)
+                            .background(chipColor)
                             // Tap and long-press-drag share one detector, deliberately.
                             //
                             // `clickable` and the current `dragAndDropSource(transferData)`
@@ -498,61 +614,37 @@ private fun PlayerSeat(
                                 onClick(label = "Open player setup") { openSetup(); true }
                             }
                             .padding(horizontal = 12.dp, vertical = 6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        if (isChosen) {
+                            Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                        }
                         Text(
-                            text = player.name,
+                            text = player.name.ifEmpty { "Player" },
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
+                            fontWeight = if (isChosen) FontWeight.ExtraBold else FontWeight.SemiBold,
+                            color = chipText,
+                            maxLines = 1,
                         )
-                        // Only shown once there is something to show — an empty seat gets
-                        // its name and nothing else.
-                        if (chipLabel != null) {
+                        if (deckName != null) {
+                            val deckColor = chipText.copy(alpha = 0.6f)
+                            Text("•", style = MaterialTheme.typography.labelSmall, color = deckColor)
                             Text(
-                                text = chipLabel,
+                                text = deckName,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.85f),
+                                color = deckColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
 
-                    XpPill(
-                        xp = player.xp,
-                        onSetXp = onSetXp,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(10.dp),
-                    )
-
-                    Text(
-                        text = "${player.score}",
-                        fontSize = scoreSize,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.SansSerif,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                        // The score deliberately does not animate; iOS kills its animation
-                        // explicitly. The per-category counts below do animate.
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            // Reserve only what is actually below: the breakdown bar is
-                            // a good deal shorter than the button row plus its captions.
-                            .padding(
-                                bottom = when (inputMode) {
-                                    ScoreInputMode.CATEGORY_BUTTONS -> buttonDiameter + 36.dp
-                                    ScoreInputMode.TAP_ZONES -> buttonDiameter * 0.55f + 20.dp
-                                },
-                            ),
-                    )
-
                     when (inputMode) {
                         ScoreInputMode.CATEGORY_BUTTONS -> Row(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 8.dp),
+                                .padding(bottom = 2.dp + edgeInset),
                             horizontalArrangement = Arrangement.spacedBy(buttonDiameter * 0.45f),
                         ) {
                             ScoreCategory.entries.forEach { category ->
@@ -560,6 +652,7 @@ private fun PlayerSeat(
                                     category = category,
                                     count = player.count(category),
                                     diameter = buttonDiameter,
+                                    labelColor = labelColor,
                                     onAdd = { onAdd(category) },
                                     onRemove = { onRemove(category) },
                                 )
@@ -575,9 +668,17 @@ private fun PlayerSeat(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                .padding(start = 14.dp, end = 14.dp, bottom = 10.dp + edgeInset),
                         )
                     }
+
+                    XpPill(
+                        xp = player.xp,
+                        onSetXp = onSetXp,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 10.dp, end = 10.dp),
+                    )
 
                     // Drawn last so the dots sit over the score and the track, but it
                     // takes no input of its own — the layer below owns the whole gesture.
@@ -680,6 +781,7 @@ private fun BoxScope.ScoreTapLayer(
     val score by rememberUpdatedState(onScore)
     val allowUndo by rememberUpdatedState(canUndo)
     val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
     val dotRadiusPx = with(density) { dotDiameter.toPx() } / 2f
     val spacingPx = with(density) { (dotDiameter * 1.65f).toPx() }
 
@@ -687,37 +789,42 @@ private fun BoxScope.ScoreTapLayer(
         Modifier
             .matchParentSize()
             .pointerInput(Unit) {
+                val threshold = SCORE_GESTURE_THRESHOLD.toPx()
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val openedNow = !state.isOpen
+                    val undoing = openedNow && down.position.x < size.width / 2f
 
-                    if (openedNow) {
-                        if (down.position.x < size.width / 2f) {
-                            // Left half: a plain button, so it only fires if the finger
-                            // lifts on the same side it went down.
-                            val up = waitForUpOrCancellation()
-                            if (up != null && up.position.x < size.width / 2f && allowUndo) undo()
-                            return@awaitEachGesture
+                    when {
+                        undoing -> Unit
+                        openedNow -> {
+                            state.open(down.position, size, spacingPx, dotRadiusPx)
+                            haptics.performHapticFeedback(Haptic.Light)
                         }
-                        state.open(down.position, size, spacingPx, dotRadiusPx)
-                    } else {
                         // The fan was already up, so this gesture is aimed at a dot from
                         // the start — no travel needed before it can select one.
-                        state.isArmed = true
+                        else -> state.isArmed = true
                     }
 
-                    state.pointer = down.position
+                    if (!undoing) state.pointer = down.position
                     var travelled = 0f
                     drag(down.id) { change ->
-                        travelled += change.positionChange().getDistance()
-                        if (travelled > viewConfiguration.touchSlop) state.isArmed = true
-                        state.pointer = change.position
+                        travelled = (change.position - down.position).getDistance()
+                        if (!undoing) {
+                            if (travelled > threshold) state.isArmed = true
+                            state.pointer = change.position
+                        }
                         change.consume()
+                    }
+
+                    if (undoing) {
+                        if (travelled < threshold && allowUndo) undo()
+                        return@awaitEachGesture
                     }
 
                     // Order matters: a tap that merely opened the fan must not score,
                     // even though a dot may well have bloomed under the finger.
-                    val opening = openedNow && travelled <= viewConfiguration.touchSlop
+                    val opening = openedNow && travelled <= threshold
                     val picked = if (opening) null else state.categoryAt(state.pointer)
                     when {
                         picked != null -> { state.close(); score(picked) }
@@ -755,7 +862,7 @@ private fun ZoneMarker(
             imageVector = icon,
             contentDescription = null,
             tint = Color.White.copy(alpha = if (enabled) 0.5f else 0.2f),
-            modifier = Modifier.padding(horizontal = 16.dp).size(28.dp),
+            modifier = Modifier.padding(horizontal = 18.dp).size(24.dp),
         )
     }
 }
@@ -832,12 +939,16 @@ private fun BoxScope.FannedCategoryDot(
             imageVector = category.icon,
             contentDescription = null,
             tint = Color.White,
-            modifier = Modifier.size(diameter * 0.44f),
+            modifier = Modifier.size(diameter * 0.38f),
         )
     }
 }
 
 private const val FAN_STAGGER_MS = 45L
+
+private val SCORE_GESTURE_THRESHOLD = 12.dp
+
+private val StartingYellow = Color(0xFFFFD60A)
 
 /**
  * The scoring track: one cell per point, in the order the points were taken.
@@ -861,12 +972,16 @@ private fun ScoreTrack(
         player.orderedPoints()
     }
 
-    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
-        if (points.isEmpty()) return@BoxWithConstraints
+    BoxWithConstraints(modifier.height(cellHeight + 8.dp), contentAlignment = Alignment.Center) {
+        if (points.isEmpty()) {
+            Box(Modifier.matchParentSize().semantics { contentDescription = "No points yet" })
+            return@BoxWithConstraints
+        }
 
         val gap = 2.dp
+        val inset = 3.dp
         // Fixed width until the rail runs out of room, then an equal share of what is left.
-        val fitted = (maxWidth - gap * (points.size - 1)) / points.size
+        val fitted = (maxWidth - inset * 2 - gap * (points.size - 1)) / points.size
         val cellWidth = min(cellHeight.value, fitted.value).coerceAtLeast(3f).dp
         val showIcons = cellWidth >= 13.dp
 
@@ -877,7 +992,7 @@ private fun ScoreTrack(
                 .clip(RoundedCornerShape(6.dp))
                 .background(Color.Black.copy(alpha = 0.45f))
                 .border(1.dp, TrackFrame, RoundedCornerShape(6.dp))
-                .padding(3.dp)
+                .padding(inset)
                 .animateContentSize(Motion.snappy())
                 .semantics {
                     contentDescription = "Scored " + points.joinToString(", ") { it.displayName }
@@ -913,7 +1028,7 @@ private fun ScoreTrackCell(
                 imageVector = category.icon,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(min(width.value, height.value).dp * 0.62f),
+                modifier = Modifier.size(min(width.value, height.value).dp * 0.5f),
             )
         }
     }
@@ -933,52 +1048,55 @@ private fun XpPill(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    val trailing = TransformOrigin(1f, 0.5f)
 
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(percent = 50))
+            .shadow(6.dp, CircleShape)
+            .clip(CircleShape)
             .background(Color.Black.copy(alpha = 0.45f))
+            .pointerInput(Unit) { detectTapGestures { } }
             .animateContentSize(Motion.pill())
-            .padding(horizontal = if (expanded) 6.dp else 10.dp, vertical = 4.dp),
+            .padding(horizontal = if (expanded) 14.dp else 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        if (expanded) {
-            XpStepButton(
-                symbol = "\u2212",
-                label = "Decrease XP",
-                enabled = xp > 0,
-                onClick = { onSetXp(xp - 1) },
-            )
+        AnimatedVisibility(
+            visible = expanded,
+            enter = scaleIn(Motion.pill(), initialScale = 0.6f, transformOrigin = trailing) + fadeIn(),
+            exit = scaleOut(Motion.pill(), targetScale = 0.6f, transformOrigin = trailing) + fadeOut(),
+        ) {
+            Row(Modifier.padding(end = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                XpStepButton(Icons.Filled.Remove, "Decrease XP", enabled = xp > 0) {
+                    haptics.performHapticFeedback(Haptic.Light)
+                    onSetXp(xp - 1)
+                }
+                XpStepButton(Icons.Filled.Add, "Increase XP", enabled = xp < Constants.PointTracker.XP_MAX) {
+                    haptics.performHapticFeedback(Haptic.Light)
+                    onSetXp(xp + 1)
+                }
+            }
         }
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClickLabel = "Toggle the XP stepper") { expanded = !expanded }
-                .padding(horizontal = 4.dp),
+                .widthIn(min = 26.dp)
+                .clickable {
+                    haptics.performHapticFeedback(Haptic.Light)
+                    expanded = !expanded
+                }
+                .semantics {
+                    contentDescription = "${if (expanded) "Close XP editor" else "Edit XP"}, current value $xp"
+                },
         ) {
-            Text(
-                text = "$xp",
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                fontSize = 16.sp,
-            )
+            RollingNumber(xp, fontSize = 18.sp)
             Text(
                 text = "XP",
                 color = Color.White.copy(alpha = 0.75f),
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 9.sp,
-            )
-        }
-
-        if (expanded) {
-            XpStepButton(
-                symbol = "+",
-                label = "Increase XP",
-                enabled = xp < Constants.PointTracker.XP_MAX,
-                onClick = { onSetXp(xp + 1) },
+                fontSize = 10.sp,
+                lineHeight = 10.sp,
             )
         }
     }
@@ -986,23 +1104,46 @@ private fun XpPill(
 
 @Composable
 private fun XpStepButton(
-    symbol: String,
+    icon: ImageVector,
     label: String,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
-            .size(28.dp)
+            .size(32.dp)
             .clip(CircleShape)
-            .clickable(enabled = enabled, onClickLabel = label, onClick = onClick),
+            .clickable(enabled = enabled, onClickLabel = label, onClick = onClick)
+            .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = if (enabled) 1f else 0.3f),
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+@Composable
+private fun RollingNumber(value: Int, fontSize: TextUnit) {
+    AnimatedContent(
+        targetState = value,
+        transitionSpec = {
+            val direction = if (targetState > initialState) 1 else -1
+            (slideInVertically(Motion.snappy()) { it * direction } + fadeIn()) togetherWith
+                (slideOutVertically(Motion.snappy()) { -it * direction } + fadeOut())
+        },
+        label = "rollingNumber",
+    ) { number ->
         Text(
-            text = symbol,
-            color = Color.White.copy(alpha = if (enabled) 1f else 0.3f),
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
+            text = "$number",
+            color = Color.White,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = fontSize,
+            lineHeight = fontSize,
+            style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
         )
     }
 }
@@ -1018,6 +1159,7 @@ private fun CategoryScoreButton(
     category: ScoreCategory,
     count: Int,
     diameter: androidx.compose.ui.unit.Dp,
+    labelColor: Color,
     onAdd: () -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -1034,6 +1176,7 @@ private fun CategoryScoreButton(
             modifier = Modifier
                 .size(diameter)
                 .scale(scale)
+                .shadow(5.dp, CircleShape)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(listOf(color, color.copy(alpha = 0.75f))))
                 .tapOrLongPress(
@@ -1053,19 +1196,20 @@ private fun CategoryScoreButton(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = "$count",
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                fontSize = (diameter.value * 0.36f).sp,
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(category.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(diameter * 0.32f))
+                RollingNumber(count, fontSize = (diameter.value * 0.28f).sp)
+            }
         }
         Text(
             text = category.displayName.uppercase(),
-            color = Color.White,
+            color = labelColor,
             fontSize = max(9f, diameter.value * 0.18f).sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 2.dp),
+            style = LocalTextStyle.current.copy(
+                shadow = if (labelColor == Color.White) Shadow(Color.Black.copy(alpha = 0.5f), blurRadius = 4f) else null,
+            ),
+            modifier = Modifier.padding(top = 4.dp),
         )
     }
 }
