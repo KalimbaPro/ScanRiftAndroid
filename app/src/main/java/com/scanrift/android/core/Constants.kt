@@ -123,8 +123,18 @@ object Constants {
         const val LAST_UPDATE_CHECK = "lastUpdateCheck"
         const val LAST_BACKUP = "lastBackup"
         const val BACKUP_URI = "backupUri"
+        const val CLOUD_SNAPSHOT_AUTO_SYNC = "cloudSnapshotAutoSync"
         const val POINT_TRACKER_ROSTER = "pointTracker.roster.v1"
         const val SCORE_INPUT_MODE = "scoreInputMode"
+    }
+
+    object ImageCache {
+        const val DIRECTORY = "CardImages"
+        const val DISK_CACHE_BYTES = 200L * 1024 * 1024
+    }
+
+    object Backup {
+        const val AUTO_BACKUP_INTERVAL_MS = 5L * 60L * 1000L
     }
 
     object FileNames {

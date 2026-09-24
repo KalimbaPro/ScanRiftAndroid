@@ -260,4 +260,46 @@ class CollectionImportServiceTest {
         assertThat(restored.single { !it.isFoil }.quantity).isEqualTo(3)
         assertThat(restored.single { it.isFoil }.quantity).isEqualTo(1)
     }
+
+    @Test
+    fun `a file with only a header is rejected as empty`() = runTest {
+        val error = runCatching { service.import("CardId, Normal, Foil, Name, Set\n", "csv", now) }.exceptionOrNull()
+
+        assertThat(error).isInstanceOf(ImportException::class.java)
+        assertThat(error?.message).isEqualTo("Could not parse the file: File is empty or has no data rows")
+    }
+
+    @Test
+    fun `json without a collection array is rejected with the ios message`() = runTest {
+        val error = runCatching { service.import("{\"decks\": []}", "json", now) }.exceptionOrNull()
+
+        assertThat(error?.message).isEqualTo(
+            "Could not parse the file: Expected a JSON collection array or an object with a \"collection\" array",
+        )
+    }
+
+    @Test
+    fun `bytes that are not utf-8 are rejected as unreadable`() = runTest {
+        val error = runCatching { service.import(byteArrayOf(0xC3.toByte(), 0x28), "csv", now) }.exceptionOrNull()
+
+        assertThat(error?.message).isEqualTo("Could not read the file. Make sure it's a valid text file.")
+    }
+
+    @Test
+    fun `a byte order mark does not hide a json file`() = runTest {
+        db.cardDao().upsert(card("c1", "Akali"))
+
+        service.import("﻿[{\"id\": \"c1\", \"quantity\": 2}]".toByteArray(), "txt", now)
+
+        assertThat(db.collectionEntryDao().getAll().single().quantity).isEqualTo(2)
+    }
+
+    @Test
+    fun `json import keeps the foil flag it was exported with`() = runTest {
+        db.cardDao().upsert(card("c1", "Akali"))
+
+        service.import("[{\"id\": \"c1\", \"quantity\": 1, \"is_foil\": true}]", "json", now)
+
+        assertThat(db.collectionEntryDao().getAll().single().isFoil).isTrue()
+    }
 }
