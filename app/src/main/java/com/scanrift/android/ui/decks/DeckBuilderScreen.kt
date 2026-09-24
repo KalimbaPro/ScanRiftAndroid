@@ -76,6 +76,7 @@ import com.scanrift.android.domain.model.DeckEntry
 import com.scanrift.android.domain.model.DeckSection
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.components.CardThumbnail
+import com.scanrift.android.ui.game.DeckGameHistoryButton
 import com.scanrift.android.ui.theme.Dimens
 
 /**
@@ -130,6 +131,7 @@ fun DeckBuilderScreen(
                     }
                 },
                 actions = {
+                    state.deck?.let { DeckGameHistoryButton(deckId = deckId, deckName = it.name) }
                     IconButton(onClick = { importMenuOpen = true }) {
                         Icon(Icons.Filled.FileDownload, contentDescription = "Import deck")
                     }

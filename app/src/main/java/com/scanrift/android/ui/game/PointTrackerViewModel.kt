@@ -9,11 +9,7 @@ import com.scanrift.android.data.prefs.UserPreferences
 import com.scanrift.android.data.repository.CollectionRepository
 import com.scanrift.android.data.repository.DeckRepository
 import com.scanrift.android.domain.model.Card
-import com.scanrift.android.domain.model.CardType
 import com.scanrift.android.domain.model.Deck
-import com.scanrift.android.domain.model.GameRecord
-import com.scanrift.android.domain.model.GameResult
-import com.scanrift.android.domain.model.Rarity
 import com.scanrift.android.domain.model.ScoreCategory
 import com.scanrift.android.domain.model.ScoreInputMode
 import com.scanrift.android.data.local.mapper.toEntity
@@ -152,6 +148,7 @@ data class PointTrackerState(
     val legendsById: Map<String, Card> = emptyMap(),
     val decks: List<Deck> = emptyList(),
     val inputMode: ScoreInputMode = ScoreInputMode.TAP_ZONES,
+    val hapticsEnabled: Boolean = true,
 ) {
     val recordablePlayers: List<PlayerState> get() = players.filter { it.isRecordable }
 }
@@ -174,22 +171,8 @@ class PointTrackerViewModel @Inject constructor(
     private val _state = MutableStateFlow(PointTrackerState(players = defaultRoster()))
     val state: StateFlow<PointTrackerState> = _state.asStateFlow()
 
-    /**
-     * Legends offered by the picker.
-     *
-     * The filters are iOS's, including the one that looks like an oversight and is
-     * not: `(Starter)` printings are **kept**, because some OGS legends have no other
-     * non-promo printing at all.
-     */
     val legends: StateFlow<List<Card>> = collectionRepository.observeAllCards()
-        .map { cards ->
-            cards.filter { card ->
-                card.type == CardType.LEGEND &&
-                    !card.name.contains("(Metal)") &&
-                    !card.isAlternateArt &&
-                    card.rarity != Rarity.PROMO
-            }.sortedBy { it.name }
-        }
+        .map { it.pickableLegends() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val decks: StateFlow<List<Deck>> = deckRepository.observeDecks()
@@ -203,6 +186,9 @@ class PointTrackerViewModel @Inject constructor(
     private val inputMode: StateFlow<ScoreInputMode> = userPreferences.scoreInputMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScoreInputMode.TAP_ZONES)
 
+    private val hapticsEnabled: StateFlow<Boolean> = userPreferences.hapticFeedback
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
     init {
         viewModelScope.launch { restoreRoster() }
         viewModelScope.launch {
@@ -211,8 +197,8 @@ class PointTrackerViewModel @Inject constructor(
                 startingPlayerIndex,
                 isRandomizing,
                 isFullScreen,
-                combine(legends, inputMode, ::Pair),
-            ) { roster, starting, randomizing, fullScreen, (legendCards, mode) ->
+                combine(legends, inputMode, hapticsEnabled, ::Triple),
+            ) { roster, starting, randomizing, fullScreen, (legendCards, mode, haptics) ->
                 PointTrackerState(
                     players = roster,
                     startingPlayerIndex = starting,
@@ -220,6 +206,7 @@ class PointTrackerViewModel @Inject constructor(
                     isFullScreen = fullScreen,
                     legendsById = legendCards.associateBy { it.id },
                     inputMode = mode,
+                    hapticsEnabled = haptics,
                 )
             }.collect { next -> _state.value = next.copy(decks = decks.value) }
         }
@@ -345,49 +332,10 @@ class PointTrackerViewModel @Inject constructor(
 
     // ── Recording ────────────────────────────────────────────────────────────
 
-    /**
-     * Writes one record per recordable seat and resets the board.
-     *
-     * `legendId` and `opponentLegendId` are the matchup key and are easy to drop, so
-     * they are filled from the seats here rather than left to the UI.
-     */
-    fun saveGame(gameName: String?, onSaved: () -> Unit = {}) {
-        val roster = players.value
-        val recordable = roster.filter { it.isRecordable }
-        if (recordable.isEmpty()) return
-
+    fun saveGame(records: List<PendingGameRecord>, onSaved: () -> Unit = {}) {
         viewModelScope.launch {
             val now = System.currentTimeMillis()
-            val topScore = roster.maxOfOrNull { it.score } ?: 0
-
-            recordable.forEach { player ->
-                val opponents = roster.filter { it.id != player.id }
-                val bestOpponent = opponents.maxByOrNull { it.score }
-                val hasBreakdown = player.conquer + player.hold + player.ability > 0
-
-                val record = GameRecord(
-                    id = UUID.randomUUID().toString(),
-                    date = now,
-                    name = gameName?.takeIf { it.isNotBlank() },
-                    result = when {
-                        player.score > (bestOpponent?.score ?: 0) -> GameResult.WIN
-                        player.score == topScore && opponents.count { it.score == topScore } > 0 -> GameResult.DRAW
-                        else -> GameResult.LOSS
-                    },
-                    playerName = player.name,
-                    opponentName = bestOpponent?.name,
-                    pointsScored = player.score,
-                    pointsAllowed = bestOpponent?.score,
-                    conquerCount = player.conquer.takeIf { hasBreakdown },
-                    holdCount = player.hold.takeIf { hasBreakdown },
-                    abilityCount = player.ability.takeIf { hasBreakdown },
-                    deckId = player.deckId,
-                    legendId = player.legendCardId,
-                    opponentLegendId = bestOpponent?.legendCardId,
-                )
-                gameRecordDao.upsert(record.toEntity())
-            }
-
+            records.forEach { gameRecordDao.upsert(it.toGameRecord(UUID.randomUUID().toString(), now).toEntity()) }
             resetCounters()
             onSaved()
         }
