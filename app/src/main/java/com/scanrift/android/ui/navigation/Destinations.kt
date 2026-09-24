@@ -48,8 +48,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object SettingsRoute
 
-@Serializable data object InitialSyncRoute
-
 enum class TopLevelDestination(
     @param:StringRes val labelRes: Int,
     val selectedIcon: ImageVector,

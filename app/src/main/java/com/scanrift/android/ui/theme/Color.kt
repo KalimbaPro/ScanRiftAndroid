@@ -81,6 +81,7 @@ val ListColorPresets: List<Pair<String, String>> = listOf(
 
 const val DEFAULT_LIST_COLOR_HEX = "#FF9500"
 val WishlistYellow = Color(0xFFFFD60A)
+val SuccessGreen = Color(0xFF34C759)
 
 /** Foil badge gold. */
 val FoilGold = Color(0xFFFFD700)

@@ -1,13 +1,21 @@
 package com.scanrift.android.service.backup
 
 import android.content.ContentResolver
+import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
+import com.scanrift.android.core.Constants
 import com.scanrift.android.core.log.Log
+import com.scanrift.android.data.prefs.UserPreferences
 import com.scanrift.android.di.IoDispatcher
 import com.scanrift.android.di.SnapshotJson
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -29,9 +37,36 @@ class BackupService @Inject constructor(
     private val contentResolver: ContentResolver,
     private val builder: SnapshotBuilder,
     private val merger: SnapshotMerger,
+    private val userPreferences: UserPreferences,
     @param:SnapshotJson private val json: Json,
     @param:IoDispatcher private val io: CoroutineDispatcher,
 ) {
+
+    suspend fun backUp(uri: Uri, now: Long): Result<Int> =
+        writeSnapshot(uri, now).onSuccess {
+            runCatching {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }.onFailure { Log.backup.w(it, "Backup location is not persistable") }
+            userPreferences.setBackupUri(uri.toString())
+            userPreferences.setLastBackup(now)
+        }
+
+    suspend fun backUpToSavedLocation(now: Long): Result<Int>? {
+        val uri = userPreferences.backupUri.first()?.toUri() ?: return null
+        return writeSnapshot(uri, now).onSuccess { userPreferences.setLastBackup(now) }
+    }
+
+    suspend fun runAutomaticBackups() {
+        userPreferences.cloudSnapshotAutoSync.distinctUntilChanged().collectLatest { enabled ->
+            while (enabled) {
+                backUpToSavedLocation(System.currentTimeMillis())
+                delay(Constants.Backup.AUTO_BACKUP_INTERVAL_MS)
+            }
+        }
+    }
 
     @OptIn(ExperimentalSerializationApi::class)
     suspend fun writeSnapshot(uri: Uri, now: Long): Result<Int> = withContext(io) {
