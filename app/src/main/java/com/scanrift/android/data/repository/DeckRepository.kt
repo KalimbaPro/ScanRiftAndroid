@@ -55,7 +55,8 @@ class DeckRepository @Inject constructor(
     }
 
     /**
-     * Setting a champion also puts one copy in the main deck, matching iOS.
+     * Setting a champion also puts one copy in the main deck, matching iOS, unless
+     * that card already has an entry in any section.
      *
      * The existing-entry lookup is by card **id** while the copy limit counts by
      * `cleanName`. That mismatch is intentional: an alternate-art printing of the same
@@ -66,8 +67,7 @@ class DeckRepository @Inject constructor(
         deckDao.upsertDeck(deck.copy(championCardId = card?.id, lastModifiedDate = now()))
         if (card == null) return@withContext
 
-        val existing = deckDao.findEntry(deckId, card.id, DeckSection.MAIN_DECK.value)
-        if (existing == null) {
+        if (deckDao.entriesForDeck(deckId).none { it.cardId == card.id }) {
             deckDao.upsertEntry(
                 DeckEntryEntity(deckId = deckId, cardId = card.id, quantity = 1, section = DeckSection.MAIN_DECK.value),
             )

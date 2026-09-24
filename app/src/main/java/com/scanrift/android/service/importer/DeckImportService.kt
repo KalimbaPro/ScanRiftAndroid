@@ -41,7 +41,6 @@ class DeckImportService @Inject constructor(
         // Keyed on (card id, section) to match the unique index on deck_entries; two
         // lines naming the same card in the same section have to fold into one row.
         val entries = LinkedHashMap<Pair<String, DeckSection>, Int>()
-        var linesImported = 0
 
         parsed.lines.forEach { line ->
             val card = resolve(line.token, parsed.source)
@@ -49,7 +48,6 @@ class DeckImportService @Inject constructor(
                 skipped += line.token
                 return@forEach
             }
-            linesImported++
 
             when {
                 // A legend is a slot, whatever section the list filed it under. The
@@ -108,7 +106,6 @@ class DeckImportService @Inject constructor(
 
         DeckImportResult(
             cardsAdded = rows.sumOf { it.quantity },
-            linesImported = linesImported,
             skippedLines = skipped,
             notes = notes,
         )

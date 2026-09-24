@@ -61,19 +61,25 @@ data class ParsedDeckList(
  */
 data class DeckImportResult(
     val cardsAdded: Int = 0,
-    val linesImported: Int = 0,
     val skippedLines: List<String> = emptyList(),
     val notes: List<String> = emptyList(),
 ) {
     val summary: String
         get() = buildString {
-            append("Imported $cardsAdded cards")
+            append("Added $cardsAdded cards.")
             if (skippedLines.isNotEmpty()) {
-                append(", skipped ${skippedLines.size}: ")
-                append(skippedLines.take(3).joinToString(", "))
-                if (skippedLines.size > 3) append(" and ${skippedLines.size - 3} more")
+                append("\n\nSkipped ${skippedLines.size}: ")
+                append(skippedLines.take(SKIPPED_PREVIEW).joinToString(", "))
+                if (skippedLines.size > SKIPPED_PREVIEW) append("\u2026")
+                append(
+                    "\n\nCards from a set you have not synced yet will not resolve. " +
+                        "Update the card database in Settings and import again.",
+                )
             }
-            append(".")
-            notes.forEach { append(" $it") }
+            notes.forEach { append("\n\n$it") }
         }
+
+    private companion object {
+        const val SKIPPED_PREVIEW = 5
+    }
 }

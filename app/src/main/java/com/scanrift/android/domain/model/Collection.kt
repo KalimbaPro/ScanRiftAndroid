@@ -55,7 +55,40 @@ data class Deck(
     val legend: Card? = null,
     val champion: Card? = null,
     val entries: List<DeckEntry> = emptyList(),
-)
+) {
+    val hasContents: Boolean get() = legend != null || entries.isNotEmpty()
+
+    val totalCardCount: Int
+        get() = entries.sumOf { it.quantity } + listOfNotNull(legend, champion).size
+
+    fun count(section: DeckSection): Int = entries.filter { it.section == section }.sumOf { it.quantity }
+
+    fun sortedEntries(section: DeckSection): List<DeckEntry> {
+        val inSection = entries.filter { it.section == section }
+        return if (section == DeckSection.MAIN_DECK) {
+            inSection.sortedWith(compareBy({ it.card?.energy ?: 0 }, { it.card?.type }, { it.card?.name }))
+        } else {
+            inSection.sortedBy { it.card?.name }
+        }
+    }
+
+    fun missingCards(ownedByCardId: Map<String, Int>): List<MissingCard> {
+        val needed = LinkedHashMap<String, Pair<Card, Int>>()
+        fun need(card: Card, quantity: Int) {
+            needed[card.id] = card to ((needed[card.id]?.second ?: 0) + quantity)
+        }
+        legend?.let { need(it, 1) }
+        entries.forEach { entry -> entry.card?.let { need(it, entry.quantity) } }
+        return needed.values
+            .mapNotNull { (card, quantity) ->
+                val deficit = quantity - (ownedByCardId[card.id] ?: 0)
+                if (deficit > 0) MissingCard(card, deficit) else null
+            }
+            .sortedBy { it.card.name }
+    }
+}
+
+data class MissingCard(val card: Card, val deficit: Int)
 
 data class DeckEntry(
     val id: Long = 0,

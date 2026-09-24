@@ -331,4 +331,91 @@ class DeckValidatorTest {
         // With no legend set, nothing is eligible yet.
         assertThat(DeckValidator.isEligibleChampion(champion(), null)).isFalse()
     }
+
+    @Test
+    fun `rule 6 - three main-deck copies of the champion are legal`() {
+        val myChampion = champion()
+        val deck = validDeck(champion = myChampion, mainFiller = 37, extraEntries = listOf(entry(myChampion, quantity = 2)))
+        assertThat(DeckValidator.validate(deck)).isEmpty()
+    }
+
+    @Test
+    fun `a second legend is blocked once one is set`() {
+        val deck = validDeck()
+        assertThat(DeckValidator.addBlockReason(deck, legend(), showAllCards = false)).isEqualTo("Legend already set")
+        assertThat(DeckValidator.addBlockReason(deck.copy(legend = null), legend(), showAllCards = false)).isNull()
+    }
+
+    @Test
+    fun `battlefields report a duplicate before a full slot count`() {
+        val deck = validDeck()
+        val existing = deck.entries.first { it.section == DeckSection.BATTLEFIELD }.card!!
+        assertThat(DeckValidator.addBlockReason(deck, existing, showAllCards = false))
+            .isEqualTo("Battlefield already in deck")
+        assertThat(DeckValidator.addBlockReason(deck, card(type = CardType.BATTLEFIELD), showAllCards = false))
+            .isEqualTo("Battlefield slots full (3/3)")
+    }
+
+    @Test
+    fun `runes are blocked once twelve are in the deck`() {
+        assertThat(DeckValidator.addBlockReason(validDeck(), card(type = CardType.RUNE), showAllCards = false))
+            .isEqualTo("Rune slots full (12/12)")
+    }
+
+    @Test
+    fun `the copy limit is reported before domain identity`() {
+        val offDomain = card(name = "Off", domains = listOf("Calm"))
+        val deck = validDeck(mainFiller = 36, extraEntries = listOf(entry(offDomain, quantity = 3)))
+        assertThat(DeckValidator.addBlockReason(deck, offDomain, showAllCards = false)).isEqualTo("Max 3 copies")
+        val fresh = card(name = "Fresh", domains = listOf("Calm"))
+        assertThat(DeckValidator.addBlockReason(deck, fresh, showAllCards = false)).isEqualTo("Outside deck domains")
+        assertThat(DeckValidator.addBlockReason(deck, fresh, showAllCards = true)).isNull()
+    }
+
+    @Test
+    fun `domain legality exempts colourless cards and domainless legends`() {
+        val calm = card(domains = listOf("Calm"))
+        assertThat(DeckValidator.isCardLegalForDeck(calm, legend(domains = listOf("Fury")))).isFalse()
+        assertThat(DeckValidator.isCardLegalForDeck(card(domains = emptyList()), legend())).isTrue()
+        assertThat(DeckValidator.isCardLegalForDeck(calm, legend(domains = emptyList()))).isTrue()
+        assertThat(DeckValidator.isCardLegalForDeck(calm, null)).isTrue()
+    }
+
+    @Test
+    fun `copying respects section caps and card types`() {
+        val unit = card(name = "Unit")
+        val deck = validDeck(mainFiller = 38, extraEntries = listOf(entry(unit)))
+        assertThat(DeckValidator.canCopy(deck, unit, DeckSection.SIDEBOARD)).isTrue()
+        assertThat(DeckValidator.canCopy(deck, unit, DeckSection.RUNE)).isFalse()
+        val fullSideboard = validDeck(extraEntries = listOf(entry(card(), quantity = 10, section = DeckSection.SIDEBOARD)))
+        assertThat(DeckValidator.canCopy(fullSideboard, unit, DeckSection.SIDEBOARD)).isFalse()
+    }
+
+    @Test
+    fun `moving ignores the copy limit but not the target section`() {
+        val unit = card(name = "Unit")
+        val main = entry(unit, quantity = 3)
+        val deck = validDeck(mainFiller = 36, extraEntries = listOf(main))
+        assertThat(DeckValidator.canMove(deck, main, DeckSection.SIDEBOARD)).isTrue()
+        assertThat(DeckValidator.canMove(deck, main, DeckSection.MAIN_DECK)).isFalse()
+        assertThat(DeckValidator.canMove(deck, main, DeckSection.BATTLEFIELD)).isFalse()
+    }
+
+    @Test
+    fun `max quantity stops at the copy limit, the section cap and one battlefield`() {
+        val unit = card(name = "Unit")
+        val main = entry(unit, quantity = 1)
+        val deck = validDeck(mainFiller = 38, extraEntries = listOf(main))
+        assertThat(DeckValidator.maxQuantity(deck, main)).isEqualTo(3)
+
+        val runeEntry = deck.entries.first { it.section == DeckSection.RUNE }
+        assertThat(DeckValidator.maxQuantity(deck, runeEntry)).isEqualTo(12)
+
+        val battlefield = deck.entries.first { it.section == DeckSection.BATTLEFIELD }
+        assertThat(DeckValidator.maxQuantity(deck, battlefield)).isEqualTo(1)
+
+        val side = entry(card(name = "Side"), quantity = 2, section = DeckSection.SIDEBOARD)
+        val nearlyFull = validDeck(extraEntries = listOf(side, entry(card(), quantity = 8, section = DeckSection.SIDEBOARD)))
+        assertThat(DeckValidator.maxQuantity(nearlyFull, side)).isEqualTo(2)
+    }
 }
