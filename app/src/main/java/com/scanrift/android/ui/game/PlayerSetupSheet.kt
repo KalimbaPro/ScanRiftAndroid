@@ -22,8 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SaveAlt
@@ -65,12 +63,10 @@ fun PlayerSetupSheet(
     legendsById: Map<String, Card>,
     decks: List<Deck>,
     format: MatchFormat,
-    isFullScreen: Boolean,
     canSave: Boolean,
     onChangePlayerCount: (Int) -> Unit,
     onSelectFormat: (MatchFormat) -> Unit,
     onRandomize: () -> Unit,
-    onToggleFullScreen: () -> Unit,
     onSave: () -> Unit,
     onReset: () -> Unit,
     onRename: (String, String) -> Unit,
@@ -104,10 +100,6 @@ fun PlayerSetupSheet(
 
         SectionHeader("Game")
         SetupAction(Icons.Filled.Casino, "Randomize first player") { onDismiss(); onRandomize() }
-        SetupAction(
-            if (isFullScreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-            if (isFullScreen) "Exit full screen" else "Enter full screen",
-        ) { onDismiss(); onToggleFullScreen() }
         if (canSave) SetupAction(Icons.Filled.SaveAlt, "End match and save") { onDismiss(); onSave() }
         SetupAction(Icons.Filled.Refresh, "Reset match") { onDismiss(); onReset() }
 
