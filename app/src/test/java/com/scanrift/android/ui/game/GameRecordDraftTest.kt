@@ -116,4 +116,21 @@ class GameRecordDraftTest {
         assertThat(roster.single().scoreLog).isEmpty()
         assertThat(roster.single().undone().conquer).isEqualTo(1)
     }
+
+    @Test
+    fun `best of one is decided after a single game, even a tie`() {
+        assertThat(emptyList<RoundOutcome>().isDecided(MatchFormat.BEST_OF_ONE)).isFalse()
+        assertThat(listOf(RoundOutcome.LEFT_WON).isDecided(MatchFormat.BEST_OF_ONE)).isTrue()
+        assertThat(listOf(RoundOutcome.TIED).isDecided(MatchFormat.BEST_OF_ONE)).isTrue()
+    }
+
+    @Test
+    fun `best of three needs two wins or three games`() {
+        val bo3 = MatchFormat.BEST_OF_THREE
+        assertThat(listOf(RoundOutcome.LEFT_WON).isDecided(bo3)).isFalse()
+        assertThat(listOf(RoundOutcome.LEFT_WON, RoundOutcome.RIGHT_WON).isDecided(bo3)).isFalse()
+        assertThat(listOf(RoundOutcome.RIGHT_WON, RoundOutcome.RIGHT_WON).isDecided(bo3)).isTrue()
+        assertThat(listOf(RoundOutcome.LEFT_WON, RoundOutcome.TIED).isDecided(bo3)).isFalse()
+        assertThat(listOf(RoundOutcome.LEFT_WON, RoundOutcome.TIED, RoundOutcome.RIGHT_WON).isDecided(bo3)).isTrue()
+    }
 }

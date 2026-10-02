@@ -98,6 +98,7 @@ object Constants {
         const val SCORE_MIN = -99
         const val SCORE_MAX = 99
         const val XP_MAX = 99
+        const val VICTORY_POINTS = 8
         const val MIN_PLAYERS = 2
         const val MAX_PLAYERS = 4
         const val DEFAULT_STARTING_SCORE = 0
@@ -129,7 +130,6 @@ object Constants {
         const val BACKUP_URI = "backupUri"
         const val CLOUD_SNAPSHOT_AUTO_SYNC = "cloudSnapshotAutoSync"
         const val POINT_TRACKER_ROSTER = "pointTracker.roster.v1"
-        const val SCORE_INPUT_MODE = "scoreInputMode"
     }
 
     object ImageCache {

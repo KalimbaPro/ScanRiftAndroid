@@ -1,5 +1,6 @@
 package com.scanrift.android.ui.game
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.scanrift.android.core.Constants
@@ -11,7 +12,6 @@ import com.scanrift.android.data.repository.DeckRepository
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.Deck
 import com.scanrift.android.domain.model.ScoreCategory
-import com.scanrift.android.domain.model.ScoreInputMode
 import com.scanrift.android.data.local.mapper.toEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import kotlinx.serialization.Serializable
@@ -76,13 +77,6 @@ data class PlayerState(
     /** Adds a point and remembers which category it came from. */
     fun scored(category: ScoreCategory): PlayerState =
         withCount(category, count(category) + 1).copy(scoreLog = scoreLog + category)
-
-    /** Takes back a point from a named category — the classic layout's long-press. */
-    fun unscored(category: ScoreCategory): PlayerState {
-        if (count(category) <= 0) return this
-        return withCount(category, count(category) - 1)
-            .copy(scoreLog = scoreLog.withoutLast(category))
-    }
 
     /**
      * Takes back the most recently scored point, whatever it was.
@@ -134,12 +128,6 @@ fun PlayerState.orderedPoints(): List<ScoreCategory> {
     return ordered
 }
 
-/** Drops the last occurrence of [category], leaving the list untouched if it has none. */
-private fun List<ScoreCategory>.withoutLast(category: ScoreCategory): List<ScoreCategory> {
-    val index = lastIndexOf(category)
-    return if (index < 0) this else filterIndexed { i, _ -> i != index }
-}
-
 data class PointTrackerState(
     val players: List<PlayerState> = emptyList(),
     val startingPlayerIndex: Int? = null,
@@ -147,10 +135,14 @@ data class PointTrackerState(
     val isFullScreen: Boolean = false,
     val legendsById: Map<String, Card> = emptyMap(),
     val decks: List<Deck> = emptyList(),
-    val inputMode: ScoreInputMode = ScoreInputMode.TAP_ZONES,
     val hapticsEnabled: Boolean = true,
+    val selectedFormat: MatchFormat = MatchFormat.BEST_OF_THREE,
+    val rounds: List<RoundOutcome> = emptyList(),
+    val matchStartedAt: Long? = null,
 ) {
     val recordablePlayers: List<PlayerState> get() = players.filter { it.isRecordable }
+    val format: MatchFormat get() = if (players.size == 2) selectedFormat else MatchFormat.BEST_OF_ONE
+    val isMatchDecided: Boolean get() = rounds.isDecided(format)
 }
 
 @HiltViewModel
@@ -165,6 +157,7 @@ class PointTrackerViewModel @Inject constructor(
     private val startingPlayerIndex = MutableStateFlow<Int?>(null)
     private val isRandomizing = MutableStateFlow(false)
     private val isFullScreen = MutableStateFlow(false)
+    private val match = MutableStateFlow(MatchProgress())
 
     private var randomizeJob: Job? = null
 
@@ -178,14 +171,6 @@ class PointTrackerViewModel @Inject constructor(
     val decks: StateFlow<List<Deck>> = deckRepository.observeDecks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /**
-     * Paired into the combine rather than spliced in like `decks`, because flipping the
-     * setting has to redraw the seats immediately — there is no navigation event to
-     * piggyback on.
-     */
-    private val inputMode: StateFlow<ScoreInputMode> = userPreferences.scoreInputMode
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScoreInputMode.TAP_ZONES)
-
     private val hapticsEnabled: StateFlow<Boolean> = userPreferences.hapticFeedback
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
@@ -197,16 +182,18 @@ class PointTrackerViewModel @Inject constructor(
                 startingPlayerIndex,
                 isRandomizing,
                 isFullScreen,
-                combine(legends, inputMode, hapticsEnabled, ::Triple),
-            ) { roster, starting, randomizing, fullScreen, (legendCards, mode, haptics) ->
+                combine(legends, hapticsEnabled, match, ::Triple),
+            ) { roster, starting, randomizing, fullScreen, (legendCards, haptics, progress) ->
                 PointTrackerState(
                     players = roster,
                     startingPlayerIndex = starting,
                     isRandomizing = randomizing,
                     isFullScreen = fullScreen,
                     legendsById = legendCards.associateBy { it.id },
-                    inputMode = mode,
                     hapticsEnabled = haptics,
+                    selectedFormat = progress.format,
+                    rounds = progress.rounds,
+                    matchStartedAt = progress.startedAt,
                 )
             }.collect { next -> _state.value = next.copy(decks = decks.value) }
         }
@@ -272,12 +259,13 @@ class PointTrackerViewModel @Inject constructor(
 
     // ── Scoring ──────────────────────────────────────────────────────────────
 
-    fun addPoint(index: Int, category: ScoreCategory) = mutate(index) { player ->
-        // Clamp on the total, not the category: the cap is on the score.
-        if (player.score >= Constants.PointTracker.SCORE_MAX) player else player.scored(category)
+    fun addPoint(index: Int, category: ScoreCategory) {
+        startTimer()
+        mutate(index) { player ->
+            // Clamp on the total, not the category: the cap is on the score.
+            if (player.score >= Constants.PointTracker.SCORE_MAX) player else player.scored(category)
+        }
     }
-
-    fun removePoint(index: Int, category: ScoreCategory) = mutate(index) { it.unscored(category) }
 
     /** The tap-zone layout's decrement: undo the last point, whichever it was. */
     fun undoPoint(index: Int) = mutate(index) { it.undone() }
@@ -299,10 +287,27 @@ class PointTrackerViewModel @Inject constructor(
     }
 
     fun resetCounters() {
+        clearScores()
+        match.update { MatchProgress(format = it.format) }
+        startingPlayerIndex.value = null
+    }
+
+    // ── Match ────────────────────────────────────────────────────────────────
+
+    fun setFormat(format: MatchFormat) = match.update { it.copy(format = format) }
+
+    fun startTimer() = match.update { it.copy(startedAt = it.startedAt ?: SystemClock.elapsedRealtime()) }
+
+    fun nextGame(outcome: RoundOutcome) {
+        startTimer()
+        val rounds = match.updateAndGet { it.copy(rounds = it.rounds + outcome) }.rounds
+        if (!rounds.isDecided(_state.value.format)) clearScores()
+    }
+
+    private fun clearScores() {
         players.update { roster ->
             roster.map { it.copy(conquer = 0, hold = 0, ability = 0, xp = 0, scoreLog = emptyList()) }
         }
-        startingPlayerIndex.value = null
     }
 
     fun setFullScreen(value: Boolean) { isFullScreen.value = value }
@@ -362,6 +367,12 @@ class PointTrackerViewModel @Inject constructor(
             runCatching { userPreferences.setPointTrackerRoster(JSON.encodeToString(roster)) }
         }
     }
+
+    private data class MatchProgress(
+        val format: MatchFormat = MatchFormat.BEST_OF_THREE,
+        val rounds: List<RoundOutcome> = emptyList(),
+        val startedAt: Long? = null,
+    )
 
     private companion object {
         val JSON = Json { ignoreUnknownKeys = true }

@@ -39,26 +39,6 @@ class PlayerStateScoreLogTest {
     }
 
     @Test
-    fun `removing a named category drops its last log entry, not the newest one`() {
-        val player = player()
-            .scored(ScoreCategory.CONQUER)
-            .scored(ScoreCategory.HOLD)
-            .unscored(ScoreCategory.CONQUER)
-
-        assertThat(player.conquer).isEqualTo(0)
-        assertThat(player.hold).isEqualTo(1)
-        assertThat(player.scoreLog).containsExactly(ScoreCategory.HOLD)
-    }
-
-    @Test
-    fun `removing a category with no points does nothing`() {
-        val player = player().scored(ScoreCategory.HOLD).unscored(ScoreCategory.CONQUER)
-
-        assertThat(player.score).isEqualTo(1)
-        assertThat(player.scoreLog).containsExactly(ScoreCategory.HOLD)
-    }
-
-    @Test
     fun `undo falls back to the largest category when the log cannot answer`() {
         // A roster restored from a build with no log, or counts reached some other way:
         // the decrement still has to do something visible rather than silently no-op.
@@ -132,18 +112,5 @@ class PlayerStateScoreLogTest {
         val after = player.undone().orderedPoints()
 
         assertThat(after).isEqualTo(before.dropLast(1))
-    }
-
-    @Test
-    fun `both layouts write the same log so switching mid-game stays consistent`() {
-        // Classic layout scores two, tap-zone layout undoes one.
-        val player = player()
-            .scored(ScoreCategory.ABILITY)
-            .scored(ScoreCategory.CONQUER)
-            .undone()
-
-        assertThat(player.conquer).isEqualTo(0)
-        assertThat(player.ability).isEqualTo(1)
-        assertThat(player.scoreLog).containsExactly(ScoreCategory.ABILITY)
     }
 }

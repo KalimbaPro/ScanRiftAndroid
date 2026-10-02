@@ -20,8 +20,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
@@ -59,12 +64,20 @@ fun PlayerSetupSheet(
     players: List<PlayerState>,
     legendsById: Map<String, Card>,
     decks: List<Deck>,
+    format: MatchFormat,
+    isFullScreen: Boolean,
+    canSave: Boolean,
     onChangePlayerCount: (Int) -> Unit,
+    onSelectFormat: (MatchFormat) -> Unit,
+    onRandomize: () -> Unit,
+    onToggleFullScreen: () -> Unit,
+    onSave: () -> Unit,
+    onReset: () -> Unit,
     onRename: (String, String) -> Unit,
     onPick: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    GameSheet(title = "Setup", onDismiss = onDismiss, dismissLabel = "Done") {
+    GameSheet(title = "Settings", onDismiss = onDismiss, dismissLabel = "Done") {
         SectionHeader("Players")
         val counts = (Constants.PointTracker.MIN_PLAYERS..Constants.PointTracker.MAX_PLAYERS).toList()
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -76,6 +89,27 @@ fun PlayerSetupSheet(
                 ) { Text("$count") }
             }
         }
+        if (players.size == 2) {
+            SectionHeader("Match")
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                MatchFormat.entries.forEachIndexed { index, entry ->
+                    SegmentedButton(
+                        selected = format == entry,
+                        onClick = { onSelectFormat(entry) },
+                        shape = SegmentedButtonDefaults.itemShape(index, MatchFormat.entries.size),
+                    ) { Text(entry.displayName) }
+                }
+            }
+        }
+
+        SectionHeader("Game")
+        SetupAction(Icons.Filled.Casino, "Randomize first player") { onDismiss(); onRandomize() }
+        SetupAction(
+            if (isFullScreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+            if (isFullScreen) "Exit full screen" else "Enter full screen",
+        ) { onDismiss(); onToggleFullScreen() }
+        if (canSave) SetupAction(Icons.Filled.SaveAlt, "End match and save") { onDismiss(); onSave() }
+        SetupAction(Icons.Filled.Refresh, "Reset match") { onDismiss(); onReset() }
 
         SectionHeader("Roster")
         players.forEachIndexed { index, player ->
@@ -107,6 +141,14 @@ fun PlayerSetupSheet(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SetupAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Text(label, modifier = Modifier.weight(1f).padding(start = 8.dp))
     }
 }
 
