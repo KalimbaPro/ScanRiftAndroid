@@ -1,17 +1,30 @@
 package com.scanrift.android.ui.game
 
 import android.app.Activity
+import android.os.SystemClock
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import java.util.Locale
 import android.content.ClipData
 import android.content.ClipDescription
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -28,7 +41,6 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -40,7 +52,6 @@ import kotlin.math.abs
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -79,12 +90,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Casino
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -138,14 +144,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.core.Constants
 import com.scanrift.android.domain.model.ScoreCategory
-import com.scanrift.android.domain.model.ScoreInputMode
 import com.scanrift.android.ui.LocalImmersiveMode
-import com.scanrift.android.ui.theme.Dimens
 import com.scanrift.android.ui.theme.Motion
 import com.scanrift.android.ui.theme.TrackFrame
 import com.scanrift.android.ui.theme.domainColor
 import com.scanrift.android.ui.util.Haptic
-import com.scanrift.android.ui.util.tapOrLongPress
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -163,7 +166,8 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
     val immersive = LocalImmersiveMode.current
     var confirmReset by rememberSaveable { mutableStateOf(false) }
     var showSave by rememberSaveable { mutableStateOf(false) }
-    var showRoster by rememberSaveable { mutableStateOf(false) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showNextGame by rememberSaveable { mutableStateOf(false) }
     var pickerSeat by rememberSaveable { mutableStateOf<Int?>(null) }
     var pickerShowsName by rememberSaveable { mutableStateOf(true) }
     val legends by viewModel.legends.collectAsStateWithLifecycle()
@@ -201,14 +205,13 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
             ),
         centerBar = {
             CenterControlBar(
-                playerCount = state.players.size,
-                isFullScreen = state.isFullScreen,
-                canSave = state.recordablePlayers.isNotEmpty(),
-                onReset = { confirmReset = true },
-                onPlayers = { showRoster = true },
-                onRandomize = { feedback(Haptic.Medium); viewModel.randomizeFirstPlayer() },
-                onToggleFullScreen = { feedback(Haptic.Light); viewModel.setFullScreen(!state.isFullScreen) },
-                onSave = { feedback(Haptic.Medium); showSave = true },
+                matchStartedAt = state.matchStartedAt,
+                onStartTimer = viewModel::startTimer,
+                onSettings = { showSettings = true },
+                onNextGame = {
+                    feedback(Haptic.Medium)
+                    if (state.players.size == 2) showNextGame = true else showSave = true
+                },
             )
         },
         seat = { index, rotation, legendRotation ->
@@ -230,9 +233,7 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
                     },
                     legend = player.legendCardId?.let { state.legendsById[it] },
                     deckName = player.deckId?.let { id -> decks.firstOrNull { it.id == id }?.name },
-                    inputMode = state.inputMode,
                     onAdd = { category -> feedback(Haptic.Light); viewModel.addPoint(index, category) },
-                    onRemove = { category -> feedback(Haptic.Medium); viewModel.removePoint(index, category) },
                     onUndo = { feedback(Haptic.Medium); viewModel.undoPoint(index) },
                     onSetXp = { value -> feedback(Haptic.Selection); viewModel.setXp(index, value) },
                     onOpenSetup = { pickerShowsName = true; pickerSeat = index },
@@ -245,8 +246,8 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
     if (confirmReset) {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
-            title = { Text("Reset Counters") },
-            text = { Text("Reset all player scores to 0?") },
+            title = { Text("Reset Match") },
+            text = { Text("Reset all player scores and the match timer?") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.resetCounters()
@@ -258,15 +259,36 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
         )
     }
 
-    if (showRoster) {
+    if (showSettings) {
         PlayerSetupSheet(
             players = state.players,
             legendsById = state.legendsById,
             decks = decks,
+            format = state.format,
+            isFullScreen = state.isFullScreen,
+            canSave = state.recordablePlayers.isNotEmpty(),
             onChangePlayerCount = viewModel::setPlayerCount,
+            onSelectFormat = viewModel::setFormat,
+            onRandomize = { feedback(Haptic.Medium); viewModel.randomizeFirstPlayer() },
+            onToggleFullScreen = { feedback(Haptic.Light); viewModel.setFullScreen(!state.isFullScreen) },
+            onSave = { feedback(Haptic.Medium); showSave = true },
+            onReset = { confirmReset = true },
             onRename = viewModel::rename,
             onPick = { seat -> pickerShowsName = false; pickerSeat = seat },
-            onDismiss = { showRoster = false },
+            onDismiss = { showSettings = false },
+        )
+    }
+
+    if (showNextGame && state.players.size == 2) {
+        NextGameDialog(
+            players = state.players,
+            gameNumber = state.rounds.size + 1,
+            onPick = { outcome ->
+                showNextGame = false
+                feedback(Haptic.Medium)
+                viewModel.nextGame(outcome)
+            },
+            onDismiss = { showNextGame = false },
         )
     }
 
@@ -286,11 +308,15 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
         }
     }
 
-    if (showSave) {
+    if (showSave || state.isMatchDecided) {
         GameRecordSheet(
             players = state.players,
             deckNames = decks.associate { it.id to it.name },
-            onSkip = { showSave = false },
+            initialRounds = state.rounds,
+            onSkip = {
+                showSave = false
+                if (state.isMatchDecided) viewModel.resetCounters()
+            },
             onSave = { records -> viewModel.saveGame(records) { showSave = false } },
         )
     }
@@ -298,58 +324,91 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
 
 @Composable
 private fun CenterControlBar(
-    playerCount: Int,
-    isFullScreen: Boolean,
-    canSave: Boolean,
-    onReset: () -> Unit,
-    onPlayers: () -> Unit,
-    onRandomize: () -> Unit,
-    onToggleFullScreen: () -> Unit,
-    onSave: () -> Unit,
+    matchStartedAt: Long?,
+    onStartTimer: () -> Unit,
+    onSettings: () -> Unit,
+    onNextGame: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BarButton(Icons.Filled.Refresh, "Reset", onReset)
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .clickable(onClickLabel = "Players", onClick = onPlayers)
-                .semantics { contentDescription = "Players" },
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                Modifier.size(32.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "$playerCount",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
-        BarButton(Icons.Filled.Casino, "Randomize first player", onRandomize)
-        BarButton(
-            if (isFullScreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-            if (isFullScreen) "Exit full screen" else "Enter full screen",
-            onToggleFullScreen,
-        )
-        if (canSave) BarButton(Icons.Filled.SaveAlt, "Save game to deck", onSave)
+        MatchTimer(matchStartedAt, onStartTimer, Modifier.weight(1f))
+        BarButton(Icons.Outlined.Settings, "Game settings", onSettings)
+        BarButton(Icons.Outlined.CheckCircle, "Next game", onNextGame)
+        MatchTimer(matchStartedAt, onStartTimer, Modifier.weight(1f).rotate(180f))
     }
 }
 
 @Composable
+private fun MatchTimer(startedAt: Long?, onStart: () -> Unit, modifier: Modifier = Modifier) {
+    val elapsed by produceState(0L, startedAt) {
+        if (startedAt == null) {
+            value = 0L
+        } else {
+            while (true) {
+                value = SystemClock.elapsedRealtime() - startedAt
+                delay(1_000 - value % 1_000)
+            }
+        }
+    }
+    Box(modifier, contentAlignment = Alignment.CenterStart) {
+        Text(
+            text = formatElapsed(elapsed),
+            style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(enabled = startedAt == null, onClickLabel = "Start match timer", onClick = onStart)
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+        )
+    }
+}
+
+private fun formatElapsed(millis: Long): String {
+    val seconds = millis / 1_000
+    return if (seconds >= 3_600) {
+        String.format(Locale.ROOT, "%d:%02d:%02d", seconds / 3_600, seconds / 60 % 60, seconds % 60)
+    } else {
+        String.format(Locale.ROOT, "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+@Composable
+private fun NextGameDialog(
+    players: List<PlayerState>,
+    gameNumber: Int,
+    onPick: (RoundOutcome) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val choices = listOf(
+        RoundOutcome.LEFT_WON to players[0].name.ifEmpty { "Player 1" },
+        RoundOutcome.RIGHT_WON to players[1].name.ifEmpty { "Player 2" },
+        RoundOutcome.TIED to "Tie",
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Who won game $gameNumber?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                choices.forEach { (outcome, label) ->
+                    OutlinedButton(onClick = { onPick(outcome) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
 private fun BarButton(icon: ImageVector, label: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
-        Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp))
+    IconButton(onClick = onClick, modifier = Modifier.size(44.dp)) {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(28.dp))
     }
 }
 
@@ -367,9 +426,7 @@ private fun PlayerSeat(
     edgeInset: Dp,
     legend: com.scanrift.android.domain.model.Card?,
     deckName: String?,
-    inputMode: ScoreInputMode,
     onAdd: (ScoreCategory) -> Unit,
-    onRemove: (ScoreCategory) -> Unit,
     onUndo: () -> Unit,
     onSetXp: (Int) -> Unit,
     onOpenSetup: () -> Unit,
@@ -457,86 +514,49 @@ private fun PlayerSeat(
                         )
                         .border(borderWidth, borderColor, shape),
                 ) {
-                    legend?.imageUrl?.let { url ->
-                        coil3.compose.AsyncImage(
-                            model = url,
-                            contentDescription = null,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            alignment = Alignment.TopCenter,
-                            modifier = Modifier.matchParentSize(),
-                        )
-                        Box(
-                            Modifier.matchParentSize()
-                                .background(Color.Gray.copy(alpha = Constants.PointTracker.LEGEND_OVERLAY_OPACITY)),
-                        )
-                        if (isFullBleed) {
-                            val height = constraints.maxHeight.toFloat()
-                            Box(
-                                Modifier.matchParentSize().background(
-                                    Brush.verticalGradient(
-                                        0f to Color.Transparent,
-                                        0.5f to Color.Black.copy(alpha = 0.45f),
-                                        1f to Color.Black.copy(alpha = 0.75f),
-                                        startY = height / 2f,
-                                        endY = height,
-                                    ),
-                                ),
+                    val tileWidth = maxWidth
+                    val tileHeight = constraints.maxHeight.toFloat()
+                    val minDimension = min(maxWidth.value, maxHeight.value)
+                    val picker = rememberScorePickerState()
+                    val pickerBlur = if (picker.isOpen) Modifier.blur(PICKER_BLUR) else Modifier
+
+                    Box(Modifier.matchParentSize().then(pickerBlur)) {
+                        legend?.imageUrl?.let { url ->
+                            coil3.compose.AsyncImage(
+                                model = url,
+                                contentDescription = null,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                alignment = Alignment.TopCenter,
+                                modifier = Modifier.matchParentSize(),
                             )
+                            Box(
+                                Modifier.matchParentSize()
+                                    .background(Color.Gray.copy(alpha = Constants.PointTracker.LEGEND_OVERLAY_OPACITY)),
+                            )
+                            if (isFullBleed) {
+                                Box(
+                                    Modifier.matchParentSize().background(
+                                        Brush.verticalGradient(
+                                            0f to Color.Transparent,
+                                            0.5f to Color.Black.copy(alpha = 0.45f),
+                                            1f to Color.Black.copy(alpha = 0.75f),
+                                            startY = tileHeight / 2f,
+                                            endY = tileHeight,
+                                        ),
+                                    ),
+                                )
+                            }
                         }
                     }
 
-                    val minDimension = min(maxWidth.value, maxHeight.value)
                     val buttonDiameter = min(60f, max(40f, minDimension * 0.16f)).dp
                     val scoreSize = max(56f, minDimension * 0.45f).sp
-                    val picker = rememberScorePickerState()
                     val pixelsPerDp = LocalDensity.current.density
 
                     // Reset the picker when the seat changes hands, so a swap never
                     // leaves someone else's half-made choice hanging over the tile.
-                    LaunchedEffect(player.id, inputMode) { picker.close() }
+                    LaunchedEffect(player.id) { picker.close() }
 
-                    Text(
-                        text = "${player.score}",
-                        fontSize = scoreSize,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = FontFamily.SansSerif,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        style = LocalTextStyle.current.copy(
-                            fontFeatureSettings = "tnum",
-                            shadow = Shadow(Color.Black.copy(alpha = 0.4f), Offset(0f, 2f * pixelsPerDp), 4f * pixelsPerDp),
-                        ),
-                        // The score deliberately does not animate; iOS kills its animation
-                        // explicitly. The per-category counts below do animate.
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            // Reserve only what is actually below: the breakdown bar is
-                            // a good deal shorter than the button row plus its captions.
-                            .padding(
-                                bottom = when (inputMode) {
-                                    ScoreInputMode.CATEGORY_BUTTONS -> buttonDiameter + 36.dp
-                                    ScoreInputMode.TAP_ZONES -> buttonDiameter * 0.5f + 20.dp
-                                },
-                            ),
-                    )
-
-                    // The gesture layer sits directly over the art and under everything
-                    // else, so the name chip and the XP pill still win the hit test.
-                    if (inputMode == ScoreInputMode.TAP_ZONES) {
-                        ScoreTapLayer(
-                            state = picker,
-                            canUndo = player.score > 0,
-                            dotDiameter = buttonDiameter * 1.05f,
-                            onUndo = onUndo,
-                            onScore = onAdd,
-                        )
-                    }
-
-                    // The name chip does double duty: tap opens this seat's setup, and
-                    // long-press drags it onto another seat to swap the two. It is the
-                    // only tap target on the tile, since the rest belongs to the score
-                    // buttons.
                     val chipPulse = remember { Animatable(1f) }
                     LaunchedEffect(isChosen) {
                         if (isChosen) {
@@ -550,138 +570,185 @@ private fun PlayerSeat(
                     }
                     val chosenFade = tween<Color>(Motion.CHOSEN_FADE_MS, easing = FastOutSlowInEasing)
                     val chipColor by animateColorAsState(
-                        if (isChosen) StartingYellow else MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
+                        if (isChosen) StartingYellow else Color.Transparent,
                         chosenFade,
                         label = "chipColor",
                     )
                     val chipText by animateColorAsState(
-                        if (isChosen) Color.Black else MaterialTheme.colorScheme.onSurface,
+                        if (isChosen) Color.Black else labelColor,
                         chosenFade,
                         label = "chipText",
                     )
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 10.dp)
-                            .scale(chipPulse.value)
-                            .then(
-                                if (isChosen) {
-                                    Modifier.shadow(10.dp, CircleShape, ambientColor = StartingYellow, spotColor = StartingYellow)
-                                } else {
-                                    Modifier
-                                },
-                            )
-                            .clip(CircleShape)
-                            .background(chipColor)
-                            // Tap and long-press-drag share one detector, deliberately.
-                            //
-                            // `clickable` and the current `dragAndDropSource(transferData)`
-                            // cannot coexist on the same element: that overload's start
-                            // detector runs a tap gesture with `onTap = null` and consumes
-                            // the press, and its detector is not a public parameter. Put
-                            // the source inside and taps die; put it outside and drags do.
-                            // The deprecated suspend overload hands us the pointer scope,
-                            // so one `detectTapGestures` can own both gestures — and it
-                            // still draws the chip itself as the drag shadow, which is
-                            // exactly the affordance we want.
-                            //
-                            // Like the drop target, this handler is captured once and
-                            // never refreshed, so it reads the occupant through the
-                            // updated state rather than closing over `player`.
-                            // `block =` is required: a bare trailing lambda is ambiguous
-                            // against the `transferData` overload.
-                            .dragAndDropSource(block = {
-                                detectTapGestures(
-                                    onTap = { openSetup() },
-                                    onLongPress = {
-                                        startTransfer(
-                                            DragAndDropTransferData(
-                                                ClipData.newPlainText(PLAYER_DRAG_LABEL, seatOccupantId),
-                                            ),
+                    val subtitle = deckName ?: legend?.name?.substringBefore(" - ")
+
+                    Column(Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(pickerBlur)
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .widthIn(max = tileWidth * 0.6f)
+                                    .scale(chipPulse.value)
+                                    .then(
+                                        if (isChosen) {
+                                            Modifier.shadow(10.dp, CircleShape, ambientColor = StartingYellow, spotColor = StartingYellow)
+                                        } else {
+                                            Modifier
+                                        },
+                                    )
+                                    .clip(CircleShape)
+                                    .background(chipColor)
+                                    // Tap and long-press-drag share one detector, deliberately.
+                                    //
+                                    // `clickable` and the current `dragAndDropSource(transferData)`
+                                    // cannot coexist on the same element: that overload's start
+                                    // detector runs a tap gesture with `onTap = null` and consumes
+                                    // the press, and its detector is not a public parameter. Put
+                                    // the source inside and taps die; put it outside and drags do.
+                                    // The deprecated suspend overload hands us the pointer scope,
+                                    // so one `detectTapGestures` can own both gestures — and it
+                                    // still draws the chip itself as the drag shadow, which is
+                                    // exactly the affordance we want.
+                                    //
+                                    // Like the drop target, this handler is captured once and
+                                    // never refreshed, so it reads the occupant through the
+                                    // updated state rather than closing over `player`.
+                                    // `block =` is required: a bare trailing lambda is ambiguous
+                                    // against the `transferData` overload.
+                                    .dragAndDropSource(block = {
+                                        detectTapGestures(
+                                            onTap = { openSetup() },
+                                            onLongPress = {
+                                                startTransfer(
+                                                    DragAndDropTransferData(
+                                                        ClipData.newPlainText(PLAYER_DRAG_LABEL, seatOccupantId),
+                                                    ),
+                                                )
+                                            },
                                         )
-                                    },
+                                    })
+                                    // The gesture above is invisible to accessibility services, so
+                                    // the chip advertises its tap action explicitly.
+                                    .semantics {
+                                        role = Role.Button
+                                        onClick(label = "Open player setup") { openSetup(); true }
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                if (isChosen) {
+                                    Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                                }
+                                Text(
+                                    text = player.name.ifEmpty { "Player" },
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = chipText,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
-                            })
-                            // The gesture above is invisible to accessibility services, so
-                            // the chip advertises its tap action explicitly.
-                            .semantics {
-                                role = Role.Button
-                                onClick(label = "Open player setup") { openSetup(); true }
                             }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (isChosen) {
-                            Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
-                        }
-                        Text(
-                            text = player.name.ifEmpty { "Player" },
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (isChosen) FontWeight.ExtraBold else FontWeight.SemiBold,
-                            color = chipText,
-                            maxLines = 1,
-                        )
-                        if (deckName != null) {
-                            val deckColor = chipText.copy(alpha = 0.6f)
-                            Text("•", style = MaterialTheme.typography.labelSmall, color = deckColor)
                             Text(
-                                text = deckName,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = deckColor,
+                                text = subtitle.orEmpty(),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = labelColor.copy(alpha = 0.85f),
+                                textAlign = TextAlign.End,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
                             )
                         }
-                    }
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                                .height(1.dp)
+                                .background(labelColor.copy(alpha = 0.35f)),
+                        )
 
-                    when (inputMode) {
-                        ScoreInputMode.CATEGORY_BUTTONS -> Row(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 2.dp + edgeInset),
-                            horizontalArrangement = Arrangement.spacedBy(buttonDiameter * 0.45f),
-                        ) {
-                            ScoreCategory.entries.forEach { category ->
-                                CategoryScoreButton(
-                                    category = category,
-                                    count = player.count(category),
-                                    diameter = buttonDiameter,
-                                    labelColor = labelColor,
-                                    onAdd = { onAdd(category) },
-                                    onRemove = { onRemove(category) },
+                        Box(Modifier.weight(1f).fillMaxWidth()) {
+                            Box(Modifier.matchParentSize().then(pickerBlur)) {
+                                Text(
+                                    text = "${player.score}",
+                                    fontSize = scoreSize,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = Color.White,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    style = LocalTextStyle.current.copy(
+                                        fontFeatureSettings = "tnum",
+                                        shadow = Shadow(Color.Black.copy(alpha = 0.4f), Offset(0f, 2f * pixelsPerDp), 4f * pixelsPerDp),
+                                    ),
+                                    // The score deliberately does not animate; iOS kills its animation
+                                    // explicitly.
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .padding(bottom = buttonDiameter * 0.6f + 16.dp),
+                                )
+
+                                legend?.domains?.takeIf { it.isNotEmpty() }?.let { domains ->
+                                    DomainDots(domains, Modifier.align(Alignment.TopStart).padding(12.dp))
+                                }
+
+                                ScoreTrack(
+                                    player = player,
+                                    height = buttonDiameter * 0.6f,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .fillMaxWidth()
+                                        .padding(start = 12.dp, end = 12.dp, bottom = 10.dp + edgeInset),
                                 )
                             }
+
+                            // The gesture layer sits directly over the art and under everything
+                            // else, so the XP stepper still wins the hit test.
+                            ScoreTapLayer(
+                                state = picker,
+                                canUndo = player.score > 0,
+                                dotDiameter = buttonDiameter * 1.05f,
+                                markerSize = buttonDiameter * 0.8f,
+                                onUndo = onUndo,
+                                onScore = onAdd,
+                            )
+
+                            XpStepper(
+                                xp = player.xp,
+                                onSetXp = onSetXp,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 8.dp, end = 8.dp),
+                            )
+
+                            // Drawn last so the dots sit over the score and the track, but it
+                            // takes no input of its own — the layer below owns the whole gesture.
+                            ScorePickerDots(state = picker, dotDiameter = buttonDiameter * 1.05f)
                         }
-
-                        // Without the permanent category counts, the breakdown bar is
-                        // the only thing that says what the total is made of — and it is
-                        // what makes "undo the last point" legible as it shrinks.
-                        ScoreInputMode.TAP_ZONES -> ScoreTrack(
-                            player = player,
-                            cellHeight = buttonDiameter * 0.5f,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .padding(start = 14.dp, end = 14.dp, bottom = 10.dp + edgeInset),
-                        )
-                    }
-
-                    XpPill(
-                        xp = player.xp,
-                        onSetXp = onSetXp,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 10.dp, end = 10.dp),
-                    )
-
-                    // Drawn last so the dots sit over the score and the track, but it
-                    // takes no input of its own — the layer below owns the whole gesture.
-                    if (inputMode == ScoreInputMode.TAP_ZONES) {
-                        ScorePickerDots(state = picker, dotDiameter = buttonDiameter * 1.05f)
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DomainDots(domains: List<String>, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        domains.forEach { domain ->
+            Box(
+                Modifier
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(domainColor(domain))
+                    .border(1.5.dp, Color.White.copy(alpha = 0.8f), CircleShape),
+            )
         }
     }
 }
@@ -768,7 +835,8 @@ private fun rememberScorePickerState() = remember { ScorePickerState() }
 private fun BoxScope.ScoreTapLayer(
     state: ScorePickerState,
     canUndo: Boolean,
-    dotDiameter: androidx.compose.ui.unit.Dp,
+    dotDiameter: Dp,
+    markerSize: Dp,
     onUndo: () -> Unit,
     onScore: (ScoreCategory) -> Unit,
 ) {
@@ -831,8 +899,8 @@ private fun BoxScope.ScoreTapLayer(
     ) {
         // Screen-position markers, purely decorative — the layer above owns the input.
         Row(Modifier.matchParentSize()) {
-            ZoneMarker(Icons.Filled.Remove, enabled = canUndo, Alignment.CenterStart, Modifier.weight(1f))
-            ZoneMarker(Icons.Filled.Add, enabled = true, Alignment.CenterEnd, Modifier.weight(1f))
+            ZoneMarker(Icons.Filled.Remove, enabled = canUndo, Alignment.CenterStart, markerSize, Modifier.weight(1f))
+            ZoneMarker(Icons.Filled.Add, enabled = true, Alignment.CenterEnd, markerSize, Modifier.weight(1f))
         }
         // TalkBack cannot press-and-drag, so both actions are exposed explicitly.
         Box(
@@ -847,17 +915,18 @@ private fun BoxScope.ScoreTapLayer(
 
 @Composable
 private fun ZoneMarker(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     enabled: Boolean,
     alignment: Alignment,
+    size: Dp,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier.fillMaxHeight(), contentAlignment = alignment) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color.White.copy(alpha = if (enabled) 0.5f else 0.2f),
-            modifier = Modifier.padding(horizontal = 18.dp).size(24.dp),
+            tint = Color.White.copy(alpha = if (enabled) 0.9f else 0.3f),
+            modifier = Modifier.padding(horizontal = 14.dp).size(size),
         )
     }
 }
@@ -914,27 +983,45 @@ private fun BoxScope.FannedCategoryDot(
     )
     val density = LocalDensity.current
     val radiusPx = with(density) { diameter.toPx() } / 2f
+    val labelWidth = diameter * 1.6f
+    val halfLabelPx = with(density) { labelWidth.toPx() } / 2f
 
-    Box(
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .offset {
-                IntOffset((center.x - radiusPx).roundToInt(), (center.y - radiusPx).roundToInt())
+                IntOffset((center.x - halfLabelPx).roundToInt(), (center.y - radiusPx).roundToInt())
             }
-            .size(diameter)
-            .scale(bloom.value * hoverScale)
-            .alpha(bloom.value)
-            .clip(CircleShape)
-            .background(Brush.linearGradient(listOf(category.color, category.color.copy(alpha = 0.75f))))
-            .then(
-                if (isHovered) Modifier.border(3.dp, Color.White, CircleShape) else Modifier,
-            ),
-        contentAlignment = Alignment.Center,
+            .width(labelWidth)
+            .alpha(bloom.value),
     ) {
-        Icon(
-            imageVector = category.icon,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(diameter * 0.38f),
+        Box(
+            modifier = Modifier
+                .size(diameter)
+                .scale(bloom.value * hoverScale)
+                .clip(CircleShape)
+                .background(Brush.linearGradient(listOf(category.color, category.color.copy(alpha = 0.75f))))
+                .then(
+                    if (isHovered) Modifier.border(3.dp, Color.White, CircleShape) else Modifier,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = category.icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(diameter * 0.38f),
+            )
+        }
+        Text(
+            text = category.displayName,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = max(11f, diameter.value * 0.2f).sp,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            style = LocalTextStyle.current.copy(shadow = Shadow(Color.Black.copy(alpha = 0.6f), blurRadius = 4f)),
+            modifier = Modifier.padding(top = 6.dp),
         )
     }
 }
@@ -942,6 +1029,8 @@ private fun BoxScope.FannedCategoryDot(
 private const val FAN_STAGGER_MS = 45L
 
 private val SCORE_GESTURE_THRESHOLD = 12.dp
+
+private val PICKER_BLUR = 16.dp
 
 private val StartingYellow = Color(0xFFFFD60A)
 
@@ -952,140 +1041,94 @@ private val StartingYellow = Color(0xFFFFD60A)
  * the tap-zone layout needs — the single decrement button takes the *last* point back, so
  * you have to be able to see which one that is. The rightmost cell is always the one the
  * next undo removes.
- *
- * Cells keep a fixed size while they fit, so the rail visibly grows as the game goes on;
- * past that they share the width equally and drop their icons rather than overflowing.
- * A 99-point game is legal, even if no real one gets there.
  */
 @Composable
 private fun ScoreTrack(
     player: PlayerState,
-    cellHeight: androidx.compose.ui.unit.Dp,
+    height: Dp,
     modifier: Modifier = Modifier,
 ) {
     val points = remember(player.scoreLog, player.conquer, player.hold, player.ability) {
         player.orderedPoints()
     }
+    val slots = max(Constants.PointTracker.VICTORY_POINTS, points.size)
+    val icons = ScoreCategory.entries.associateWith { rememberVectorPainter(it.icon) }
 
-    BoxWithConstraints(modifier.height(cellHeight + 8.dp), contentAlignment = Alignment.Center) {
-        if (points.isEmpty()) {
-            Box(Modifier.matchParentSize().semantics { contentDescription = "No points yet" })
-            return@BoxWithConstraints
-        }
+    Canvas(
+        modifier
+            .height(height)
+            .semantics {
+                contentDescription = if (points.isEmpty()) {
+                    "No points yet"
+                } else {
+                    "Scored " + points.joinToString(", ") { it.displayName }
+                }
+            },
+    ) {
+        val depth = size.height * 0.4f
+        val inset = 3.dp.toPx()
+        val gap = 2.dp.toPx()
+        val rail = chevron(0f, size.width - depth, 0f, size.height, depth)
+        drawPath(rail, Color.Black.copy(alpha = 0.15f))
+        drawPath(rail, TrackFrame, style = Stroke(1.5.dp.toPx()))
 
-        val gap = 2.dp
-        val inset = 3.dp
-        // Fixed width until the rail runs out of room, then an equal share of what is left.
-        val fitted = (maxWidth - inset * 2 - gap * (points.size - 1)) / points.size
-        val cellWidth = min(cellHeight.value, fitted.value).coerceAtLeast(3f).dp
-        val showIcons = cellWidth >= 13.dp
+        val top = inset
+        val bottom = size.height - inset
+        val cellDepth = depth * (bottom - top) / size.height
+        val start = inset * 2 + depth - cellDepth
+        val slotWidth = (size.width - start * 2 - cellDepth) / slots
+        val iconSize = min(slotWidth - gap, bottom - top) * 0.55f
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(gap),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(Color.Black.copy(alpha = 0.45f))
-                .border(1.dp, TrackFrame, RoundedCornerShape(6.dp))
-                .padding(inset)
-                .animateContentSize(Motion.snappy())
-                .semantics {
-                    contentDescription = "Scored " + points.joinToString(", ") { it.displayName }
-                },
-        ) {
-            points.forEach { category ->
-                ScoreTrackCell(category, cellWidth, cellHeight, showIcons)
+        points.forEachIndexed { index, category ->
+            val left = start + index * slotWidth
+            val right = left + slotWidth - gap
+            drawPath(chevron(left, right, top, bottom, cellDepth), category.color)
+            if (slotWidth >= TRACK_ICON_MIN_SLOT.toPx()) {
+                translate((left + right + cellDepth - iconSize) / 2f, (top + bottom - iconSize) / 2f) {
+                    with(icons.getValue(category)) {
+                        draw(Size(iconSize, iconSize), colorFilter = ColorFilter.tint(Color.White))
+                    }
+                }
             }
         }
     }
 }
 
-@Composable
-private fun ScoreTrackCell(
-    category: ScoreCategory,
-    width: androidx.compose.ui.unit.Dp,
-    height: androidx.compose.ui.unit.Dp,
-    showIcon: Boolean,
-) {
-    Box(
-        modifier = Modifier
-            .size(width = width, height = height)
-            .clip(RoundedCornerShape(3.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(category.color, category.color.copy(alpha = 0.78f)),
-                ),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (showIcon) {
-            Icon(
-                imageVector = category.icon,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(min(width.value, height.value).dp * 0.5f),
-            )
-        }
-    }
+private fun chevron(left: Float, right: Float, top: Float, bottom: Float, depth: Float) = Path().apply {
+    val middle = (top + bottom) / 2f
+    moveTo(left, top)
+    lineTo(right, top)
+    lineTo(right + depth, middle)
+    lineTo(right, bottom)
+    lineTo(left, bottom)
+    lineTo(left + depth, middle)
+    close()
 }
 
-/**
- * The XP counter, ported from iOS.
- *
- * Collapsed it is just the number; tapping expands it into a stepper. It lives inside
- * the rotation layers so it turns with the seat, and it swallows its own taps so they
- * never fall through to the scoring zone underneath.
- */
+private val TRACK_ICON_MIN_SLOT = 18.dp
+
 @Composable
-private fun XpPill(
+private fun XpStepper(
     xp: Int,
     onSetXp: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val haptics = LocalHapticFeedback.current
-    val trailing = TransformOrigin(1f, 0.5f)
-
     Row(
         modifier = modifier
             .shadow(6.dp, CircleShape)
             .clip(CircleShape)
             .background(Color.Black.copy(alpha = 0.45f))
             .pointerInput(Unit) { detectTapGestures { } }
-            .animateContentSize(Motion.pill())
-            .padding(horizontal = if (expanded) 14.dp else 10.dp, vertical = 8.dp),
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AnimatedVisibility(
-            visible = expanded,
-            enter = scaleIn(Motion.pill(), initialScale = 0.6f, transformOrigin = trailing) + fadeIn(),
-            exit = scaleOut(Motion.pill(), targetScale = 0.6f, transformOrigin = trailing) + fadeOut(),
-        ) {
-            Row(Modifier.padding(end = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                XpStepButton(Icons.Filled.Remove, "Decrease XP", enabled = xp > 0) {
-                    haptics.performHapticFeedback(Haptic.Light)
-                    onSetXp(xp - 1)
-                }
-                XpStepButton(Icons.Filled.Add, "Increase XP", enabled = xp < Constants.PointTracker.XP_MAX) {
-                    haptics.performHapticFeedback(Haptic.Light)
-                    onSetXp(xp + 1)
-                }
-            }
-        }
-
+        XpStepButton(Icons.Filled.Remove, "Decrease XP", enabled = xp > 0) { onSetXp(xp - 1) }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .widthIn(min = 26.dp)
-                .clickable {
-                    haptics.performHapticFeedback(Haptic.Light)
-                    expanded = !expanded
-                }
-                .semantics {
-                    contentDescription = "${if (expanded) "Close XP editor" else "Edit XP"}, current value $xp"
-                },
+                .semantics(mergeDescendants = true) { contentDescription = "XP $xp" },
         ) {
-            RollingNumber(xp, fontSize = 18.sp)
             Text(
                 text = "XP",
                 color = Color.White.copy(alpha = 0.75f),
@@ -1093,7 +1136,9 @@ private fun XpPill(
                 fontSize = 10.sp,
                 lineHeight = 10.sp,
             )
+            RollingNumber(xp, fontSize = 18.sp)
         }
+        XpStepButton(Icons.Filled.Add, "Increase XP", enabled = xp < Constants.PointTracker.XP_MAX) { onSetXp(xp + 1) }
     }
 }
 
@@ -1139,72 +1184,6 @@ private fun RollingNumber(value: Int, fontSize: TextUnit) {
             fontSize = fontSize,
             lineHeight = fontSize,
             style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
-        )
-    }
-}
-
-/**
- * Tap adds a point, long-press removes one.
- *
- * The long-press has to fire at 400ms, but `combinedClickable` is hardwired to the
- * system timeout (500ms), so this drives its own gesture loop.
- */
-@Composable
-private fun CategoryScoreButton(
-    category: ScoreCategory,
-    count: Int,
-    diameter: androidx.compose.ui.unit.Dp,
-    labelColor: Color,
-    onAdd: () -> Unit,
-    onRemove: () -> Unit,
-) {
-    var pressed by remember { mutableStateOf(false) }
-    val color = category.color
-    val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (pressed) 0.85f else 1f,
-        animationSpec = com.scanrift.android.ui.theme.Motion.press(),
-        label = "pressScale",
-    )
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(diameter)
-                .scale(scale)
-                .shadow(5.dp, CircleShape)
-                .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(color, color.copy(alpha = 0.75f))))
-                .tapOrLongPress(
-                    longPressMs = Dimens.LONG_PRESS_SCORE_DECREMENT_MS,
-                    onTap = onAdd,
-                    onLongPress = onRemove,
-                    onPressChange = { pressed = it },
-                )
-                // TalkBack cannot perform a long press, so the decrement needs an
-                // explicit action or it is unreachable.
-                .semantics {
-                    contentDescription = "${category.displayName}, $count points"
-                    customActions = listOf(
-                        CustomAccessibilityAction("Add point") { onAdd(); true },
-                        CustomAccessibilityAction("Remove point") { onRemove(); true },
-                    )
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(category.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(diameter * 0.32f))
-                RollingNumber(count, fontSize = (diameter.value * 0.28f).sp)
-            }
-        }
-        Text(
-            text = category.displayName.uppercase(),
-            color = labelColor,
-            fontSize = max(9f, diameter.value * 0.18f).sp,
-            fontWeight = FontWeight.Bold,
-            style = LocalTextStyle.current.copy(
-                shadow = if (labelColor == Color.White) Shadow(Color.Black.copy(alpha = 0.5f), blurRadius = 4f) else null,
-            ),
-            modifier = Modifier.padding(top = 4.dp),
         )
     }
 }

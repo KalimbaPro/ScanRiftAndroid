@@ -56,5 +56,4 @@ object Dimens {
 
     // Interaction timings, in milliseconds.
     const val LONG_PRESS_MULTI_SELECT_MS = 300L
-    const val LONG_PRESS_SCORE_DECREMENT_MS = 400L
 }

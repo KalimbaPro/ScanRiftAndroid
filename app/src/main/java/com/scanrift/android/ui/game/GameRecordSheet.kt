@@ -115,12 +115,13 @@ fun SectionFooter(text: String) {
 fun GameRecordSheet(
     players: List<PlayerState>,
     deckNames: Map<String, String>,
+    initialRounds: List<RoundOutcome>,
     onSkip: () -> Unit,
     onSave: (List<PendingGameRecord>) -> Unit,
 ) {
     val isBestOfThree = players.size == 2
     var gameName by rememberSaveable { mutableStateOf("") }
-    var rounds by remember { mutableStateOf(unsetRounds) }
+    var rounds by remember { mutableStateOf((initialRounds + unsetRounds).take(unsetRounds.size)) }
     var entries by remember { mutableStateOf(if (isBestOfThree) emptyList() else freeForAllRecords(players)) }
     val canSave = if (isBestOfThree) rounds.any { it != RoundOutcome.UNSET } else entries.isNotEmpty()
 

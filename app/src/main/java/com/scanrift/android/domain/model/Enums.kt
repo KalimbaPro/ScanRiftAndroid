@@ -64,35 +64,6 @@ enum class ScoreCategory(val value: String, val displayName: String) {
 }
 
 /**
- * How a seat in the point tracker takes a score.
- *
- * [TAP_ZONES] is the default: tap the player's own left half to take a point back, the
- * right half to pick which category the next point belongs to. [CATEGORY_BUTTONS] is
- * the older three-circle layout, kept because some players prefer a permanent readout
- * of each category over a breakdown bar.
- *
- * Stored as [value] in preferences, never as `name` or the ordinal.
- */
-enum class ScoreInputMode(val value: String, val displayName: String, val description: String) {
-    TAP_ZONES(
-        "tapZones",
-        "Tap zones",
-        "Tap the left of your tile to undo a point, the right to score one",
-    ),
-    CATEGORY_BUTTONS(
-        "categoryButtons",
-        "Category buttons",
-        "Three circles per tile: tap to score, long-press to take a point back",
-    ),
-    ;
-
-    companion object {
-        fun fromValue(value: String?): ScoreInputMode =
-            entries.firstOrNull { it.value == value } ?: TAP_ZONES
-    }
-}
-
-/**
  * Card vocabulary. These are plain strings in the API and the database — the app
  * never rejects an unknown value — but these constants pin the known set so filter
  * ordering and icon lookup stay stable.

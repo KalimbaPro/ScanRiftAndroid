@@ -12,7 +12,6 @@ import com.scanrift.android.data.prefs.UserPreferences
 import com.scanrift.android.data.repository.CollectionRepository
 import com.scanrift.android.data.repository.DeckRepository
 import com.scanrift.android.di.IoDispatcher
-import com.scanrift.android.domain.model.ScoreInputMode
 import com.scanrift.android.service.backup.BackupService
 import com.scanrift.android.service.export.CollectionExporter
 import com.scanrift.android.service.importer.CollectionImportService
@@ -71,7 +70,6 @@ data class SettingsState(
     val lastBackup: Long? = null,
     val cloudSnapshotAutoSync: Boolean = true,
     val backupFileName: String? = null,
-    val scoreInputMode: ScoreInputMode = ScoreInputMode.TAP_ZONES,
 ) {
     val hasEntries: Boolean get() = uniqueCards > 0
 }
@@ -129,8 +127,7 @@ class SettingsViewModel @Inject constructor(
             backupFileName,
             ::Quadruple,
         ),
-        userPreferences.scoreInputMode,
-    ) { counts, feedback, display, backup, scoreInputMode ->
+    ) { counts, feedback, display, backup ->
         SettingsState(
             cardCount = counts.first,
             totalCards = counts.second,
@@ -147,7 +144,6 @@ class SettingsViewModel @Inject constructor(
             lastBackup = backup.second,
             cloudSnapshotAutoSync = backup.third,
             backupFileName = backup.fourth,
-            scoreInputMode = scoreInputMode,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsState())
 
@@ -158,7 +154,6 @@ class SettingsViewModel @Inject constructor(
     fun setLuchoParameter(value: Boolean) = update { userPreferences.setLuchoParameter(value) }
     fun setShowUnownedInColor(value: Boolean) = update { userPreferences.setShowUnownedInColor(value) }
     fun setDynamicColor(value: Boolean) = update { userPreferences.setDynamicColor(value) }
-    fun setScoreInputMode(value: ScoreInputMode) = update { userPreferences.setScoreInputMode(value) }
     fun setCloudSnapshotAutoSync(value: Boolean) = update { userPreferences.setCloudSnapshotAutoSync(value) }
 
     fun loadCardDatabase() = bootstrapper.loadCardDatabase()

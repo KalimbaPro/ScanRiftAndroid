@@ -180,9 +180,9 @@ doubles. A TTS export emits one extra token for the champion slot on top of its 
 copies, which is what the `- 1` in the TTS branch takes back off. And TTS carries no
 sections at all, so a sideboard cannot survive that round trip; the summary says so.
 
-**The point tracker has two layouts, and the tap layer lives inside the rotation.** A seat
-reads `ScoreInputMode` (`tapZones` by default, `categoryButtons` for the old three-circle
-layout). Put `ScoreTapLayer` *inside* both `RotatedContent` layers so "left" is the
+**The tap layer lives inside the rotation.** A seat is a header (name chip, deck or
+legend name), then a body with the score between − and +, and the track along the bottom.
+Put `ScoreTapLayer` *inside* both `RotatedContent` layers so "left" is the
 player's own left — on the quarter-turned side seats of the three- and four-player layouts
 that reads as a vertical split on screen, which is correct. This is the opposite of the
 drag-and-drop rule above: touch hit-testing honours the transform, so taps are fine inside
@@ -201,24 +201,34 @@ instead, which is the case when the phone is flat on the table.
 tile, whatever the touch point — a deliberate divergence from iOS, which blooms them in
 an arc from the finger. The spacing shrinks on a narrow tile so all three stay on it.
 
-Z-order inside the seat is load-bearing. The tap layer goes first, so the name chip and
-the XP pill are hit-tested before it; the dots are drawn last so they sit over the score
-and the track.
+Z-order inside the seat is load-bearing. The tap layer covers only the body, below the
+header, and the XP stepper is drawn after it so it is hit-tested first; the dots are drawn
+last so they sit over the score and the track. While the dots are up, everything behind
+them is blurred (`Modifier.blur`, API 31+; the scrim is the fallback on older devices).
 
-**The scoring track draws one cell per point, not a proportional summary.** A
+**The scoring track draws one arrow cell per point, not a proportional summary.** It has
+`max(VICTORY_POINTS, score)` equal slots, so it fills toward 8, and every slot gets
+narrower once a game goes past that. A
 "3 conquer, 2 hold" bar cannot show sequence, and sequence is the whole point: the single
 decrement button takes the *last* point back, so the trailing cell has to be the one that
 disappears. `PlayerState.orderedPoints()` reconciles `scoreLog` against the counts so the
 track always has exactly `score` cells even when the log is stale.
 
 **`PlayerState.scoreLog` is what makes a single decrement button unambiguous.** The
-tap-zone layout has one "take a point back" control and no way to ask which category lost
-it, so every seat remembers the order its points were scored in and the undo pops the end.
-Maintain the log in **both** layouts — `scored` appends, `unscored` drops that category's
-last entry — or switching mode mid-game desynchronises it. It falls back to draining the
+seat has one "take a point back" control and no way to ask which category lost it, so
+every seat remembers the order its points were scored in and the undo pops the end. It
+falls back to draining the
 largest category when the log cannot answer (a roster restored from a build that had no
 log), and clears the log when it does, because a log that disagrees with the counts has
 already proven itself untrustworthy.
+
+**A match is Bo1 or Bo3, and its timer spans every game.** Bo3 exists only with two
+players, because the game record models two-player rounds (`RoundOutcome`); with three or
+four players the next-game button goes straight to the summary. `nextGame` records the
+round and clears the scores but keeps `matchStartedAt`. Once a match is decided the scores
+stay on screen behind the pre-filled summary, so the record still has the last game's
+breakdown; Save or Skip then resets the whole match. The timer is drawn twice in the
+centre bar, each copy at its reader's left: the top copy is turned 180°.
 
 **A `DisplayCard.id` is not a stable identity.** It encodes the owned variant, so it
 changes the moment a card is added to the collection. The collection navigator is keyed

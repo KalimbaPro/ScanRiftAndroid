@@ -14,6 +14,16 @@ val List<RoundOutcome>.ties: Int get() = count { it == RoundOutcome.TIED }
 
 val unsetRounds: List<RoundOutcome> = List(3) { RoundOutcome.UNSET }
 
+enum class MatchFormat(val games: Int, val displayName: String) {
+    BEST_OF_ONE(1, "Bo1"),
+    BEST_OF_THREE(3, "Bo3"),
+}
+
+fun List<RoundOutcome>.isDecided(format: MatchFormat): Boolean {
+    val winsNeeded = format.games / 2 + 1
+    return size >= format.games || leftWins >= winsNeeded || rightWins >= winsNeeded
+}
+
 fun resultOf(mine: Int, theirs: Int): GameResult = when {
     mine > theirs -> GameResult.WIN
     mine < theirs -> GameResult.LOSS
