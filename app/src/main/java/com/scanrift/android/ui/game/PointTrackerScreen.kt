@@ -90,6 +90,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -206,6 +208,8 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
         centerBar = {
             CenterControlBar(
                 matchStartedAt = state.matchStartedAt,
+                isFullScreen = state.isFullScreen,
+                onToggleFullScreen = { feedback(Haptic.Light); viewModel.setFullScreen(!state.isFullScreen) },
                 onStartTimer = viewModel::startTimer,
                 onSettings = { showSettings = true },
                 onNextGame = {
@@ -265,12 +269,10 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
             legendsById = state.legendsById,
             decks = decks,
             format = state.format,
-            isFullScreen = state.isFullScreen,
             canSave = state.recordablePlayers.isNotEmpty(),
             onChangePlayerCount = viewModel::setPlayerCount,
             onSelectFormat = viewModel::setFormat,
             onRandomize = { feedback(Haptic.Medium); viewModel.randomizeFirstPlayer() },
-            onToggleFullScreen = { feedback(Haptic.Light); viewModel.setFullScreen(!state.isFullScreen) },
             onSave = { feedback(Haptic.Medium); showSave = true },
             onReset = { confirmReset = true },
             onRename = viewModel::rename,
@@ -325,6 +327,8 @@ fun PointTrackerScreen(viewModel: PointTrackerViewModel = hiltViewModel()) {
 @Composable
 private fun CenterControlBar(
     matchStartedAt: Long?,
+    isFullScreen: Boolean,
+    onToggleFullScreen: () -> Unit,
     onStartTimer: () -> Unit,
     onSettings: () -> Unit,
     onNextGame: () -> Unit,
@@ -340,6 +344,11 @@ private fun CenterControlBar(
         MatchTimer(matchStartedAt, onStartTimer, Modifier.weight(1f))
         BarButton(Icons.Outlined.Settings, "Game settings", onSettings)
         BarButton(Icons.Outlined.CheckCircle, "Next game", onNextGame)
+        BarButton(
+            if (isFullScreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+            if (isFullScreen) "Exit full screen" else "Enter full screen",
+            onToggleFullScreen,
+        )
         MatchTimer(matchStartedAt, onStartTimer, Modifier.weight(1f).rotate(180f))
     }
 }
