@@ -703,10 +703,6 @@ private fun PlayerSeat(
                                         .padding(bottom = buttonDiameter * 0.6f + 16.dp),
                                 )
 
-                                legend?.domains?.takeIf { it.isNotEmpty() }?.let { domains ->
-                                    DomainDots(domains, Modifier.align(Alignment.TopStart).padding(12.dp))
-                                }
-
                                 ScoreTrack(
                                     player = player,
                                     height = buttonDiameter * 0.6f,
@@ -743,21 +739,6 @@ private fun PlayerSeat(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun DomainDots(domains: List<String>, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        domains.forEach { domain ->
-            Box(
-                Modifier
-                    .size(18.dp)
-                    .clip(CircleShape)
-                    .background(domainColor(domain))
-                    .border(1.5.dp, Color.White.copy(alpha = 0.8f), CircleShape),
-            )
         }
     }
 }
