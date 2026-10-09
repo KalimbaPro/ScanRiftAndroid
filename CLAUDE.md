@@ -188,7 +188,7 @@ that reads as a vertical split on screen, which is correct. This is the opposite
 drag-and-drop rule above: touch hit-testing honours the transform, so taps are fine inside
 a rotation; only drop targets are not.
 
-**Scoring is one gesture, so it has to be one `pointerInput`.** Pressing the right half
+**Scoring is one gesture, so it has to be one `pointerInput`.** Pressing the right two thirds (the left third is the undo zone)
 opens the category dots in a row across the middle of the tile; the finger then slides onto one and lifts
 to score it. That press-drag-release is a *single* gesture, so it cannot be split across a
 `clickable` zone and a separate overlay with its own `clickable` dots — the gesture would

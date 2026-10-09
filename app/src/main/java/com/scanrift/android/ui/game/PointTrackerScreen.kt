@@ -755,6 +755,7 @@ private class ScorePickerState {
     var pointer by mutableStateOf(Offset.Unspecified)
     var spacing by mutableFloatStateOf(0f)
     var dotRadius by mutableFloatStateOf(0f)
+    var scale by mutableFloatStateOf(1f)
 
     /**
      * False until the finger has actually travelled.
@@ -790,10 +791,15 @@ private class ScorePickerState {
         return best?.let { ScoreCategory.entries[it] }
     }
 
-    fun open(at: Offset, size: IntSize, spacingPx: Float, dotRadiusPx: Float) {
-        dotRadius = dotRadiusPx
-        spacing = min(spacingPx, (size.width / 2f - dotRadiusPx - 6f).coerceAtLeast(0f))
-        anchor = Offset(size.width / 2f, size.height / 2f)
+    fun open(at: Offset, size: IntSize, spacingPx: Float, dotRadiusPx: Float, labelPx: Float) {
+        val margin = PICKER_EDGE_MARGIN_PX
+        val fitWidth = (size.width / 2f - margin) / (dotRadiusPx * (MIN_DOT_SPACING + HOVER_SCALE))
+        val fitHeight = (size.height - 2 * margin - labelPx) / (dotRadiusPx * (1f + HOVER_SCALE))
+        scale = minOf(1f, fitWidth, fitHeight).coerceAtLeast(0f)
+        dotRadius = dotRadiusPx * scale
+        val reachUp = dotRadius * HOVER_SCALE
+        spacing = min(spacingPx * scale, (size.width / 2f - margin - reachUp).coerceAtLeast(0f))
+        anchor = Offset(size.width / 2f, size.height / 2f + (reachUp - dotRadius - labelPx) / 2f)
         pointer = at
         isArmed = false
     }
@@ -837,6 +843,7 @@ private fun BoxScope.ScoreTapLayer(
     val haptics = LocalHapticFeedback.current
     val dotRadiusPx = with(density) { dotDiameter.toPx() } / 2f
     val spacingPx = with(density) { (dotDiameter * 1.65f).toPx() }
+    val labelPx = with(density) { DOT_LABEL_GAP.toPx() + dotLabelFontSize(dotDiameter).toPx() * DOT_LABEL_LINE_HEIGHT }
 
     Box(
         Modifier
@@ -846,12 +853,12 @@ private fun BoxScope.ScoreTapLayer(
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val openedNow = !state.isOpen
-                    val undoing = openedNow && down.position.x < size.width / 2f
+                    val undoing = openedNow && down.position.x < size.width * UNDO_ZONE_FRACTION
 
                     when {
                         undoing -> Unit
                         openedNow -> {
-                            state.open(down.position, size, spacingPx, dotRadiusPx)
+                            state.open(down.position, size, spacingPx, dotRadiusPx, labelPx)
                             haptics.performHapticFeedback(Haptic.Light)
                         }
                         // The fan was already up, so this gesture is aimed at a dot from
@@ -889,8 +896,8 @@ private fun BoxScope.ScoreTapLayer(
     ) {
         // Screen-position markers, purely decorative — the layer above owns the input.
         Row(Modifier.matchParentSize()) {
-            ZoneMarker(Icons.Filled.Remove, enabled = canUndo, Alignment.CenterStart, markerSize, Modifier.weight(1f))
-            ZoneMarker(Icons.Filled.Add, enabled = true, Alignment.CenterEnd, markerSize, Modifier.weight(1f))
+            ZoneMarker(Icons.Filled.Remove, enabled = canUndo, Alignment.CenterStart, markerSize, Modifier.weight(UNDO_ZONE_FRACTION))
+            ZoneMarker(Icons.Filled.Add, enabled = true, Alignment.CenterEnd, markerSize, Modifier.weight(1f - UNDO_ZONE_FRACTION))
         }
         // TalkBack cannot press-and-drag, so both actions are exposed explicitly.
         Box(
@@ -955,7 +962,7 @@ private fun BoxScope.ScorePickerDots(
             category = category,
             index = index,
             center = state.center(index),
-            diameter = dotDiameter,
+            diameter = dotDiameter * state.scale,
             isHovered = category == hovered,
         )
     }
@@ -979,7 +986,7 @@ private fun BoxScope.FannedCategoryDot(
         bloom.animateTo(1f, Motion.press())
     }
     val hoverScale by animateFloatAsState(
-        targetValue = if (isHovered) 1.22f else 1f,
+        targetValue = if (isHovered) HOVER_SCALE else 1f,
         animationSpec = Motion.press(),
         label = "dotHover",
     )
@@ -1019,14 +1026,28 @@ private fun BoxScope.FannedCategoryDot(
             text = category.displayName,
             color = Color.White,
             fontWeight = FontWeight.Bold,
-            fontSize = max(11f, diameter.value * 0.2f).sp,
+            fontSize = dotLabelFontSize(diameter),
             textAlign = TextAlign.Center,
             maxLines = 1,
             style = LocalTextStyle.current.copy(shadow = Shadow(Color.Black.copy(alpha = 0.6f), blurRadius = 4f)),
-            modifier = Modifier.padding(top = 6.dp),
+            modifier = Modifier.padding(top = DOT_LABEL_GAP),
         )
     }
 }
+
+private fun dotLabelFontSize(diameter: Dp): TextUnit = max(11f, diameter.value * 0.2f).sp
+
+private const val HOVER_SCALE = 1.22f
+
+private const val UNDO_ZONE_FRACTION = 1f / 3f
+
+private const val MIN_DOT_SPACING = 2.3f
+
+private const val PICKER_EDGE_MARGIN_PX = 6f
+
+private const val DOT_LABEL_LINE_HEIGHT = 1.4f
+
+private val DOT_LABEL_GAP = 6.dp
 
 private const val FAN_STAGGER_MS = 45L
 
