@@ -853,7 +853,7 @@ private fun BoxScope.ScoreTapLayer(
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val openedNow = !state.isOpen
-                    val undoing = openedNow && down.position.x < size.width / 2f
+                    val undoing = openedNow && down.position.x < size.width * UNDO_ZONE_FRACTION
 
                     when {
                         undoing -> Unit
@@ -896,8 +896,8 @@ private fun BoxScope.ScoreTapLayer(
     ) {
         // Screen-position markers, purely decorative — the layer above owns the input.
         Row(Modifier.matchParentSize()) {
-            ZoneMarker(Icons.Filled.Remove, enabled = canUndo, Alignment.CenterStart, markerSize, Modifier.weight(1f))
-            ZoneMarker(Icons.Filled.Add, enabled = true, Alignment.CenterEnd, markerSize, Modifier.weight(1f))
+            ZoneMarker(Icons.Filled.Remove, enabled = canUndo, Alignment.CenterStart, markerSize, Modifier.weight(UNDO_ZONE_FRACTION))
+            ZoneMarker(Icons.Filled.Add, enabled = true, Alignment.CenterEnd, markerSize, Modifier.weight(1f - UNDO_ZONE_FRACTION))
         }
         // TalkBack cannot press-and-drag, so both actions are exposed explicitly.
         Box(
@@ -1038,6 +1038,8 @@ private fun BoxScope.FannedCategoryDot(
 private fun dotLabelFontSize(diameter: Dp): TextUnit = max(11f, diameter.value * 0.2f).sp
 
 private const val HOVER_SCALE = 1.22f
+
+private const val UNDO_ZONE_FRACTION = 1f / 3f
 
 private const val MIN_DOT_SPACING = 2.3f
 
