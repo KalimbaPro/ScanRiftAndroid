@@ -32,7 +32,7 @@ class PlayerStateScoreLogTest {
 
     @Test
     fun `undo floors at zero and leaves the log empty`() {
-        val player = player().scored(ScoreCategory.ABILITY).undone().undone().undone()
+        val player = player().scored(ScoreCategory.OTHER).undone().undone().undone()
 
         assertThat(player.score).isEqualTo(0)
         assertThat(player.scoreLog).isEmpty()
@@ -54,25 +54,25 @@ class PlayerStateScoreLogTest {
         val player = PlayerState(
             name = "Player 1",
             conquer = 2,
-            scoreLog = listOf(ScoreCategory.ABILITY),
+            scoreLog = listOf(ScoreCategory.OTHER),
         )
 
         val after = player.undone()
         assertThat(after.conquer).isEqualTo(1)
-        assertThat(after.scoreLog).doesNotContain(ScoreCategory.ABILITY)
+        assertThat(after.scoreLog).doesNotContain(ScoreCategory.OTHER)
     }
 
     @Test
     fun `ordered points replay the scoring sequence one entry per point`() {
         val player = player()
             .scored(ScoreCategory.CONQUER)
-            .scored(ScoreCategory.ABILITY)
+            .scored(ScoreCategory.OTHER)
             .scored(ScoreCategory.CONQUER)
             .scored(ScoreCategory.HOLD)
 
         assertThat(player.orderedPoints()).containsExactly(
             ScoreCategory.CONQUER,
-            ScoreCategory.ABILITY,
+            ScoreCategory.OTHER,
             ScoreCategory.CONQUER,
             ScoreCategory.HOLD,
         ).inOrder()
@@ -95,7 +95,7 @@ class PlayerStateScoreLogTest {
         val player = PlayerState(
             name = "Player 1",
             conquer = 1,
-            scoreLog = listOf(ScoreCategory.ABILITY, ScoreCategory.CONQUER, ScoreCategory.HOLD),
+            scoreLog = listOf(ScoreCategory.OTHER, ScoreCategory.CONQUER, ScoreCategory.HOLD),
         )
 
         assertThat(player.orderedPoints()).containsExactly(ScoreCategory.CONQUER)
@@ -105,7 +105,7 @@ class PlayerStateScoreLogTest {
     fun `undo removes the last cell the track drew`() {
         val player = player()
             .scored(ScoreCategory.HOLD)
-            .scored(ScoreCategory.ABILITY)
+            .scored(ScoreCategory.OTHER)
             .scored(ScoreCategory.CONQUER)
 
         val before = player.orderedPoints()

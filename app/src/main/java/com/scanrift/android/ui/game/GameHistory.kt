@@ -235,9 +235,9 @@ private fun GameHistoryRow(record: GameRecord, cardsById: Map<String, Card>, mod
 private fun CategoryBreakdown(record: GameRecord) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(
-            ScoreCategory.CONQUER to record.conquerCount,
+            ScoreCategory.OTHER to record.abilityCount,
             ScoreCategory.HOLD to record.holdCount,
-            ScoreCategory.ABILITY to record.abilityCount,
+            ScoreCategory.CONQUER to record.conquerCount,
         ).forEach { (category, count) ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 Icon(category.icon, contentDescription = category.displayName, tint = category.color, modifier = Modifier.size(12.dp))
@@ -348,9 +348,9 @@ private fun GameRecordEditorSheet(
 
         if (record.hasCategoryBreakdown) {
             SectionHeader("Point Breakdown")
-            StepperRow(ScoreCategory.CONQUER.displayName, conquer, ScoreCategory.CONQUER.icon, ScoreCategory.CONQUER.color) { conquer = it }
+            StepperRow(ScoreCategory.OTHER.displayName, ability, ScoreCategory.OTHER.icon, ScoreCategory.OTHER.color) { ability = it }
             StepperRow(ScoreCategory.HOLD.displayName, hold, ScoreCategory.HOLD.icon, ScoreCategory.HOLD.color) { hold = it }
-            StepperRow(ScoreCategory.ABILITY.displayName, ability, ScoreCategory.ABILITY.icon, ScoreCategory.ABILITY.color) { ability = it }
+            StepperRow(ScoreCategory.CONQUER.displayName, conquer, ScoreCategory.CONQUER.icon, ScoreCategory.CONQUER.color) { conquer = it }
         }
 
         SectionHeader("Notes")

@@ -56,7 +56,7 @@ fun rarityColor(rarity: String?): Color = when (rarity) {
 // iOS `ScoreCategory.color`.
 val ScoreConquer = Color(0xFFE8641B)
 val ScoreHold = Color(0xFF2E7CD6)
-val ScoreAbility = Color(0xFF8B5CC9)
+val ScoreOther = Color(0xFF8B5CC9)
 
 /**
  * Hairline around the scoring track. Warm, but deliberately not the `0xFFFFD60A` used
