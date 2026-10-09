@@ -65,13 +65,13 @@ data class PlayerState(
     fun count(category: ScoreCategory): Int = when (category) {
         ScoreCategory.CONQUER -> conquer
         ScoreCategory.HOLD -> hold
-        ScoreCategory.ABILITY -> ability
+        ScoreCategory.OTHER -> ability
     }
 
     fun withCount(category: ScoreCategory, value: Int): PlayerState = when (category) {
         ScoreCategory.CONQUER -> copy(conquer = value)
         ScoreCategory.HOLD -> copy(hold = value)
-        ScoreCategory.ABILITY -> copy(ability = value)
+        ScoreCategory.OTHER -> copy(ability = value)
     }
 
     /** Adds a point and remembers which category it came from. */

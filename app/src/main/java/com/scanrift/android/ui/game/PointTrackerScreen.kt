@@ -723,7 +723,7 @@ private fun PlayerSeat(
                                 state = picker,
                                 canUndo = player.score > 0,
                                 dotDiameter = buttonDiameter * 1.05f,
-                                markerSize = buttonDiameter * 0.8f,
+                                markerSize = buttonDiameter,
                                 onUndo = onUndo,
                                 onScore = onAdd,
                             )
@@ -931,12 +931,24 @@ private fun ZoneMarker(
     modifier: Modifier = Modifier,
 ) {
     Box(modifier.fillMaxHeight(), contentAlignment = alignment) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = Color.White.copy(alpha = if (enabled) 0.9f else 0.3f),
-            modifier = Modifier.padding(horizontal = 14.dp).size(size),
-        )
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .padding(horizontal = 10.dp)
+                .size(size)
+                .alpha(if (enabled) 1f else 0.35f)
+                .shadow(6.dp, CircleShape)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.6f))
+                .border(2.5.dp, Color.White, CircleShape),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(size * 0.62f),
+            )
+        }
     }
 }
 

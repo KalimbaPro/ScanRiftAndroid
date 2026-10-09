@@ -52,9 +52,9 @@ enum class GameResult(val value: String, val displayName: String) {
 }
 
 enum class ScoreCategory(val value: String, val displayName: String) {
-    CONQUER("conquer", "Conquer"),
+    OTHER("ability", "Other"),
     HOLD("hold", "Hold"),
-    ABILITY("ability", "Ability"),
+    CONQUER("conquer", "Conquer"),
     ;
 
     companion object {

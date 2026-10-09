@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.scanrift.android.domain.model.GameResult
 import com.scanrift.android.domain.model.ScoreCategory
-import com.scanrift.android.ui.theme.ScoreAbility
+import com.scanrift.android.ui.theme.ScoreOther
 import com.scanrift.android.ui.theme.ScoreConquer
 import com.scanrift.android.ui.theme.ScoreHold
 
@@ -28,14 +28,14 @@ val ScoreCategory.color: Color
     get() = when (this) {
         ScoreCategory.CONQUER -> ScoreConquer
         ScoreCategory.HOLD -> ScoreHold
-        ScoreCategory.ABILITY -> ScoreAbility
+        ScoreCategory.OTHER -> ScoreOther
     }
 
 val ScoreCategory.icon: ImageVector
     get() = when (this) {
         ScoreCategory.CONQUER -> Icons.Filled.Bolt
         ScoreCategory.HOLD -> Icons.Filled.Shield
-        ScoreCategory.ABILITY -> Icons.Filled.AutoAwesome
+        ScoreCategory.OTHER -> Icons.Filled.AutoAwesome
     }
 
 val GameResult.icon: ImageVector

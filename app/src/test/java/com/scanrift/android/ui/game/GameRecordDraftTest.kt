@@ -47,7 +47,7 @@ class GameRecordDraftTest {
 
     @Test
     fun `free for all gives every tied leader a win and leaves the opponent blank`() {
-        val dave = PlayerState(id = "d", name = "Dave", deckId = "deck-d").scored(ScoreCategory.ABILITY).scored(ScoreCategory.ABILITY)
+        val dave = PlayerState(id = "d", name = "Dave", deckId = "deck-d").scored(ScoreCategory.OTHER).scored(ScoreCategory.OTHER)
 
         val records = freeForAllRecords(listOf(alice, bob, carol, dave))
 
