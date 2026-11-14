@@ -8,6 +8,8 @@ import com.scanrift.android.data.repository.CollectionRepository
 import com.scanrift.android.data.repository.DeckRepository
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.GameRecord
+import com.scanrift.android.domain.model.LegendGroup
+import com.scanrift.android.domain.model.LegendPrintings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,8 +42,9 @@ class GameHistoryViewModel @Inject constructor(
         .map { all -> all.associateBy { it.id } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
-    val legends: StateFlow<List<Card>> = cards
-        .map { it.pickableLegends() }
+    /** Every legend, one group per legend, all printings included. */
+    val legends: StateFlow<List<LegendGroup>> = cards
+        .map { LegendPrintings.groups(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun load(id: String) { deckId.value = id }

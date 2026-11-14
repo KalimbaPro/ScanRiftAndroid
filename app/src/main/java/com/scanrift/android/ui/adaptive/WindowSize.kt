@@ -113,4 +113,16 @@ object AdaptiveRules {
         val computed = (available / perItem).toInt()
         return computed.coerceIn(Dimens.GRID_COLUMNS_MIN, Dimens.GRID_COLUMNS_MAX)
     }
+
+    /**
+     * Columns for the legend printing chooser, from the width the chooser actually gets.
+     * The chooser lives in a bottom sheet capped at [Dimens.SheetMaxWidth], so this is
+     * measured inside the sheet rather than read off the window: a folded phone gets
+     * three columns, an unfolded Fold five.
+     */
+    fun legendPrintingColumns(width: Dp): Int {
+        val spacing = Dimens.GridSpacingCompact
+        val computed = ((width + spacing) / (Dimens.LegendPrintingItemMin + spacing)).toInt()
+        return computed.coerceIn(Dimens.LEGEND_PRINTING_COLUMNS_MIN, Dimens.LEGEND_PRINTING_COLUMNS_MAX)
+    }
 }
