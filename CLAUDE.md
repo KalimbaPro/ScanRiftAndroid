@@ -237,7 +237,7 @@ stay on screen behind the pre-filled summary, so the record still has the last g
 breakdown; Save or Skip then resets the whole match. The timer is drawn twice in the
 centre bar, each copy at its reader's left: the top copy is turned 180°.
 
-**Unowned cards render in full colour** (at 50% alpha, plus the quantity badge). The old
+**Unowned cards render in full colour**, no fade, exactly as iOS; the quantity badge marks ownership. The old
 greyscale treatment and its "show unowned in colour" toggle are gone.
 
 **The home search bar is global.** `CollectionHubScreen`'s search matches list names and

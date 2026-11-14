@@ -18,7 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
@@ -39,14 +38,12 @@ import com.scanrift.android.domain.model.CardLanguage
  *
  * Three behaviours worth knowing, all matching iOS:
  *
- * - **Unowned cards** render in full colour at 50% alpha. They used to be greyscale
- *   too (behind a "show unowned in colour" toggle); colour now always shows, and the
- *   fade plus the quantity badge are what make ownership readable in a dense grid.
+ * - **Unowned cards** render exactly like owned ones: full colour, no fade. They used
+ *   to be greyscale behind a "show unowned in colour" toggle; the quantity badge alone
+ *   now marks ownership.
  * - **Landscape battlefields** are rotated 90° so they fill a portrait tile upright.
  *   This happens **only in the grid**; detail views and the deck browser show them in
  *   their native orientation.
- * - The alpha is applied to the image alone, never the parent, so the quantity badge
- *   stays at full opacity over a faded card.
  * - A card banned in the user's competitive region gets a red **BANNED** band across
  *   the image. It lives here, in the one shared thumbnail, so the collection grid and
  *   list, deck views, the scanner and the detail image all show it without each screen
@@ -70,8 +67,6 @@ fun CardThumbnail(
     language: CardLanguage? = null,
 ) {
     val imageUrl = card.imageUrl(language ?: CardLanguage.EN)
-    val isOwned = quantity > 0
-    val imageAlpha = if (isOwned) 1f else 0.5f
     val shape = RoundedCornerShape(cornerRadius)
 
     Box(
@@ -96,8 +91,7 @@ fun CardThumbnail(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .requiredSize(width = maxHeight, height = maxWidth)
-                        .graphicsLayer { rotationZ = 90f }
-                        .alpha(imageAlpha),
+                        .graphicsLayer { rotationZ = 90f },
                 )
             }
         } else {
@@ -108,12 +102,12 @@ fun CardThumbnail(
                 // and hides its name, so letterbox it instead. The collection grid is
                 // the one place that rotates them upright rather than fitting them.
                 contentScale = if (card.isLandscape) ContentScale.Fit else ContentScale.Crop,
-                modifier = Modifier.matchParentSize().alpha(imageAlpha),
+                modifier = Modifier.matchParentSize(),
             )
         }
 
         // Rare, Epic and Showcase only exist as foils, so they always shimmer.
-        val showFoil = isFoil || (isOwned && card.isAlwaysFoil)
+        val showFoil = isFoil || (quantity > 0 && card.isAlwaysFoil)
         if (showFoil) {
             Box(Modifier.matchParentSize().clip(shape).foilSheen())
         }
