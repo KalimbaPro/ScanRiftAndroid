@@ -140,7 +140,7 @@ private fun PageReviewTopBar(page: PageReview, onClose: () -> Unit) {
 private fun PagePhoto(page: PageReview, viewModel: ScannerViewModel, modifier: Modifier) {
     val image = remember(page.image) { page.image.asImageBitmap() }
     val items by rememberUpdatedState(page.items)
-    BoxWithConstraints(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
+    Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
         Image(
             bitmap = image,
             contentDescription = "Photographed page",
