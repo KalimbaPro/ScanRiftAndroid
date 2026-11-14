@@ -235,7 +235,7 @@ private fun PageItemRow(item: PageItem, viewModel: ScannerViewModel, hasVersions
                 color = if (card == null) UnmatchedOrange else MaterialTheme.colorScheme.onSurface,
             )
             if (card != null && hasVersions) {
-                SetVersionLabel(card) { viewModel.openVersionPicker(VersionTarget.PageItem(item.id)) }
+                SetVersionLabel(card, onPickVersion = { viewModel.openVersionPicker(VersionTarget.PageItem(item.id)) })
             } else {
                 Text(
                     if (card == null) "${item.code} · tap to pick the card" else "${card.setLabel} · ${card.publicCode}",

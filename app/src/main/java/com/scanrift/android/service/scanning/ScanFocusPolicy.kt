@@ -117,14 +117,16 @@ class ScanFocusPolicy(
                     fromBottom < Constants.Scanning.NAME_BAND_MAX_Y &&
                     midX < Constants.Scanning.NAME_BAND_MAX_MID_X
             }
-            val scriptLines = ocr.scriptLines.filter(::inCard)
+            val chinese = ocr.chineseLines.filter(::inCard)
+            val korean = ocr.koreanLines.filter(::inCard)
             return ocr.copy(
                 extractedText = card.lines.joinToString("\n") { it.text },
                 cardNameRegion = name.joinToString(" ") { it.text }.trim().takeIf { it.isNotEmpty() },
                 setCodeRegion = card.anchorText,
-                scriptText = scriptLines.joinToString("\n") { it.text }.takeIf { it.isNotEmpty() },
+                scriptText = (chinese + korean).joinToString("\n") { it.text }.takeIf { it.isNotEmpty() },
                 lines = card.lines,
-                scriptLines = scriptLines,
+                chineseLines = chinese,
+                koreanLines = korean,
             )
         }
     }

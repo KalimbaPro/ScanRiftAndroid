@@ -82,7 +82,7 @@ class ScanFocusPolicyTest {
             confidence = 1.0,
             lines = above + centre,
             scriptText = "金克丝\n아리",
-            scriptLines = listOf(
+            chineseLines = listOf(
                 TextLine("金克丝", NormalizedBox(0.3f, 0.48f, 0.5f, 0.5f)), // inside the guided card
                 TextLine("아리", NormalizedBox(0.3f, 0.1f, 0.5f, 0.12f)), // the card above
             ),

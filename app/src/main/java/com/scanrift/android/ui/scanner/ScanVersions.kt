@@ -82,9 +82,9 @@ fun List<PageItem>.withItemCard(id: String, card: Card): List<PageItem> =
  */
 fun ScannerUiState.withAutoAddedCard(card: Card): Pair<ScannerUiState, CopyMove?> {
     val from = lastAutoAdded ?: return this to null
-    if (from.card.id == card.id) return this to null
+    if (from.card.id == card.id) return copy(lastAmbiguous = false) to null
     val to = from.copy(card = card, isFoil = versionFoil(from.card, from.isFoil, card))
-    return copy(lastAutoAdded = to, lastScanned = card) to CopyMove(from, to)
+    return copy(lastAutoAdded = to, lastScanned = card, lastAmbiguous = false) to CopyMove(from, to)
 }
 
 /** Applies a version pick for [target]. The move is non-null only for [VersionTarget.AutoAdded]. */

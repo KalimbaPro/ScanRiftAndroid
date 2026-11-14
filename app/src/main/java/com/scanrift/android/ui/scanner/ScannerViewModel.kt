@@ -27,7 +27,9 @@ import com.scanrift.android.service.scanning.CameraState
 import com.scanrift.android.service.scanning.CardMatchingService
 import com.scanrift.android.service.scanning.LanguageDetector
 import com.scanrift.android.service.scanning.NormalizedBox
-import com.scanrift.android.service.scanning.MatchCandidate
+import com.scanrift.android.service.scanning.ScanIdentifier
+import com.scanrift.android.service.scanning.BitmapFrameArt
+import com.scanrift.android.service.scanning.CatalogueArt
 import com.scanrift.android.service.scanning.PageScanService
 import com.scanrift.android.service.scanning.MotionDetector
 import com.scanrift.android.service.scanning.OcrResult
@@ -115,12 +117,18 @@ data class ScannerUiState(
     val versionTarget: VersionTarget? = null,
     /** Auto-add mode: the copies the last scan wrote, which a version change re-keys. */
     val lastAutoAdded: AutoAddedScan? = null,
+    /** Auto-add mode: the last scan's printing is a guess (see [ScanResult.ambiguous]). */
+    val lastAmbiguous: Boolean = false,
 ) {
     val scannedCount: Int get() = results.sumOf { it.quantity }
     val correcting: ScanResult? get() = results.firstOrNull { it.id == correctingId }
     val lastResult: ScanResult? get() = results.firstOrNull { it.id == lastResultId }
     val correctingPageItem: PageItem? get() = page?.items?.firstOrNull { it.id == correctingPageItemId }
     val isCorrecting: Boolean get() = correctingId != null || correctingPageItemId != null
+
+    /** The last scan's printing is a guess: the set chip draws attention. */
+    val lastScanAmbiguous: Boolean
+        get() = lastResult?.ambiguous ?: (lastAutoAdded != null && lastAmbiguous)
 
     /** True when the last scan has another printing to switch to: the set chip is active. */
     val lastScanHasVersions: Boolean
@@ -137,6 +145,7 @@ class ScannerViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     private val pageScanService: PageScanService,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+    private val catalogueArt: CatalogueArt,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ScannerUiState())
@@ -412,16 +421,19 @@ class ScannerViewModel @Inject constructor(
                 // extractText closes the proxy in its own finally. The Chinese/Korean
                 // pass is paid only for a matched card with no Latin name, in Auto.
                 // In focus mode both the gate and the CJK lines read only the focused card.
-                val auto = _uiState.value.scanLanguage == ScanLanguage.AUTO
+                val preference = _uiState.value.scanLanguage
                 var decision: FocusDecision? = null
                 val decide = { latin: OcrResult ->
                     focusPolicy.evaluate(latin.lines, guide, knownSetIds, latin.imageAspect).also { decision = it }
                 }
-                val ocr = ocrService.extractText(imageProxy) { latin ->
-                    val (view, match) = focusedMatch(latin, decide(latin), matcher)
-                    auto && view != null && match != null && !LanguageDetector.hasLatinName(view.cardNameRegion)
-                }
-                handleOcr(ocr, matcher, decision ?: decide(ocr))
+                val identifier = ScanIdentifier(matcher)
+                val ocr = ocrService.extractText(
+                    imageProxy,
+                    needsScriptPass = { latin -> identifier.needsScriptPass(latin, decide(latin), preference) },
+                    // Kept only when the code was read without its variant suffix.
+                    needsFrame = { latin -> identifier.needsFrame(latin, decision ?: decide(latin)) },
+                )
+                handleOcr(ocr, identifier, decision ?: decide(ocr), guide)
             } catch (e: Exception) {
                 Log.ocr.w(e, "OCR failed for this frame")
                 updateDebug { it.copy(ocrText = "ERROR: ${e.message}") }
@@ -439,28 +451,12 @@ class ScannerViewModel @Inject constructor(
         }
     }
 
-    /**
-     * The frame as [decision] sees it — the whole OCR, or just the focused card's lines —
-     * and its match. A focused card matches on its own collector code first: its OCR
-     * line can also carry a neighbour's code when two cards' bottoms read as one line.
-     */
-    private fun focusedMatch(
+    private suspend fun handleOcr(
         ocr: OcrResult,
+        identifier: ScanIdentifier,
         decision: FocusDecision,
-        matcher: CardMatchingService,
-    ): Pair<OcrResult?, MatchCandidate?> {
-        if (ocr.confidence <= Constants.Scanning.MINIMUM_OCR_CONFIDENCE) return null to null
-        return when (decision) {
-            FocusDecision.Wide -> ocr to matcher.findMatch(ocr)
-            is FocusDecision.Focused -> {
-                val view = ScanFocusPolicy.focusedOcr(ocr, decision.card)
-                view to (matcher.findByCardCode(decision.card.code) ?: matcher.findMatch(view))
-            }
-            FocusDecision.NoCardInGuide -> null to null
-        }
-    }
-
-    private suspend fun handleOcr(ocr: OcrResult, matcher: CardMatchingService, decision: FocusDecision) {
+        guide: NormalizedBox?,
+    ) {
         updateDebug {
             it.copy(
                 ocrText = ocr.extractedText,
@@ -468,7 +464,21 @@ class ScannerViewModel @Inject constructor(
             )
         }
 
-        val (view, match) = focusedMatch(ocr, decision, matcher)
+        // Where the card sits in the frame, for the art comparison of an ambiguous printing.
+        val cardRegion = (decision as? FocusDecision.Focused)?.card?.bounds ?: guide ?: NormalizedBox(0f, 0f, 1f, 1f)
+        val outcome = try {
+            identifier.identifyFrame(
+                ocr,
+                _uiState.value.scanLanguage,
+                frame = ocr.frame?.let { BitmapFrameArt(it, cardRegion) },
+                art = catalogueArt,
+                decision = decision,
+            )
+        } finally {
+            ocr.frame?.recycle()
+        }
+        val view = outcome.view
+        val match = outcome.match
         updateDebug {
             it.copy(
                 matchCount = if (match == null) 0 else 1,
@@ -483,7 +493,7 @@ class ScannerViewModel @Inject constructor(
         lastScanAtMs = System.currentTimeMillis()
         motionDetector.markScanned()
 
-        val detection = LanguageDetector.resolve(_uiState.value.scanLanguage, view.languageText)
+        val detection = outcome.language
         updateDebug { it.copy(ocrText = "${ocr.extractedText}\n[language ${detection.language.code} via ${detection.source}]") }
 
         val autoAdd = userPreferences.autoAddToCollection.first()
@@ -495,7 +505,7 @@ class ScannerViewModel @Inject constructor(
             val (results, rowId) = if (autoAdd) {
                 it.results to null
             } else {
-                it.results.addingScanReturningId(match.card, detection.language)
+                it.results.addingScanReturningId(match.card, detection.language, ambiguous = outcome.ambiguous)
             }
             it.copy(
                 overlayState = ScannerOverlayState.MATCHED,
@@ -504,6 +514,7 @@ class ScannerViewModel @Inject constructor(
                 lastLanguage = detection.language,
                 results = results,
                 lastAutoAdded = if (autoAdd) AutoAddedScan(match.card, match.card.isAlwaysFoil, detection.language) else null,
+                lastAmbiguous = outcome.ambiguous,
             )
         }
 

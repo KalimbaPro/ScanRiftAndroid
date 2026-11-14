@@ -54,19 +54,31 @@ class OcrService @Inject constructor() {
     suspend fun extractText(
         imageProxy: ImageProxy,
         needsScriptPass: (OcrResult) -> Boolean = { false },
+        needsFrame: (OcrResult) -> Boolean = { false },
     ): OcrResult {
         return try {
             val mediaImage = imageProxy.image ?: return OcrResult.EMPTY
             val rotation = imageProxy.imageInfo.rotationDegrees
             val input = InputImage.fromMediaImage(mediaImage, rotation)
             val (width, height) = OcrGeometry.rotatedSize(mediaImage.width, mediaImage.height, rotation)
-            // The script pass must happen before the finally below closes the frame.
-            process(input, width, height, needsScriptPass)
+            // The script pass and the frame copy must happen before the finally below
+            // closes the frame.
+            val result = process(input, width, height, needsScriptPass)
+            if (!needsFrame(result)) return result
+            result.copy(frame = runCatching { uprightBitmap(imageProxy, rotation) }.getOrNull())
         } catch (e: IllegalStateException) {
             OcrResult.EMPTY
         } finally {
             imageProxy.close()
         }
+    }
+
+    /** The frame as an upright bitmap, for the art comparison of an ambiguous printing. */
+    private fun uprightBitmap(imageProxy: ImageProxy, rotation: Int): Bitmap {
+        val raw = imageProxy.toBitmap()
+        if (rotation % 360 == 0) return raw
+        val matrix = android.graphics.Matrix().apply { postRotate(rotation.toFloat()) }
+        return Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, matrix, true).also { if (it !== raw) raw.recycle() }
     }
 
     suspend fun extractText(image: InputImage, needsScriptPass: (OcrResult) -> Boolean = { false }): OcrResult {
@@ -82,15 +94,19 @@ class OcrService @Inject constructor() {
     ): OcrResult {
         val latin = recognize(recognizer, image).toOcrResult(width, height)
         if (!needsScriptPass(latin)) return latin
-        val scripts = scriptRecognizers().mapNotNull { client ->
+        // Both recognisers, kept apart (see OcrResult.chineseLines).
+        val (zh, ko) = scriptRecognizers().map { client ->
             runCatching { recognize(client, image) }
                 .onFailure { Log.ocr.w(it, "Script recognizer unavailable") }
                 .getOrNull()
-                ?.takeIf { it.text.isNotBlank() }
+                ?.toOcrResult(width, height)
         }
+        val chinese = zh?.lines.orEmpty()
+        val korean = ko?.lines.orEmpty()
         return latin.copy(
-            scriptText = scripts.joinToString("\n") { it.text }.takeIf { it.isNotEmpty() },
-            scriptLines = scripts.flatMap { it.toOcrResult(width, height).lines },
+            scriptText = (chinese + korean).joinToString("\n") { it.text }.takeIf { it.isNotBlank() },
+            chineseLines = chinese,
+            koreanLines = korean,
         )
     }
 

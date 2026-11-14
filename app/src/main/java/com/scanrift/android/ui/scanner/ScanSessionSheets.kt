@@ -256,7 +256,7 @@ fun ScanResultRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    SetVersionLabel(result.card, onPickVersion)
+                    SetVersionLabel(result.card, onPickVersion, ambiguous = result.ambiguous)
                     if (result.isFoil) FoilBadge()
                     if (showCorrectHint) {
                         Text(
@@ -313,7 +313,7 @@ private fun LanguageChip(language: CardLanguage, onChange: (CardLanguage) -> Uni
  * chevron that opens the version picker; otherwise plain text.
  */
 @Composable
-fun SetVersionLabel(card: Card, onPickVersion: (() -> Unit)?) {
+fun SetVersionLabel(card: Card, onPickVersion: (() -> Unit)?, ambiguous: Boolean = false) {
     if (onPickVersion == null) {
         Text(
             card.setLabel,
@@ -326,22 +326,30 @@ fun SetVersionLabel(card: Card, onPickVersion: (() -> Unit)?) {
     Row(
         modifier = Modifier
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .background(if (ambiguous) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer)
             .clickable(onClick = onPickVersion)
             .padding(start = 8.dp, end = 4.dp, top = 2.dp, bottom = 2.dp)
-            .semantics(mergeDescendants = true) { contentDescription = "${card.setLabel}. Choose another version" },
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (ambiguous) {
+                    "${card.setLabel}. Version uncertain, check it"
+                } else {
+                    "${card.setLabel}. Choose another version"
+                }
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val content = if (ambiguous) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
         Text(
-            "${card.setId} #${card.publicCodePrefix.substringAfter('-')}",
+            "${card.setId} #${card.publicCodePrefix.substringAfter('-')}${if (ambiguous) " ?" else ""}",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            fontWeight = if (ambiguous) FontWeight.Bold else null,
+            color = content,
             maxLines = 1,
         )
         Icon(
             Icons.Filled.ExpandMore,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            tint = content,
             modifier = Modifier.size(14.dp),
         )
     }

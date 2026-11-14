@@ -21,6 +21,12 @@ data class ScanResult(
     val isFoil: Boolean = card.isAlwaysFoil,
     val language: CardLanguage = CardLanguage.EN,
     val id: String = UUID.randomUUID().toString(),
+    /**
+     * The collector code was read without its variant suffix and the art comparison could
+     * not settle the printing: [card] is the base printing, and the version chip asks the
+     * user to confirm. Cleared by any version pick or correction.
+     */
+    val ambiguous: Boolean = false,
 )
 
 /** Adds one scan as a new row at the top (newest first). */
@@ -28,8 +34,12 @@ fun List<ScanResult>.addingScan(card: Card, language: CardLanguage = CardLanguag
     addingScanReturningId(card, language).first
 
 /** As [addingScan], also returning the new row's id. */
-fun List<ScanResult>.addingScanReturningId(card: Card, language: CardLanguage): Pair<List<ScanResult>, String> {
-    val row = ScanResult(card, language = language)
+fun List<ScanResult>.addingScanReturningId(
+    card: Card,
+    language: CardLanguage,
+    ambiguous: Boolean = false,
+): Pair<List<ScanResult>, String> {
+    val row = ScanResult(card, language = language, ambiguous = ambiguous)
     return (listOf(row) + this) to row.id
 }
 
@@ -93,8 +103,12 @@ fun List<ScanResult>.replacingCard(id: String, card: Card): Pair<List<ScanResult
     val index = indexOfFirst { it.id == id }
     if (index < 0) return this to null
     val corrected = this[index]
-    if (corrected.card.id == card.id) return this to id
     val results = toMutableList()
-    results[index] = corrected.copy(card = card, isFoil = versionFoil(corrected.card, corrected.isFoil, card))
+    if (corrected.card.id == card.id) {
+        // Picking the printing it already had confirms it.
+        if (corrected.ambiguous) results[index] = corrected.copy(ambiguous = false)
+        return results to id
+    }
+    results[index] = corrected.copy(card = card, isFoil = versionFoil(corrected.card, corrected.isFoil, card), ambiguous = false)
     return results to id
 }

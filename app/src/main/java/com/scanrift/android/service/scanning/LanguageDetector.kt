@@ -1,6 +1,8 @@
 package com.scanrift.android.service.scanning
 
+import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardLanguage
+import com.scanrift.android.domain.model.CardPrintings
 import com.scanrift.android.domain.model.ScanLanguage
 import java.util.Locale
 
@@ -21,7 +23,135 @@ import java.util.Locale
  */
 object LanguageDetector {
 
-    enum class Source { MARKER, SCRIPT, STOP_WORDS, DEFAULT, FIXED }
+    /**
+     * Everything a live scan knows once its card is matched.
+     *
+     * @param latinText the Latin pass, where small print (the marker) reads best.
+     * @param chinesePass / [koreanPass] each CJK recogniser's own output, kept apart: the
+     *   Chinese model happily emits Han for a Korean card, so their outputs are compared,
+     *   not merged.
+     * @param card the matched card, whose English and localised names are the evidence.
+     */
+    data class Evidence(
+        val latinText: String,
+        val chinesePass: String? = null,
+        val koreanPass: String? = null,
+        val card: Card? = null,
+    )
+
+    /** [detectMatched] unless the user fixed a scan language. */
+    fun resolveMatched(preference: ScanLanguage, evidence: Evidence): Detection =
+        preference.language?.let { Detection(it, Source.FIXED) } ?: detectMatched(evidence)
+
+    /**
+     * The live scanner's detection, strongest evidence first (iOS runs the same rules):
+     *
+     * 1. **Marker** after the collector number, from the Latin pass.
+     * 2. **Name**: the OCR compared with the matched card's English name and its `zh` / `ko`
+     *    localised names (bigram Dice); a clear winner decides.
+     * 3. **Script**, comparing the two CJK passes: the Korean pass reading mostly Hangul is
+     *    Korean; otherwise Han is Chinese. Korean prints always carry `KR` (Korea only has
+     *    Origins) while Chinese Origins prints carry no marker, so unmarked CJK leans zh.
+     * 4. **English vs French**: French only on clear evidence — accents and stop words
+     *    outnumbering English ones two to one. English otherwise.
+     */
+    fun detectMatched(evidence: Evidence): Detection {
+        markerLanguage(evidence.latinText)?.let { return Detection(it, Source.MARKER) }
+        nameLanguage(evidence)?.let { return Detection(it, Source.NAME) }
+        cjkLanguage(evidence.chinesePass, evidence.koreanPass)?.let { return Detection(it, Source.SCRIPT) }
+        latinLanguage(evidence.latinText)?.let { return Detection(it, Source.STOP_WORDS) }
+        return Detection(CardLanguage.EN, Source.DEFAULT)
+    }
+
+    /** Name scores per language, 0..1: how well each known name of [card] appears in its pass. */
+    fun nameScores(evidence: Evidence): Map<CardLanguage, Float> {
+        val card = evidence.card ?: return emptyMap()
+        val scores = mutableMapOf<CardLanguage, Float>()
+        englishNames(card).maxOfOrNull { TextSimilarity.bestLineScore(it, evidence.latinText) }
+            ?.let { scores[CardLanguage.EN] = it }
+        card.localizations[CardLanguage.ZH.value]?.name?.takeIf { it.isNotBlank() }?.let {
+            scores[CardLanguage.ZH] = TextSimilarity.bestLineScore(it, evidence.chinesePass)
+        }
+        card.localizations[CardLanguage.KO.value]?.name?.takeIf { it.isNotBlank() }?.let {
+            scores[CardLanguage.KO] = TextSimilarity.bestLineScore(it, evidence.koreanPass)
+        }
+        return scores
+    }
+
+    /** How well [card]'s English name appears in [latinText], 0..1. */
+    fun englishNameScore(card: Card, latinText: String): Float =
+        englishNames(card).maxOfOrNull { TextSimilarity.bestLineScore(it, latinText) } ?: 0f
+
+    /**
+     * Whether the Latin pass alone already settles the language: a printed marker, or the
+     * English name. Otherwise the Chinese and Korean recognisers must read the frame.
+     */
+    fun latinPassSettles(latinText: String, card: Card): Boolean =
+        markerLanguage(latinText) != null || englishNameScore(card, latinText) >= NAME_MIN_SCORE
+
+    /** Step 2: the best-matching name, when it clears [NAME_MIN_SCORE] by [NAME_MARGIN]. */
+    fun nameLanguage(evidence: Evidence): CardLanguage? {
+        val ranked = nameScores(evidence).entries.sortedByDescending { it.value }
+        val best = ranked.firstOrNull() ?: return null
+        val second = ranked.getOrNull(1)?.value ?: 0f
+        return best.key.takeIf { best.value >= NAME_MIN_SCORE && best.value - second >= NAME_MARGIN }
+    }
+
+    /**
+     * The English spellings worth looking for: the whole base name, and the subtitle of
+     * a "Champion - Subtitle" name. The champion part alone is not evidence — "Jinx" is
+     * "Jinx" in French too — and neither is any part shorter than six letters.
+     */
+    fun englishNames(card: Card): List<String> {
+        val base = CardPrintings.baseName(card.name)
+        val parts = base.split(" - ", ", ").map { it.trim() }
+        val subtitles = if (parts.size > 1) parts.drop(1) else emptyList()
+        return (listOf(base) + subtitles).filter { TextSimilarity.normalize(it).length >= 6 }.distinct()
+    }
+
+    /** Step 3 with both recognisers' outputs. */
+    fun cjkLanguage(chinesePass: String?, koreanPass: String?): CardLanguage? {
+        val koHangul = count(koreanPass, Character.UnicodeScript.HANGUL)
+        val koHan = count(koreanPass, Character.UnicodeScript.HAN)
+        val zhHan = count(chinesePass, Character.UnicodeScript.HAN)
+        val zhHangul = count(chinesePass, Character.UnicodeScript.HANGUL)
+        // Each model reads the other script as noise: the Korean one turns a Chinese card
+        // into a little stray Hangul, the Chinese one turns a Korean card into some Han.
+        // Measured on official images, a Korean card's Korean pass yields at least ~1.3
+        // Hangul per Han of the Chinese pass, a Chinese card's at most ~0.45.
+        return when {
+            koHangul + zhHangul >= MIN_SCRIPT_CHARS &&
+                koHangul + zhHangul >= KOREAN_TO_HAN_RATIO * maxOf(zhHan, koHan) -> CardLanguage.KO
+            zhHan >= MIN_SCRIPT_CHARS || koHan >= MIN_SCRIPT_CHARS -> CardLanguage.ZH
+            else -> null
+        }
+    }
+
+    /** Step 4: French only with a clear margin; English when there is any Latin evidence at all. */
+    fun latinLanguage(text: String): CardLanguage? {
+        val words = words(text)
+        val accents = text.count { it in FRENCH_ACCENTS }
+        val french = words.count { it in frenchWords } + accents
+        val english = words.count { it in englishWords }
+        if (french + english < MIN_STOP_WORD_HITS) return null
+        return if (french >= MIN_STOP_WORD_HITS && french >= 2 * english + 1) CardLanguage.FR else CardLanguage.EN
+    }
+
+    private fun count(text: String?, script: Character.UnicodeScript): Int =
+        text?.count { Character.UnicodeScript.of(it.code) == script } ?: 0
+
+    private fun words(text: String): List<String> =
+        text.lowercase(Locale.ROOT)
+            .split(Regex("""[^\p{L}']+"""))
+            .flatMap { it.split('\'') }
+            .filter { it.isNotEmpty() }
+
+    private const val KOREAN_TO_HAN_RATIO = 0.8f
+    const val NAME_MIN_SCORE = 0.6f
+    private const val NAME_MARGIN = 0.2f
+    private const val FRENCH_ACCENTS = "éèàçùêâîôûëïÉÈÀÇ"
+
+    enum class Source { MARKER, NAME, SCRIPT, STOP_WORDS, DEFAULT, FIXED }
 
     data class Detection(val language: CardLanguage, val source: Source)
 
@@ -42,7 +172,7 @@ object LanguageDetector {
 
     private val frenchWords = setOf(
         "le", "la", "les", "de", "des", "du", "un", "une", "votre", "vos", "unité", "unités", "vous",
-        "et", "est", "pour", "avec", "sur", "dans", "qui", "au", "aux", "ce", "cette", "chaque",
+        "à", "et", "est", "pour", "avec", "sur", "dans", "qui", "au", "aux", "ce", "cette", "chaque",
         "piochez", "adversaire", "tour", "carte", "cartes", "lorsque", "quand", "si", "peut", "pouvez",
         "jouez", "joué", "gagnez", "ennemie", "ennemi", "alliée", "allié",
     )

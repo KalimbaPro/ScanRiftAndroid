@@ -385,6 +385,45 @@ overnumbered, special print, promo, any suffix and then supplemental sets (OGS, 
 successive penalties, so a legend that only exists as a Starter still has a sensible
 default. Same rule as iOS `LegendPrintings.swift`; keep the two in step.
 
+**Live language detection runs on evidence, strongest first, and both CJK passes stay
+apart.** `ScanIdentifier` is the one OCR → card → language path, shared by the scanner and
+the instrumented benchmark. Once a card is matched, `LanguageDetector.detectMatched` tries:
+the printed marker (Latin pass); the matched card's English name/subtitle vs its
+`localizations.zh/ko.name` (bigram Dice, character Dice for CJK; ≥ 0.6 and 0.2 clear);
+then script, comparing the Korean pass's Hangul with the Chinese pass's Han (ratio 0.8 —
+measured, the Korean model turns a Chinese card into some stray Hangul and the Chinese one
+a Korean card into some Han); then French only on accents + stop words outnumbering English
+2:1. Never merge the two CJK passes back into one text: that is exactly what made every
+Chinese card read as Korean. The CJK passes run unless the Latin pass already settles it
+(marker or English name) — "no Latin name" is not that test, OCR finds Latin noise on CJK
+cards. Binder pages still use the older `LanguageDetector.resolve`.
+
+**Collector codes are read tolerantly, and a suffix-less code is a guess.**
+`CollectorText.normalize` repairs `0GN`, `1l6`, `066 a`, `066o`, `227×`, a slash read as
+`1`/`l`; a one-letter set typo (`SED`) is fixed only when the printed total confirms the set.
+Never fall back from `23*` to card 23 — that is a signature missing a digit. A code read
+without its suffix over a number with variants (`066` vs `066a`, `299` vs `299*`) is
+ambiguous: `PrintingChooser` compares a dHash of the frame's art region with each
+printing's catalogue art (`CatalogueArt`, through Coil's disk cache) and picks only with a
+clear margin; otherwise the base printing is kept and flagged (`ScanResult.ambiguous`,
+orange "?" on the set chip) until the user picks a version. Signature and overnumbered
+twins share art, so those usually stay ambiguous; that is correct.
+
+**The scan-accuracy benchmark is opt-in and never runs in CI.** It is an instrumented test
+over official EN/ZH/KO images (`app/src/androidTest/assets/scan-benchmark.json`):
+
+```bash
+./gradlew connectedDebugAndroidTest -PbundledCjkOcr \
+  -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.scanrift.android.benchmark.ScanAccuracyBenchmark \
+  -Pandroid.testInstrumentationRunnerArguments.benchmark=true
+adb pull /sdcard/Android/data/com.scanrift.android.debug/files/scan-benchmark.txt
+```
+
+`-PbundledCjkOcr` swaps in the bundled Chinese/Korean ML Kit models (same API) because the
+Play Services TFLite dies with SIGILL on Apple-silicon emulators; never ship with it. The
+emulator's 6GB data partition fills up after a few runs: `-wipe-data -partition-size 8192`.
+
 **Single-mode scanning focuses on the guide when several cards are in view.** Matching the
 whole frame takes the first collector code, which on a binder page is often the card above.
 `ScanFocusPolicy` decides per processed frame: wide (today's whole-frame match) while at most
