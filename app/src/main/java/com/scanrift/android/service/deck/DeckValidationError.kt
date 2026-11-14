@@ -80,4 +80,14 @@ sealed interface DeckValidationError {
         override val id = "sideboardTooLarge"
         override val description = "Sideboard has $current cards (max $max)"
     }
+
+    /**
+     * The deck contains cards banned in the user's competitive region. Lists them, so
+     * the banner says *which* cards make the deck illegal. Not in iOS's original 13;
+     * iOS adds the same rule with the same id.
+     */
+    data class BannedCards(val cardNames: List<String>) : DeckValidationError {
+        override val id = "bannedCards"
+        override val description = "Banned: ${cardNames.joinToString(", ")}"
+    }
 }

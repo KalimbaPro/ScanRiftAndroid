@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.service.deck.DeckValidationError
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.game.DeckGameHistoryButton
 
@@ -281,6 +282,7 @@ private fun ResizeHandle(onDrag: (Float) -> Unit) {
 private fun ValidationBanner(state: DeckBuilderState) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val errors = state.validationErrors
+    val isIllegal = errors.any { it is DeckValidationError.BannedCards }
 
     Column(
         Modifier
@@ -305,9 +307,14 @@ private fun ValidationBanner(state: DeckBuilderState) {
                 Icon(
                     imageVector = if (errors.isEmpty()) Icons.Filled.CheckCircle else Icons.Filled.Warning,
                     contentDescription = null,
-                    tint = if (errors.isEmpty()) ValidGreen else WarningOrange,
+                    tint = when {
+                        errors.isEmpty() -> ValidGreen
+                        isIllegal -> IllegalRed
+                        else -> WarningOrange
+                    },
                     modifier = Modifier.size(18.dp),
                 )
+                if (isIllegal) IllegalBadge()
                 Text(
                     text = if (errors.isEmpty()) {
                         "Deck is valid"
@@ -356,12 +363,13 @@ private fun ValidationBanner(state: DeckBuilderState) {
                                 Modifier
                                     .padding(top = 6.dp)
                                     .size(4.dp)
-                                    .background(WarningOrange, CircleShape),
+                                    .background(if (error is DeckValidationError.BannedCards) IllegalRed else WarningOrange, CircleShape),
                             )
                             Text(
                                 text = error.description,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (error is DeckValidationError.BannedCards) IllegalRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (error is DeckValidationError.BannedCards) FontWeight.SemiBold else null,
                             )
                         }
                     }

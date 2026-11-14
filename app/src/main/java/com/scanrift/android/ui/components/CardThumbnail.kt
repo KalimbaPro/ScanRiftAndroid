@@ -2,9 +2,12 @@ package com.scanrift.android.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,10 +21,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +48,10 @@ import com.scanrift.android.domain.model.Card
  *   their native orientation.
  * - The alpha is applied to the image alone, never the parent, so the quantity badge
  *   stays at full opacity over a faded card.
+ * - A card banned in the user's competitive region gets a red **BANNED** band across
+ *   the image. It lives here, in the one shared thumbnail, so the collection grid and
+ *   list, deck views, the scanner and the detail image all show it without each screen
+ *   having to remember to.
  */
 @Composable
 fun CardThumbnail(
@@ -52,6 +63,7 @@ fun CardThumbnail(
     rotateLandscape: Boolean = false,
     cornerRadius: androidx.compose.ui.unit.Dp = 8.dp,
     showQuantityBadge: Boolean = true,
+    showBannedBand: Boolean = true,
 ) {
     val isOwned = quantity > 0
     val saturation = if (isOwned || showUnownedInColor) 1f else 0f
@@ -104,6 +116,8 @@ fun CardThumbnail(
             Box(Modifier.matchParentSize().clip(shape).foilSheen())
         }
 
+        if (showBannedBand) CardBannedBand(card)
+
         if (showQuantityBadge && quantity > 1) {
             Box(
                 modifier = Modifier
@@ -121,6 +135,44 @@ fun CardThumbnail(
                     fontWeight = FontWeight.Bold,
                 )
             }
+        }
+    }
+}
+
+private val BannedRed = Color(0xFFD70015)
+
+/**
+ * The BANNED band. Public only for the deck browser's cell, which draws its own image
+ * with a different dimming rule; every other surface gets it through [CardThumbnail].
+ *
+ * A diagonal band, deliberately wider than the tile so its ends run off the clipped
+ * corners. Sized from the tile's own width, so it reads the same on a 50dp list
+ * thumbnail and a 400dp detail image.
+ */
+@Composable
+fun BoxScope.CardBannedBand(card: Card) {
+    if (!card.banned) return
+    BoxWithConstraints(Modifier.matchParentSize()) {
+        val bandHeight = (maxWidth * 0.17f).coerceAtLeast(9.dp)
+        val fontSize = with(LocalDensity.current) { (bandHeight * 0.58f).toSp() }
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .requiredWidth(maxWidth * 1.6f)
+                .height(bandHeight)
+                .graphicsLayer { rotationZ = -30f }
+                .background(BannedRed.copy(alpha = 0.92f))
+                .semantics { contentDescription = "Banned" },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "BANNED",
+                color = Color.White,
+                fontSize = fontSize,
+                fontWeight = FontWeight.Black,
+                letterSpacing = fontSize * 0.12f,
+                maxLines = 1,
+            )
         }
     }
 }

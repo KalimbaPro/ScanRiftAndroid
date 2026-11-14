@@ -9,7 +9,7 @@ import com.scanrift.android.domain.model.DeckEntry
 import com.scanrift.android.domain.model.DeckSection
 
 /**
- * The 13 Riftbound deck-construction rules.
+ * The 13 Riftbound deck-construction rules, plus the ban list.
  *
  * Pure in, pure out — no Room, no coroutines, no Android — so the whole rule set is
  * testable on plain JUnit and can be shared verbatim with the UI's live validation.
@@ -23,6 +23,12 @@ object DeckValidator {
         val errors = mutableListOf<DeckValidationError>()
         val legend = deck.legend
         val champion = deck.champion
+
+        // 0: banned cards, region-resolved by the `/legality` refresh. First, because it
+        // is the one violation that makes an otherwise complete deck unplayable, and the
+        // banner shows the first few.
+        val banned = bannedCardNames(deck)
+        if (banned.isNotEmpty()) errors += DeckValidationError.BannedCards(banned)
 
         // 1 & 2: both slots must be filled.
         if (legend == null) errors += DeckValidationError.NoLegend
@@ -144,6 +150,20 @@ object DeckValidator {
 
         return errors
     }
+
+    /**
+     * Names of every banned card in the deck — legend, champion and all four sections —
+     * de-duplicated by name, in a stable order.
+     */
+    fun bannedCardNames(deck: Deck): List<String> =
+        (listOfNotNull(deck.legend, deck.champion) + deck.entries.mapNotNull { it.card })
+            .filter { it.banned }
+            .map { it.name }
+            .distinct()
+            .sorted()
+
+    /** A deck holding a banned card cannot be played, whatever else is right with it. */
+    fun isIllegal(deck: Deck): Boolean = bannedCardNames(deck).isNotEmpty()
 
     /**
      * Copy limit for a single card.

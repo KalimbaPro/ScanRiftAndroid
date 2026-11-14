@@ -40,6 +40,7 @@ import com.scanrift.android.domain.model.CollectionEntry
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.components.CardInfo
 import com.scanrift.android.ui.components.CardTextSection
+import com.scanrift.android.ui.components.ErrataSection
 import com.scanrift.android.ui.components.FoilBadge
 import com.scanrift.android.ui.components.TiltingCardImage
 import com.scanrift.android.ui.theme.Dimens
@@ -87,6 +88,7 @@ fun CardDetailPage(
                     CardInfo(card)
                     entry?.let { CollectionInfoSection(it, onConditionChange) }
                     CardTextSection(card)
+                    ErrataSection(card)
                 }
             }
         } else {
@@ -103,6 +105,7 @@ fun CardDetailPage(
                 CardInfo(card)
                 entry?.let { CollectionInfoSection(it, onConditionChange) }
                 CardTextSection(card)
+                ErrataSection(card)
             }
         }
     }

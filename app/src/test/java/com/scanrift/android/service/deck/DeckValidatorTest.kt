@@ -418,4 +418,44 @@ class DeckValidatorTest {
         val nearlyFull = validDeck(extraEntries = listOf(side, entry(card(), quantity = 8, section = DeckSection.SIDEBOARD)))
         assertThat(DeckValidator.maxQuantity(nearlyFull, side)).isEqualTo(2)
     }
+
+    // ── Ban list ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun `a banned main deck card makes an otherwise valid deck illegal and is named`() {
+        val banned = card(name = "Called Shot").copy(banned = true)
+        val deck = validDeck(extraEntries = listOf(entry(banned)))
+
+        val errors = DeckValidator.validate(deck)
+
+        assertThat(errors).containsExactly(DeckValidationError.BannedCards(listOf("Called Shot")))
+        assertThat(errors.single().description).isEqualTo("Banned: Called Shot")
+        assertThat(DeckValidator.isIllegal(deck)).isTrue()
+    }
+
+    @Test
+    fun `banned cards are found in every slot and section, once per name`() {
+        val bannedLegend = legend().copy(banned = true, name = "Draven Legend")
+        val bannedField = card(name = "Reaver's Row", type = CardType.BATTLEFIELD).copy(banned = true)
+        val bannedSide = card(name = "Stacked Deck").copy(banned = true)
+        val deck = validDeck(
+            legend = bannedLegend,
+            extraEntries = listOf(
+                entry(bannedField, section = DeckSection.BATTLEFIELD),
+                entry(bannedSide, section = DeckSection.SIDEBOARD),
+                entry(bannedSide.copy(id = "alt-art"), section = DeckSection.SIDEBOARD),
+            ),
+        )
+
+        assertThat(DeckValidator.bannedCardNames(deck))
+            .containsExactly("Draven Legend", "Reaver's Row", "Stacked Deck").inOrder()
+        // Reported first, ahead of the construction rules.
+        assertThat(DeckValidator.validate(deck).first()).isInstanceOf(DeckValidationError.BannedCards::class.java)
+    }
+
+    @Test
+    fun `a deck with no banned card is not illegal`() {
+        assertThat(DeckValidator.isIllegal(validDeck())).isFalse()
+        assertThat(DeckValidator.validate(validDeck()).none { it is DeckValidationError.BannedCards }).isTrue()
+    }
 }

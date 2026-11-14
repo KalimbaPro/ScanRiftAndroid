@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.scanrift.android.ui.components.CardBannedBand
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -194,6 +195,7 @@ private fun BrowserCell(card: Card, copies: Int, dimmed: Boolean, onClick: () ->
                 .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), shape)
                 .alpha(if (dimmed) DIMMED_ALPHA else 1f),
         )
+        Box(Modifier.matchParentSize().clip(shape)) { CardBannedBand(card) }
         if (copies > 0) {
             val badge = if (card.type == CardType.RUNE || card.type == CardType.BATTLEFIELD) {
                 "×$copies"
