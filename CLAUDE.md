@@ -159,6 +159,7 @@ covers the whole window whichever pane opened it — and the height floor keeps 
 landscape on the sheet. `AdaptiveRules.useCardPopUp` is the tested rule. Put the card image
 first and let the details scroll, so the whole card shows without scrolling. Card sheets
 today: `DeckCardDetailSheet`, `CardCorrectionSheet` (also the last-scanned chip's target),
+`CardVersionPicker` (its grid measures the pop-up's width, not the window's),
 and the legend choosers via `GameSheet(showsCard = true)`. Forms — settings, filters,
 import, add-to-list, end-of-game record — stay bottom sheets.
 
