@@ -97,6 +97,15 @@ data class Card(
         }
 
     /**
+     * True for judge promos (`jdg-…`). Every image the upstream data has for them is the
+     * regular print without the judge seal, so no surface ever loads one: they draw
+     * [com.scanrift.android.ui.components.JudgePromoPlaceholder] instead. Keyed on the id
+     * rather than a null `imageUrl` because older installs still hold the wrong URL.
+     */
+    val isJudgePromo: Boolean
+        get() = riftboundId.lowercase(Locale.ROOT).startsWith("jdg-")
+
+    /**
      * True for alternate-art printings, which carry a trailing letter in the
      * `riftboundId` number segment (`ven-042a-166`, or a rune's `ven-r01a`).
      *

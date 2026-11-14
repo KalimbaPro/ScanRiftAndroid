@@ -77,6 +77,21 @@ class CardTest {
         assertThat(card(riftboundId = "").isSpecialPrint).isFalse()
     }
 
+    // ── isJudgePromo ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `a jdg id marks a judge promo, whatever its case`() {
+        assertThat(card(riftboundId = "jdg-111-298").isJudgePromo).isTrue()
+        assertThat(card(riftboundId = "JDG-059-221").isJudgePromo).isTrue()
+    }
+
+    @Test
+    fun `other promos and base cards are not judge promos`() {
+        assertThat(card(riftboundId = "ogn-111-298").isJudgePromo).isFalse()
+        assertThat(card(riftboundId = "opp-255-298").isJudgePromo).isFalse()
+        assertThat(card(riftboundId = "").isJudgePromo).isFalse()
+    }
+
     // ── isAlternateArt ───────────────────────────────────────────────────────
 
     @Test

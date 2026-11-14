@@ -530,7 +530,8 @@ private fun PlayerSeat(
                     val pickerBlur = if (picker.isOpen) Modifier.blur(PICKER_BLUR) else Modifier
 
                     Box(Modifier.matchParentSize().then(pickerBlur)) {
-                        legend?.imageUrl?.let { url ->
+                        // A judge promo's image is the wrong print; the seat simply goes without art.
+                        legend?.takeUnless { it.isJudgePromo }?.imageUrl?.let { url ->
                             coil3.compose.AsyncImage(
                                 model = url,
                                 contentDescription = null,

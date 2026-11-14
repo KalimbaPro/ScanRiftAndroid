@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +30,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -74,7 +79,9 @@ fun CardThumbnail(
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        if (imageUrl == null) {
+        if (card.isJudgePromo) {
+            JudgePromoPlaceholder(card, Modifier.matchParentSize())
+        } else if (imageUrl == null) {
             Icon(
                 imageVector = Icons.Outlined.Image,
                 contentDescription = null,
@@ -182,6 +189,54 @@ fun BoxScope.CardBannedBand(card: Card) {
                 letterSpacing = fontSize * 0.12f,
                 maxLines = 1,
             )
+        }
+    }
+}
+
+/**
+ * Stand-in for a judge promo's art. Upstream only has the regular print, without the
+ * judge seal, and showing that would misidentify the card, so judge promos are drawn as
+ * text instead. Fills whatever box it is given; the BANNED band, foil sheen and badges
+ * still draw over it.
+ */
+@Composable
+fun JudgePromoPlaceholder(card: Card, modifier: Modifier = Modifier) {
+    BoxWithConstraints(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .semantics { contentDescription = "Judge promo card, ${card.name}" },
+        contentAlignment = Alignment.Center,
+    ) {
+        // Grid tiles get the label alone; anything roomier also names the card.
+        val roomy = maxWidth >= 120.dp
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(8.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Verified,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(if (roomy) 36.dp else 20.dp),
+            )
+            Text(
+                text = "Judge promo card",
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                style = if (roomy) MaterialTheme.typography.titleSmall else MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            if (roomy) {
+                Text(
+                    text = card.name,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
