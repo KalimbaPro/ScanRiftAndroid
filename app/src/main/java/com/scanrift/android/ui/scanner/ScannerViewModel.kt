@@ -12,12 +12,15 @@ import com.scanrift.android.data.prefs.UserPreferences
 import com.scanrift.android.data.repository.CollectionRepository
 import com.scanrift.android.data.repository.DeckRepository
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.Deck
 import com.scanrift.android.domain.model.DeckSection
+import com.scanrift.android.domain.model.ScanLanguage
 import com.scanrift.android.service.feedback.FeedbackService
 import com.scanrift.android.service.scanning.CameraService
 import com.scanrift.android.service.scanning.CameraState
 import com.scanrift.android.service.scanning.CardMatchingService
+import com.scanrift.android.service.scanning.LanguageDetector
 import com.scanrift.android.service.scanning.MotionDetector
 import com.scanrift.android.service.scanning.OcrResult
 import com.scanrift.android.service.scanning.OcrService
@@ -50,6 +53,11 @@ data class ScannerUiState(
     val overlayState: ScannerOverlayState = ScannerOverlayState.IDLE,
     val results: List<ScanResult> = emptyList(),
     val lastScanned: Card? = null,
+    /** The session row the last scan landed in; null in auto-add mode, which keeps no rows. */
+    val lastResultId: String? = null,
+    /** Language recorded for the last scan (detected, or the fixed preference). */
+    val lastLanguage: CardLanguage = CardLanguage.EN,
+    val scanLanguage: ScanLanguage = ScanLanguage.AUTO,
     val debug: ScannerDebugState = ScannerDebugState(),
     val debugEnabled: Boolean = false,
     val correctingId: String? = null,
@@ -58,6 +66,7 @@ data class ScannerUiState(
 ) {
     val scannedCount: Int get() = results.sumOf { it.quantity }
     val correcting: ScanResult? get() = results.firstOrNull { it.id == correctingId }
+    val lastResult: ScanResult? get() = results.firstOrNull { it.id == lastResultId }
 }
 
 @HiltViewModel
@@ -100,6 +109,11 @@ class ScannerViewModel @Inject constructor(
         viewModelScope.launch {
             userPreferences.debugMode.collect { enabled ->
                 _uiState.update { it.copy(debugEnabled = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferences.scanLanguage.collect { language ->
+                _uiState.update { it.copy(scanLanguage = language) }
             }
         }
     }
@@ -186,8 +200,14 @@ class ScannerViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // extractText closes the proxy in its own finally.
-                val ocr = ocrService.extractText(imageProxy)
+                // extractText closes the proxy in its own finally. The Chinese/Korean
+                // pass is paid only for a matched card with no Latin name, in Auto.
+                val auto = _uiState.value.scanLanguage == ScanLanguage.AUTO
+                val ocr = ocrService.extractText(imageProxy) { latin ->
+                    auto && !LanguageDetector.hasLatinName(latin.cardNameRegion) &&
+                        latin.confidence > Constants.Scanning.MINIMUM_OCR_CONFIDENCE &&
+                        matcher.findMatch(latin) != null
+                }
                 handleOcr(ocr, matcher)
             } catch (e: Exception) {
                 Log.ocr.w(e, "OCR failed for this frame")
@@ -224,14 +244,24 @@ class ScannerViewModel @Inject constructor(
         lastScanAtMs = System.currentTimeMillis()
         motionDetector.markScanned()
 
+        val detection = LanguageDetector.resolve(_uiState.value.scanLanguage, ocr.languageText)
+        updateDebug { it.copy(ocrText = "${ocr.extractedText}\n[language ${detection.language.code} via ${detection.source}]") }
+
         val autoAdd = userPreferences.autoAddToCollection.first()
-        if (autoAdd) collectionRepository.addCopies(match.card)
+        if (autoAdd) collectionRepository.addCopies(match.card, language = detection.language)
 
         _uiState.update {
+            val (results, rowId) = if (autoAdd) {
+                it.results to null
+            } else {
+                it.results.addingScanReturningId(match.card, detection.language)
+            }
             it.copy(
                 overlayState = ScannerOverlayState.MATCHED,
                 lastScanned = match.card,
-                results = if (autoAdd) it.results else it.results.addingScan(match.card),
+                lastResultId = rowId,
+                lastLanguage = detection.language,
+                results = results,
             )
         }
 
@@ -246,10 +276,58 @@ class ScannerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Applies a session edit and keeps the "last scanned" banner pointing at a real row:
+     * a merge can remove the row it pointed at, in which case it follows the card.
+     */
     private fun updateResults(transform: (List<ScanResult>) -> List<ScanResult>) = _uiState.update { state ->
         val results = transform(state.results)
-        val lastScanned = state.lastScanned?.takeIf { card -> results.any { it.card.id == card.id } }
-        state.copy(results = results, lastScanned = lastScanned)
+        if (state.lastResultId == null) return@update state.copy(results = results)
+        val lastRow = results.firstOrNull { it.id == state.lastResultId }
+            ?: results.firstOrNull { it.card.id == state.lastScanned?.id }
+        state.copy(
+            results = results,
+            lastResultId = lastRow?.id,
+            lastScanned = lastRow?.card,
+            lastLanguage = lastRow?.language ?: state.lastLanguage,
+        )
+    }
+
+    fun setLanguage(id: String, language: CardLanguage) = updateResults { it.withLanguage(id, language) }
+
+    /**
+     * The scan-language chip. Persists the choice for future scans; a fixed language
+     * also re-labels the card just scanned, which is almost always why it was tapped.
+     */
+    fun setScanLanguage(value: ScanLanguage) {
+        viewModelScope.launch { userPreferences.setScanLanguage(value) }
+        val language = value.language ?: return
+        val lastId = _uiState.value.lastResultId ?: return
+        setLanguage(lastId, language)
+    }
+
+    fun toggleLastFoil() {
+        val lastId = _uiState.value.lastResultId ?: return
+        // The foil toggle can split a row; follow the copy that changed.
+        val before = _uiState.value.lastResult ?: return
+        updateResults { it.togglingFoil(lastId) }
+        val moved = _uiState.value.results.firstOrNull {
+            it.card.id == before.card.id && it.language == before.language && it.isFoil != before.isFoil
+        }
+        moved?.let { row -> _uiState.update { it.copy(lastResultId = row.id) } }
+    }
+
+    /** "+1": one more copy of the last scan, as if it had been scanned again. */
+    fun incrementLast() {
+        val state = _uiState.value
+        val last = state.lastResult
+        if (last != null) {
+            setQuantity(last.id, last.quantity + 1)
+        } else if (state.lastScanned != null) {
+            // Auto-add mode keeps no session rows; the extra copy goes straight in.
+            val card = state.lastScanned
+            viewModelScope.launch { collectionRepository.addCopies(card, language = state.lastLanguage) }
+        }
     }
 
     fun setQuantity(id: String, quantity: Int) = updateResults { it.withQuantity(id, quantity) }
@@ -263,8 +341,8 @@ class ScannerViewModel @Inject constructor(
     }
 
     fun startCorrectionForLastCard() {
-        val last = _uiState.value.lastScanned ?: return
-        _uiState.value.results.firstOrNull { it.card.id == last.id }?.let(::startCorrection)
+        val state = _uiState.value
+        (state.lastResult ?: state.results.firstOrNull { it.card.id == state.lastScanned?.id })?.let(::startCorrection)
     }
 
     fun searchForCorrection(query: String) = _uiState.update {
@@ -273,7 +351,14 @@ class ScannerViewModel @Inject constructor(
 
     fun applyCorrection(card: Card) {
         val id = _uiState.value.correctingId ?: return
+        val wasLast = id == _uiState.value.lastResultId
         _uiState.update { it.copy(results = it.results.correcting(id, card), lastScanned = card) }
+        if (wasLast) {
+            // The corrected row may have merged into a twin; point the banner at it.
+            val row = _uiState.value.results.firstOrNull { it.id == id }
+                ?: _uiState.value.results.firstOrNull { it.card.id == card.id && it.language == _uiState.value.lastLanguage }
+            _uiState.update { it.copy(lastResultId = row?.id) }
+        }
         dismissCorrection()
     }
 
@@ -284,7 +369,7 @@ class ScannerViewModel @Inject constructor(
     fun addSessionToCollection() {
         val results = _uiState.value.results
         viewModelScope.launch {
-            results.forEach { collectionRepository.addCopies(it.card, it.quantity, it.isFoil) }
+            results.forEach { collectionRepository.addCopies(it.card, it.quantity, it.isFoil, language = it.language) }
             clearSession()
         }
     }
@@ -294,12 +379,12 @@ class ScannerViewModel @Inject constructor(
             val copies = results.groupBy { it.card.id }.mapValues { (_, rows) -> rows.sumOf { it.quantity } }
             deckRepository.addCopies(deck.id, section, copies)
             if (alsoToCollection) {
-                results.forEach { collectionRepository.addCopies(it.card, it.quantity, it.isFoil) }
+                results.forEach { collectionRepository.addCopies(it.card, it.quantity, it.isFoil, language = it.language) }
             }
         }
     }
 
-    fun clearSession() = _uiState.update { it.copy(results = emptyList(), lastScanned = null) }
+    fun clearSession() = _uiState.update { it.copy(results = emptyList(), lastScanned = null, lastResultId = null) }
 
     fun toggleTorch() = cameraService.toggleTorch()
 

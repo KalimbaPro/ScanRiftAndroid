@@ -37,6 +37,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
@@ -46,6 +47,8 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -80,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.scanrift.android.domain.model.ScanLanguage
 import com.scanrift.android.service.scanning.CameraState
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.theme.Dimens
@@ -123,6 +127,7 @@ fun ScannerScreen(viewModel: ScannerViewModel = hiltViewModel()) {
                 Box(Modifier.weight(1f)) {
                     CameraLayer(viewModel, state, largeGuide, onOpenSummary = { showSummary = true }) {
                         LastScannedChip(state, viewModel)
+                        ScanPillRow(state, viewModel)
                     }
                 }
                 VerticalDivider()
@@ -138,6 +143,7 @@ fun ScannerScreen(viewModel: ScannerViewModel = hiltViewModel()) {
         } else {
             CameraLayer(viewModel, state, largeGuide, onOpenSummary = { showSummary = true }) {
                 LastScannedChip(state, viewModel)
+                ScanPillRow(state, viewModel)
                 if (state.scannedCount > 0) {
                     Button(
                         onClick = { showSummary = true },
@@ -373,7 +379,7 @@ private fun LastScannedChip(state: ScannerUiState, viewModel: ScannerViewModel) 
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ScanThumbnail(card, isFoil = card.isAlwaysFoil)
+            ScanThumbnail(card, isFoil = state.lastResult?.isFoil ?: card.isAlwaysFoil, language = state.lastLanguage)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(card.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1)
                 Text(card.setLabel, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f))
@@ -439,6 +445,7 @@ private fun SessionSidebar(
                         showCorrectHint = false,
                         onCorrect = { viewModel.startCorrection(result) },
                         onToggleFoil = { viewModel.toggleFoil(result.id) },
+                        onLanguageChange = { viewModel.setLanguage(result.id, it) },
                         onQuantityChange = { viewModel.setQuantity(result.id, it) },
                         onRemove = { viewModel.remove(result.id) },
                     )
@@ -459,4 +466,95 @@ private fun SessionSidebar(
             Text("Add to Collection", fontWeight = FontWeight.SemiBold)
         }
     }
+}
+
+/**
+ * ManaBox-style quick controls for the card just scanned:
+ * `[Normal|Foil] [SET #number] [flag CODE ▾] [+1]`.
+ *
+ * The language chip is also the scanner's language setting (`scanLanguage`): Auto
+ * detects per card, a fixed choice overrides detection for every later scan and
+ * re-labels the card just scanned. In Auto it shows what was detected.
+ */
+@Composable
+private fun ScanPillRow(state: ScannerUiState, viewModel: ScannerViewModel) {
+    val card = state.lastScanned
+    AnimatedVisibility(
+        visible = card != null,
+        enter = fadeIn(tween(200)),
+        exit = fadeOut(tween(200)),
+    ) {
+        if (card == null) return@AnimatedVisibility
+        val last = state.lastResult
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val foil = last?.isFoil ?: card.isAlwaysFoil
+            ScanPill(
+                label = if (foil) "Foil" else "Normal",
+                highlighted = foil,
+                enabled = last != null && !card.isAlwaysFoil,
+                onClick = viewModel::toggleLastFoil,
+            )
+            ScanPill(
+                label = "${card.setId} #${card.publicCodePrefix.substringAfter('-')}",
+                onClick = viewModel::startCorrectionForLastCard,
+            )
+            Box {
+                var open by remember { mutableStateOf(false) }
+                val shown = state.scanLanguage.language ?: state.lastLanguage
+                val auto = state.scanLanguage == ScanLanguage.AUTO
+                ScanPill(
+                    label = "${shown.flag} ${shown.code}${if (auto) " · Auto" else ""} \u25BE",
+                    onClick = { open = true },
+                    description = "Scan language: ${if (auto) "Auto, detected ${shown.displayName}" else shown.displayName}",
+                )
+                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                    ScanLanguage.entries.forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(option.language?.let { "${it.flag}  ${it.displayName}" } ?: "Auto (detect)")
+                            },
+                            trailingIcon = if (option == state.scanLanguage) {
+                                { Icon(Icons.Filled.Check, contentDescription = "Selected") }
+                            } else {
+                                null
+                            },
+                            onClick = { open = false; viewModel.setScanLanguage(option) },
+                        )
+                    }
+                }
+            }
+            ScanPill(label = "+1", onClick = viewModel::incrementLast, description = "Add one more copy")
+        }
+    }
+}
+
+@Composable
+private fun ScanPill(
+    label: String,
+    onClick: () -> Unit,
+    highlighted: Boolean = false,
+    enabled: Boolean = true,
+    description: String? = null,
+) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = when {
+            !enabled -> Color.White.copy(alpha = 0.5f)
+            highlighted -> Color.Black
+            else -> Color.White
+        },
+        maxLines = 1,
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(if (highlighted) Color(0xFFFFD60A) else OverlayScrim)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .then(if (description != null) Modifier.semantics { contentDescription = description } else Modifier),
+    )
 }
