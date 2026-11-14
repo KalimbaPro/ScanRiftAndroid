@@ -133,7 +133,6 @@ object Constants {
         const val AUTO_ADD_TO_COLLECTION = "autoAddToCollection"
         const val DEBUG_MODE = "debugMode"
         const val LUCHO_PARAMETER = "luchoParameter"
-        const val SHOW_UNOWNED_IN_COLOR = "showUnownedInColor"
         const val DYNAMIC_COLOR = "dynamicColor"
         const val LAST_DATABASE_SYNC = "lastDatabaseSync"
         const val LAST_UPDATE_CHECK = "lastUpdateCheck"

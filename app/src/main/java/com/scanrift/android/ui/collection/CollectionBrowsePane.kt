@@ -115,9 +115,20 @@ private class PagerSnapshot(val cards: List<Card>, val entryIds: List<Long?>, va
 fun CollectionBrowsePane(
     listId: String?,
     onBack: () -> Unit,
+    initialQuery: String? = null,
+    initialCardId: String? = null,
     viewModel: CollectionBrowseViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(listId) { viewModel.setListContext(listId) }
+    // Arriving from the home page's global search: show every card (owned or not)
+    // matching that query, then open the one that was tapped.
+    LaunchedEffect(initialQuery) {
+        if (initialQuery != null) {
+            viewModel.setOwnership(OwnershipFilter.ALL)
+            viewModel.setSearchQuery(initialQuery)
+        }
+    }
+    var pendingCardId by rememberSaveable { mutableStateOf(initialCardId) }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val controls = state.controls
@@ -150,6 +161,14 @@ fun CollectionBrowsePane(
         pagerSnapshot = PagerSnapshot(state.cards, index)
         pagerCardId = row.card.id
         scope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, row.card.id) }
+    }
+
+    LaunchedEffect(state.cards, state.controls.searchQuery, pendingCardId) {
+        val wanted = pendingCardId ?: return@LaunchedEffect
+        if (state.isLoading || (initialQuery != null && state.controls.searchQuery != initialQuery)) return@LaunchedEffect
+        val index = state.cards.indexOfFirst { it.card.id == wanted }
+        if (index >= 0) openCard(index)
+        pendingCardId = null
     }
 
     val rowActions = RowActions(
@@ -198,7 +217,6 @@ fun CollectionBrowsePane(
                             onSortChange = viewModel::setSortOption,
                             onToggleDirection = viewModel::toggleSortDirection,
                             onViewModeChange = viewModel::setViewMode,
-                            onShowUnownedInColorChange = viewModel::setShowUnownedInColor,
                             selection = SelectionActions(
                                 onExit = viewModel::exitSelection,
                                 onExportRiftboundGg = { export(SelectionExportFormat.RIFTBOUND_GG) },
@@ -386,7 +404,6 @@ private fun CollectionGrid(
                                 card = row.card,
                                 quantity = row.quantity,
                                 isFoil = row.entry?.isFoil == true || row.card.isAlwaysFoil,
-                                showUnownedInColor = state.prefs.showUnownedInColor,
                                 // Landscape battlefields are rotated upright in the grid only.
                                 rotateLandscape = true,
                                 language = row.entry?.language,
@@ -514,7 +531,6 @@ private fun CollectionList(state: CollectionBrowseState, listState: LazyListStat
                             card = row.card,
                             quantity = row.quantity,
                             isFoil = row.entry?.isFoil == true || row.card.isAlwaysFoil,
-                            showUnownedInColor = state.prefs.showUnownedInColor,
                             cornerRadius = 4.dp,
                             showQuantityBadge = false,
                             language = row.entry?.language,

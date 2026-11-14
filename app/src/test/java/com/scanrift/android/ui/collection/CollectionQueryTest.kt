@@ -201,4 +201,25 @@ class CollectionQueryTest {
         val fr = DisplayCard(ahri, entryIn(ahri, CardLanguage.FR, 1))
         assertThat(en.id).isNotEqualTo(fr.id)
     }
+
+    // ── Global search ────────────────────────────────────────────────────────
+
+    @Test
+    fun `global search covers the whole catalogue and ranks name prefixes first`() {
+        val aatrox = card("aatrox", "Aatrox Jinx Hunter", number = 9)
+        val hits = CollectionQuery.searchCatalogue(listOf(aatrox, ahri, jinx, teemo), "jinx")
+        assertThat(hits.map { it.id }).containsExactly("jinx", "aatrox").inOrder()
+    }
+
+    @Test
+    fun `global search needs two characters and is capped`() {
+        assertThat(CollectionQuery.searchCatalogue(listOf(ahri, jinx), "j")).isEmpty()
+        val many = (1..100).map { card("c$it", "Card $it", number = it) }
+        assertThat(CollectionQuery.searchCatalogue(many, "card")).hasSize(CollectionQuery.GLOBAL_SEARCH_LIMIT)
+    }
+
+    @Test
+    fun `global search also matches set and code`() {
+        assertThat(CollectionQuery.searchCatalogue(listOf(ahri, jinx), "OGN-2/").map { it.id }).containsExactly("ahri")
+    }
 }

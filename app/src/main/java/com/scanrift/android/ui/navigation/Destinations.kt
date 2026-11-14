@@ -26,7 +26,15 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object CollectionHubRoute
 
-@Serializable data class CollectionBrowseRoute(val listId: String? = null)
+/**
+ * @param query pre-fills the search (global search hands its query over).
+ * @param cardId opens that card's detail once the browser has loaded.
+ */
+@Serializable data class CollectionBrowseRoute(
+    val listId: String? = null,
+    val query: String? = null,
+    val cardId: String? = null,
+)
 
 @Serializable data object DecksGraph
 

@@ -22,8 +22,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -41,9 +39,9 @@ import com.scanrift.android.domain.model.CardLanguage
  *
  * Three behaviours worth knowing, all matching iOS:
  *
- * - **Unowned cards** render desaturated *and* at 50% alpha. The `showUnownedInColor`
- *   preference only disables the desaturation — the fade always applies, because it is
- *   what makes ownership readable at a glance in a dense grid.
+ * - **Unowned cards** render in full colour at 50% alpha. They used to be greyscale
+ *   too (behind a "show unowned in colour" toggle); colour now always shows, and the
+ *   fade plus the quantity badge are what make ownership readable in a dense grid.
  * - **Landscape battlefields** are rotated 90° so they fill a portrait tile upright.
  *   This happens **only in the grid**; detail views and the deck browser show them in
  *   their native orientation.
@@ -60,7 +58,6 @@ fun CardThumbnail(
     modifier: Modifier = Modifier,
     quantity: Int = 0,
     isFoil: Boolean = false,
-    showUnownedInColor: Boolean = false,
     rotateLandscape: Boolean = false,
     cornerRadius: androidx.compose.ui.unit.Dp = 8.dp,
     showQuantityBadge: Boolean = true,
@@ -74,7 +71,6 @@ fun CardThumbnail(
 ) {
     val imageUrl = card.imageUrl(language ?: CardLanguage.EN)
     val isOwned = quantity > 0
-    val saturation = if (isOwned || showUnownedInColor) 1f else 0f
     val imageAlpha = if (isOwned) 1f else 0.5f
     val shape = RoundedCornerShape(cornerRadius)
 
@@ -97,7 +93,6 @@ fun CardThumbnail(
                     model = imageUrl,
                     contentDescription = card.name,
                     contentScale = ContentScale.Crop,
-                    colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) }),
                     modifier = Modifier
                         .align(Alignment.Center)
                         .requiredSize(width = maxHeight, height = maxWidth)
@@ -113,7 +108,6 @@ fun CardThumbnail(
                 // and hides its name, so letterbox it instead. The collection grid is
                 // the one place that rotates them upright rather than fitting them.
                 contentScale = if (card.isLandscape) ContentScale.Fit else ContentScale.Crop,
-                colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) }),
                 modifier = Modifier.matchParentSize().alpha(imageAlpha),
             )
         }

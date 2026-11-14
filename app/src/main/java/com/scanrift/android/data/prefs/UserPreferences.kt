@@ -36,7 +36,6 @@ class UserPreferences @Inject constructor(
         val autoAddToCollection = booleanPreferencesKey(Constants.PreferenceKeys.AUTO_ADD_TO_COLLECTION)
         val debugMode = booleanPreferencesKey(Constants.PreferenceKeys.DEBUG_MODE)
         val luchoParameter = booleanPreferencesKey(Constants.PreferenceKeys.LUCHO_PARAMETER)
-        val showUnownedInColor = booleanPreferencesKey(Constants.PreferenceKeys.SHOW_UNOWNED_IN_COLOR)
         val dynamicColor = booleanPreferencesKey(Constants.PreferenceKeys.DYNAMIC_COLOR)
         val lastDatabaseSync = longPreferencesKey(Constants.PreferenceKeys.LAST_DATABASE_SYNC)
         val lastUpdateCheck = longPreferencesKey(Constants.PreferenceKeys.LAST_UPDATE_CHECK)
@@ -55,9 +54,6 @@ class UserPreferences @Inject constructor(
 
     /** Hidden flag that unlocks the artist filter, mirroring iOS. */
     val luchoParameter: Flow<Boolean> = boolean(Keys.luchoParameter, default = false)
-
-    /** When off, unowned cards render greyscale. The 50% fade applies either way. */
-    val showUnownedInColor: Flow<Boolean> = boolean(Keys.showUnownedInColor, default = false)
 
     /**
      * Material You, opt-in and off by default: the app's chrome sits against six fixed
@@ -88,7 +84,6 @@ class UserPreferences @Inject constructor(
     suspend fun setAutoAddToCollection(value: Boolean) = put(Keys.autoAddToCollection, value)
     suspend fun setDebugMode(value: Boolean) = put(Keys.debugMode, value)
     suspend fun setLuchoParameter(value: Boolean) = put(Keys.luchoParameter, value)
-    suspend fun setShowUnownedInColor(value: Boolean) = put(Keys.showUnownedInColor, value)
     suspend fun setDynamicColor(value: Boolean) = put(Keys.dynamicColor, value)
     suspend fun setLastDatabaseSync(value: Long) = put(Keys.lastDatabaseSync, value)
     suspend fun setLastUpdateCheck(value: Long) = put(Keys.lastUpdateCheck, value)

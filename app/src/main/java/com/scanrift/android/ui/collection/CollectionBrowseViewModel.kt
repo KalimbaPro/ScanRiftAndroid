@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -36,7 +37,6 @@ data class CollectionControls(
 )
 
 data class CollectionPrefs(
-    val showUnownedInColor: Boolean = false,
     val luchoParameter: Boolean = false,
 )
 
@@ -76,11 +76,7 @@ class CollectionBrowseViewModel @Inject constructor(
     private val listId = MutableStateFlow<String?>(null)
     private val controls = MutableStateFlow(CollectionControls())
 
-    private val prefs = combine(
-        userPreferences.showUnownedInColor,
-        userPreferences.luchoParameter,
-        ::CollectionPrefs,
-    )
+    private val prefs = userPreferences.luchoParameter.map(::CollectionPrefs)
 
     val state: StateFlow<CollectionBrowseState> = combine(
         collectionRepository.observeAllCards(),
@@ -122,9 +118,6 @@ class CollectionBrowseViewModel @Inject constructor(
     fun updateFilters(value: CollectionFilters) = controls.update { it.copy(filters = value) }
     fun clearFilters() = updateFilters(CollectionFilters())
 
-    fun setShowUnownedInColor(value: Boolean) {
-        viewModelScope.launch { userPreferences.setShowUnownedInColor(value) }
-    }
 
     fun startSelection(rowId: String) =
         controls.update { it.copy(isSelecting = true, selectedIds = it.selectedIds + rowId) }
