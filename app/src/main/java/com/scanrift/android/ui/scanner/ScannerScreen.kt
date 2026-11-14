@@ -79,7 +79,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.contentDescription
@@ -102,6 +104,7 @@ import kotlinx.coroutines.launch
 private val MatchGreen = Color(0xFF34C759)
 private val ErrorRed = Color(0xFFFF3B30)
 private val HintBlue = Color(0xFF0A84FF)
+private val UncertainOrange = Color(0xFFFF9F0A)
 private val OverlayScrim = Color.Black.copy(alpha = 0.6f)
 private val UpperQuarter = BiasAlignment(0f, -0.5f)
 
@@ -122,7 +125,7 @@ fun ScannerScreen(viewModel: ScannerViewModel = hiltViewModel()) {
     val decks by viewModel.decks.collectAsStateWithLifecycle()
     var showSummary by rememberSaveable { mutableStateOf(false) }
 
-    val sheetOpen = showSummary || state.isCorrecting
+    val sheetOpen = showSummary || state.isCorrecting || state.versionTarget != null
     LaunchedEffect(sheetOpen) {
         if (sheetOpen) viewModel.pauseScanning() else viewModel.resumeScanning()
     }
@@ -182,6 +185,20 @@ fun ScannerScreen(viewModel: ScannerViewModel = hiltViewModel()) {
     if (state.isCorrecting) {
         CardCorrectionSheet(state, viewModel)
     }
+    state.versionTarget?.let { target ->
+        val current = state.versionTargetCard(target)
+        if (current == null) {
+            // The row or page item went away under the picker.
+            LaunchedEffect(target) { viewModel.dismissVersionPicker() }
+        } else {
+            CardVersionPicker(
+                current = current,
+                printings = state.printingIndex.printingsOf(current),
+                onSelect = viewModel::selectVersion,
+                onDismiss = viewModel::dismissVersionPicker,
+            )
+        }
+    }
 }
 
 @Composable
@@ -218,8 +235,23 @@ private fun CameraLayer(
     }
 
     val cameraError = (cameraState as? CameraState.Failed)?.message
+    val density = LocalDensity.current
+    val guideWidth = if (largeGuide) Dimens.ScanGuideRegularWidth else Dimens.ScanGuideCompactWidth
+    val guideHeight = if (largeGuide) Dimens.ScanGuideRegularHeight else Dimens.ScanGuideCompactHeight
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            // Report where the guide is drawn, so focus mode knows which card is "in" it.
+            .onSizeChanged { size ->
+                val w = size.width.toFloat()
+                val h = size.height.toFloat()
+                with(density) {
+                    viewModel.setScanGuide(w, h, scanGuideRect(w, h, guideWidth.toPx(), guideHeight.toPx()))
+                }
+            },
+    ) {
         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
         Box(
             Modifier
@@ -239,8 +271,8 @@ private fun CameraLayer(
         } else {
             CardDetectionOverlay(
                 state = if (cameraError != null) ScannerOverlayState.ERROR else state.overlayState,
-                guideWidth = if (largeGuide) Dimens.ScanGuideRegularWidth else Dimens.ScanGuideCompactWidth,
-                guideHeight = if (largeGuide) Dimens.ScanGuideRegularHeight else Dimens.ScanGuideCompactHeight,
+                guideWidth = guideWidth,
+                guideHeight = guideHeight,
             )
         }
 
@@ -492,6 +524,11 @@ private fun SessionSidebar(
                         onLanguageChange = { viewModel.setLanguage(result.id, it) },
                         onQuantityChange = { viewModel.setQuantity(result.id, it) },
                         onRemove = { viewModel.remove(result.id) },
+                        onPickVersion = if (state.printingIndex.hasChoice(result.card)) {
+                            { viewModel.openVersionPicker(VersionTarget.Row(result.id)) }
+                        } else {
+                            null
+                        },
                     )
                 }
             }
@@ -542,9 +579,26 @@ private fun ScanPillRow(state: ScannerUiState, viewModel: ScannerViewModel) {
                 enabled = last != null && !card.isAlwaysFoil,
                 onClick = viewModel::toggleLastFoil,
             )
+            // Set and number; opens the version picker when the card has other printings.
+            // An ambiguous printing (suffix not read, art inconclusive) asks to be checked.
+            val versions = state.lastScanHasVersions
+            val unsure = versions && state.lastScanAmbiguous
+            val setLabel = "${card.setId} #${card.publicCodePrefix.substringAfter('-')}"
             ScanPill(
-                label = "${card.setId} #${card.publicCodePrefix.substringAfter('-')}",
-                onClick = viewModel::startCorrectionForLastCard,
+                label = when {
+                    unsure -> "$setLabel ? \u25BE"
+                    versions -> "$setLabel \u25BE"
+                    else -> setLabel
+                },
+                onClick = viewModel::openVersionPickerForLast,
+                enabled = versions,
+                dimWhenDisabled = false,
+                accent = unsure,
+                description = when {
+                    unsure -> "$setLabel. Version uncertain, check it"
+                    versions -> "$setLabel. Choose another version"
+                    else -> setLabel
+                },
             )
             Box {
                 var open by remember { mutableStateOf(false) }
@@ -583,20 +637,30 @@ private fun ScanPill(
     highlighted: Boolean = false,
     enabled: Boolean = true,
     description: String? = null,
+    /** False for a pill that is informational rather than switched off (the set chip). */
+    dimWhenDisabled: Boolean = true,
+    /** Draws attention: the scan needs the user to check it. */
+    accent: Boolean = false,
 ) {
     Text(
         text = label,
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.SemiBold,
         color = when {
-            !enabled -> Color.White.copy(alpha = 0.5f)
-            highlighted -> Color.Black
+            !enabled && dimWhenDisabled -> Color.White.copy(alpha = 0.5f)
+            highlighted || accent -> Color.Black
             else -> Color.White
         },
         maxLines = 1,
         modifier = Modifier
             .clip(CircleShape)
-            .background(if (highlighted) Color(0xFFFFD60A) else OverlayScrim)
+            .background(
+                when {
+                    accent -> UncertainOrange
+                    highlighted -> Color(0xFFFFD60A)
+                    else -> OverlayScrim
+                },
+            )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .then(if (description != null) Modifier.semantics { contentDescription = description } else Modifier),

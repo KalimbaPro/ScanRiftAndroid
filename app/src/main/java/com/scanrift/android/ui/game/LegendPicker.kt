@@ -132,8 +132,8 @@ fun LegendGroupRow(group: LegendGroup, thumbWidth: Dp, onClick: () -> Unit) {
  * back that exact card, so the seat shows the art the player actually brought.
  *
  * The column count comes from the width this grid is given, not the window: it sits in
- * a bottom sheet capped at [Dimens.SheetMaxWidth], so on an unfolded Fold the window is
- * far wider than the chooser.
+ * a bottom sheet capped at [Dimens.SheetMaxWidth] on a phone, and in a pop-up capped at
+ * [Dimens.CardPopUpMaxWidth] on a wide window, so the window is far wider than the chooser.
  */
 @Composable
 fun LegendPrintingChooser(

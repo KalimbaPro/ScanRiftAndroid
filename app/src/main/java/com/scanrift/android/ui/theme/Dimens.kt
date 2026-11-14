@@ -51,6 +51,18 @@ object Dimens {
     val SessionSummaryMaxWidth = 720.dp
 
     /**
+     * Single-card sheets become a centred pop-up on a wide window: see
+     * `AdaptiveCardSheet`. Width is capped so the card does not float in a slab of
+     * empty surface; the margin keeps the scrim visible on every side.
+     */
+    val CardPopUpMaxWidth = 560.dp
+    val CardPopUpMargin = 24.dp
+    val CardPopUpMinWindowWidth = 600.dp
+
+    /** Below this a landscape phone would squash the card into a letterbox: keep the sheet. */
+    val CardPopUpMinWindowHeight = 480.dp
+
+    /**
      * Pane-width thresholds. Deliberately not all the same number — see the plan.
      */
     val TwoPaneMinWidth = 600.dp

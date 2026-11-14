@@ -20,13 +20,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -48,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import com.scanrift.android.domain.model.CardType
 import com.scanrift.android.domain.model.DeckSection
 import com.scanrift.android.service.deck.DeckValidator
+import com.scanrift.android.ui.components.AdaptiveCardSheet
 import com.scanrift.android.ui.components.CardInfo
 import com.scanrift.android.ui.components.CardTextSection
 import com.scanrift.android.ui.components.ErrataSection
@@ -55,7 +53,6 @@ import com.scanrift.android.ui.components.TiltingCardImage
 import com.scanrift.android.ui.components.TappableQuantityStepper
 import com.scanrift.android.ui.util.mediumImpact
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeckCardDetailSheet(
     target: DetailTarget,
@@ -101,7 +98,7 @@ fun DeckCardDetailSheet(
         if (isEligibleChampion) MenuItem(championLabel, Icons.Filled.Shield) { close(); setChampion() }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
+    AdaptiveCardSheet(onDismiss = onDismiss) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

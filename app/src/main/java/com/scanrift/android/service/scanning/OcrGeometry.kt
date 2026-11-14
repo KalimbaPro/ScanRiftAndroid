@@ -29,6 +29,38 @@ object OcrGeometry {
     fun rotatedSize(width: Int, height: Int, rotationDegrees: Int): Pair<Int, Int> =
         if (((rotationDegrees % 360) + 360) % 360 % 180 != 0) height to width else width to height
 
+    /**
+     * The on-screen scan guide in the analysis image's normalised, upright coordinates
+     * (the space OCR line boxes live in).
+     *
+     * The preview shows the camera image scaled to *fill* the view and centre-cropped
+     * (`PreviewView.ScaleType.FILL_CENTER`), so the view is a window onto the middle of
+     * the image. The buffer arrives unrotated: [rotationDegrees] (ImageProxy's) swaps its
+     * dimensions to the upright frame first. Assumes the preview and the analysis stream
+     * share a field of view, which `CameraService` ensures by giving both the same
+     * aspect ratio.
+     *
+     * @param guide the guide rect in view pixels.
+     * @return the guide clamped to the image (part of it may fall outside a crop).
+     */
+    fun guideInImage(
+        viewWidth: Float,
+        viewHeight: Float,
+        guide: NormalizedBox,
+        bufferWidth: Int,
+        bufferHeight: Int,
+        rotationDegrees: Int,
+    ): NormalizedBox {
+        val (w, h) = rotatedSize(bufferWidth, bufferHeight, rotationDegrees)
+        if (viewWidth <= 0f || viewHeight <= 0f || w <= 0 || h <= 0) return NormalizedBox(0f, 0f, 1f, 1f)
+        val scale = maxOf(viewWidth / w, viewHeight / h)
+        val offsetX = (viewWidth - w * scale) / 2f
+        val offsetY = (viewHeight - h * scale) / 2f
+        fun x(v: Float) = (v - offsetX) / scale / w
+        fun y(v: Float) = (v - offsetY) / scale / h
+        return NormalizedBox(x(guide.left), y(guide.top), x(guide.right), y(guide.bottom)).clamped()
+    }
+
     /** Pixel rect → [NormalizedBox] (0..1, top-left origin), for page geometry. */
     fun normalize(box: Rect, imageWidth: Int, imageHeight: Int): NormalizedBox {
         val w = imageWidth.coerceAtLeast(1).toFloat()

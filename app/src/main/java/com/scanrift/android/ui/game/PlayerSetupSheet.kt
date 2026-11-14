@@ -182,6 +182,7 @@ fun LegendOrDeckPickerSheet(
         title = if (showNameField) "Player" else "Choose",
         onDismiss = onDismiss,
         scrollable = false,
+        showsCard = true,
         action = {
             TextButton(onClick = { onClear(); onDismiss() }) {
                 Text("Clear", color = MaterialTheme.colorScheme.error)

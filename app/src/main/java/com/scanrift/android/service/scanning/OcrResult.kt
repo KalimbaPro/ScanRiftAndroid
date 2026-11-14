@@ -5,7 +5,8 @@ package com.scanrift.android.service.scanning
  *   see `OcrService` for why that fallback exists.
  * @param scriptText text from the Chinese/Korean recognizers, when the Latin pass found
  *   a card but no Latin name. Only language detection reads it.
- * @param lines every recognised line with its box, for multi-card page scanning.
+ * @param lines every recognised line with its box, for multi-card page scanning and
+ *   the single-card focus mode ([ScanFocusPolicy]).
  */
 data class OcrResult(
     val extractedText: String,
@@ -14,8 +15,21 @@ data class OcrResult(
     val confidence: Double = 0.0,
     val scriptText: String? = null,
     val lines: List<TextLine> = emptyList(),
+    /**
+     * Each CJK recogniser's lines, kept apart: the Chinese model emits Han for a Korean
+     * card, so language detection compares the two passes rather than merging them.
+     */
+    val chineseLines: List<TextLine> = emptyList(),
+    val koreanLines: List<TextLine> = emptyList(),
+    /** Upright image width ÷ height; boxes are normalised per axis. */
+    val imageAspect: Float = 1f,
+    /** The upright frame, kept only when an ambiguous printing needs its art compared. */
+    val frame: android.graphics.Bitmap? = null,
 ) {
     val isEmpty: Boolean get() = extractedText.isBlank()
+
+    val chinesePass: String? get() = chineseLines.joinToString("\n") { it.text }.takeIf { it.isNotBlank() }
+    val koreanPass: String? get() = koreanLines.joinToString("\n") { it.text }.takeIf { it.isNotBlank() }
 
     /** Everything language detection should look at: the Latin pass plus any CJK pass. */
     val languageText: String

@@ -66,6 +66,27 @@ object Constants {
         const val NAME_BAND_MAX_MID_X = 0.7f
         const val SET_CODE_BAND_MAX_Y = 0.25f
 
+        /**
+         * Focus mode (single-card scanning with neighbours in view, e.g. a binder page):
+         * entered when at least this many collector codes are read in one frame.
+         */
+        const val FOCUS_MIN_CARDS = 2
+
+        /** Processed frames with no card outside the guide before focus mode releases. */
+        const val FOCUS_RELEASE_FRAMES = 3
+
+        /** Fraction of a card's estimated region that must lie in the guide for it to count. */
+        const val FOCUS_MIN_OVERLAP = 0.5f
+
+        /** A card's art, as a fraction of its outline: where printings differ most. */
+        val ART_REGION = com.scanrift.android.service.scanning.NormalizedBox(0.08f, 0.07f, 0.92f, 0.50f)
+
+        /** Art-hash (64-bit dHash) bits a frame may differ from the printing it picks. */
+        const val ART_HASH_MAX_DISTANCE = 22
+
+        /** Bits the best printing must beat the runner-up by, or the scan stays ambiguous. */
+        const val ART_HASH_MIN_MARGIN = 6
+
         /** Binder page stills are scaled to at most this many pixels on the long edge. */
         const val PAGE_MAX_DIMENSION = 4096
 

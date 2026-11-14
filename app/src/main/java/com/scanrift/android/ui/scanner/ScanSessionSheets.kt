@@ -72,6 +72,7 @@ import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.Deck
 import com.scanrift.android.domain.model.DeckSection
+import com.scanrift.android.ui.components.AdaptiveCardSheet
 import com.scanrift.android.ui.components.CardThumbnail
 import com.scanrift.android.ui.components.FoilBadge
 import com.scanrift.android.ui.components.TappableQuantityStepper
@@ -122,6 +123,11 @@ fun SessionSummarySheet(
                     onQuantityChange = { viewModel.setQuantity(result.id, it) },
                     onRemove = { viewModel.remove(result.id) },
                     onAddToDeck = { deckRequest = DeckSheetRequest(listOf(result), single = true) },
+                    onPickVersion = if (state.printingIndex.hasChoice(result.card)) {
+                        { viewModel.openVersionPicker(VersionTarget.Row(result.id)) }
+                    } else {
+                        null
+                    },
                 )
             }
         }
@@ -210,6 +216,8 @@ fun ScanResultRow(
     onRemove: () -> Unit,
     onAddToDeck: (() -> Unit)? = null,
     onLanguageChange: ((CardLanguage) -> Unit)? = null,
+    /** Opens the version picker; null when the card has a single printing. */
+    onPickVersion: (() -> Unit)? = null,
 ) {
     val dismissState = rememberSwipeToDismissBoxState()
     LaunchedEffect(dismissState.currentValue) {
@@ -249,12 +257,7 @@ fun ScanResultRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        result.card.setLabel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                    )
+                    SetVersionLabel(result.card, onPickVersion, ambiguous = result.ambiguous)
                     if (result.isFoil) FoilBadge()
                     if (showCorrectHint) {
                         Text(
@@ -306,6 +309,53 @@ private fun LanguageChip(language: CardLanguage, onChange: (CardLanguage) -> Uni
     }
 }
 
+/**
+ * The row's set label. With other printings available it becomes a small chip with a
+ * chevron that opens the version picker; otherwise plain text.
+ */
+@Composable
+fun SetVersionLabel(card: Card, onPickVersion: (() -> Unit)?, ambiguous: Boolean = false) {
+    if (onPickVersion == null) {
+        Text(
+            card.setLabel,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+        return
+    }
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(if (ambiguous) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer)
+            .clickable(onClick = onPickVersion)
+            .padding(start = 8.dp, end = 4.dp, top = 2.dp, bottom = 2.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (ambiguous) {
+                    "${card.setLabel}. Version uncertain, check it"
+                } else {
+                    "${card.setLabel}. Choose another version"
+                }
+            },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val content = if (ambiguous) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+        Text(
+            "${card.setId} #${card.publicCodePrefix.substringAfter('-')}${if (ambiguous) " ?" else ""}",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (ambiguous) FontWeight.Bold else null,
+            color = content,
+            maxLines = 1,
+        )
+        Icon(
+            Icons.Filled.ExpandMore,
+            contentDescription = null,
+            tint = content,
+            modifier = Modifier.size(14.dp),
+        )
+    }
+}
+
 @Composable
 fun ScanThumbnail(card: Card, isFoil: Boolean, language: CardLanguage? = null) {
     CardThumbnail(
@@ -330,12 +380,11 @@ private fun FoilToggle(result: ScanResult, onToggle: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardCorrectionSheet(state: ScannerUiState, viewModel: ScannerViewModel) {
     val focusManager = LocalFocusManager.current
 
-    ModalBottomSheet(onDismissRequest = viewModel::dismissCorrection) {
+    AdaptiveCardSheet(onDismiss = viewModel::dismissCorrection) {
         SheetTitleBar(
             title = "Correct Card",
             leading = { TextButton(onClick = viewModel::dismissCorrection) { Text("Cancel") } },
@@ -390,6 +439,15 @@ fun CardCorrectionSheet(state: ScannerUiState, viewModel: ScannerViewModel) {
                     textStyle = MaterialTheme.typography.bodyMedium,
                 )
             }
+        }
+
+        val correctingCard = state.correctingPageItem?.card ?: state.correcting?.card
+        if (correctingCard != null && state.printingIndex.hasChoice(correctingCard)) {
+            OtherVersionsRow(
+                current = correctingCard,
+                printings = state.printingIndex.printingsOf(correctingCard),
+                onSelect = viewModel::applyCorrection,
+            )
         }
 
         TextField(

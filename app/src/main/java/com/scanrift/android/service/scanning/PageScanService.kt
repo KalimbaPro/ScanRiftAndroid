@@ -6,6 +6,7 @@ import android.net.Uri
 import com.scanrift.android.core.log.Log
 import com.scanrift.android.di.DefaultDispatcher
 import com.scanrift.android.di.IoDispatcher
+import com.scanrift.android.domain.model.ScanLanguage
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
@@ -13,8 +14,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * Binder-page OCR: one full pass, a 3×3 tile pass when the page reads short of nine
- * cards, and a Chinese/Korean pass when a card on it has no Latin name. All geometry is
- * in [MultiCardScanner]; this class only feeds it pixels.
+ * cards, and the Chinese/Korean passes when a card's language is still open. Geometry is
+ * [MultiCardScanner]'s and identification [PageIdentifier]'s; this class feeds them pixels.
  */
 @Singleton
 class PageScanService @Inject constructor(
@@ -27,10 +28,17 @@ class PageScanService @Inject constructor(
     suspend fun decode(uri: Uri): Bitmap = withContext(io) { PageBitmaps.decode(contentResolver, uri) }
 
     /**
-     * @param detectScripts run the Chinese/Korean recognizers when a card has no Latin
-     *   name — only worth it when the scan language is Auto.
+     * Reads a page and identifies every card on it with the live scanner's rules
+     * ([PageIdentifier]). The Chinese and Korean recognizers run (each kept apart) only
+     * when [preference] is Auto and some card's Latin text does not settle its language.
      */
-    suspend fun scan(bitmap: Bitmap, knownSetIds: Set<String>, detectScripts: Boolean): MultiCardScanner.PageScan =
+    suspend fun scan(
+        bitmap: Bitmap,
+        knownSetIds: Set<String>,
+        identifier: ScanIdentifier,
+        preference: ScanLanguage,
+        art: PrintingArt? = null,
+    ): List<PageCardResult> =
         withContext(default) {
             val aspect = bitmap.width.toFloat() / bitmap.height.coerceAtLeast(1)
             var lines = ocr.recognizeLines(bitmap)
@@ -50,10 +58,15 @@ class PageScanService @Inject constructor(
                 Log.scanning.d("Tile pass: %d card(s)", page.cards.size)
             }
 
-            if (detectScripts && page.cards.any { !LanguageDetector.hasLatinName(it.bodyText) }) {
-                lines = MultiCardScanner.mergeLines(lines, ocr.recognizeLines(bitmap, scripts = true))
-                page = MultiCardScanner.scan(lines, knownSetIds, aspect)
+            var pageOcr = PageIdentifier.pageOcr(lines, imageAspect = aspect)
+            if (PageIdentifier.needsScriptPass(page, pageOcr, identifier, preference)) {
+                val (zh, ko) = ocr.recognizeScriptPasses(bitmap)
+                pageOcr = PageIdentifier.pageOcr(lines, zh, ko, aspect)
             }
-            page
+            PageIdentifier.identify(
+                page, pageOcr, identifier, preference,
+                frameFor = { found -> BitmapFrameArt(bitmap, found.bounds) },
+                art = art,
+            )
         }
 }

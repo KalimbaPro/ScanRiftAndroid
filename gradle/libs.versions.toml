@@ -42,6 +42,7 @@ mlkitTextRecognition = "16.0.1"
 # a matched frame whose name band has no Latin text, so a device without them just
 # falls back to marker / stop-word detection.
 mlkitTextRecognitionCjk = "16.0.2"
+mlkitTextRecognitionCjkBundled = "16.0.1"
 # 3.6.x pulls Compose Multiplatform 1.12, which drags the whole androidx
 # Compose stack to 1.12.0 and back over the AGP 9.1 line. 3.5.0 targets 1.11.1.
 coil = "3.5.0"
@@ -117,6 +118,8 @@ camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = 
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
 mlkit-text-recognition-chinese = { group = "com.google.android.gms", name = "play-services-mlkit-text-recognition-chinese", version.ref = "mlkitTextRecognitionCjk" }
 mlkit-text-recognition-korean = { group = "com.google.android.gms", name = "play-services-mlkit-text-recognition-korean", version.ref = "mlkitTextRecognitionCjk" }
+mlkit-text-recognition-chinese-bundled = { group = "com.google.mlkit", name = "text-recognition-chinese", version.ref = "mlkitTextRecognitionCjkBundled" }
+mlkit-text-recognition-korean-bundled = { group = "com.google.mlkit", name = "text-recognition-korean", version.ref = "mlkitTextRecognitionCjkBundled" }
 
 # Image loading
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }

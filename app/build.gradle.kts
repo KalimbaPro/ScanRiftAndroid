@@ -179,8 +179,16 @@ dependencies {
 
     // ML Kit
     implementation(libs.mlkit.text.recognition)
-    implementation(libs.mlkit.text.recognition.chinese)
-    implementation(libs.mlkit.text.recognition.korean)
+    if (providers.gradleProperty("bundledCjkOcr").isPresent) {
+        // Benchmark-only switch (see ScanAccuracyBenchmark): the bundled Chinese/Korean
+        // models, same API, for emulators where Play Services' TFLite dies with SIGILL.
+        // Never used for a shipped build.
+        implementation(libs.mlkit.text.recognition.chinese.bundled)
+        implementation(libs.mlkit.text.recognition.korean.bundled)
+    } else {
+        implementation(libs.mlkit.text.recognition.chinese)
+        implementation(libs.mlkit.text.recognition.korean)
+    }
 
     // Image loading
     implementation(libs.coil.compose)

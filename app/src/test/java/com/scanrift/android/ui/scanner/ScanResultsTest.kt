@@ -25,31 +25,45 @@ class ScanResultsTest {
     private val other = card("002")
     private val rare = card("003", rarity = "Rare")
 
+    // ── One row per scan ─────────────────────────────────────────────────────
+
     @Test fun `a first scan appends a row`() {
         val results = emptyList<ScanResult>().addingScan(common)
         assertThat(results.map { it.card.id to it.quantity }).containsExactly("001" to 1)
     }
 
-    @Test fun `a duplicate scan increments the existing row`() {
+    @Test fun `two scans of the same card are two rows`() {
         val results = emptyList<ScanResult>().addingScan(common).addingScan(common)
-        assertThat(results.single().quantity).isEqualTo(2)
+        assertThat(results.map { it.card.id to it.quantity }).containsExactly("001" to 1, "001" to 1)
+        assertThat(results.map { it.id }.toSet()).hasSize(2)
     }
 
-    @Test fun `an always foil card scans as foil and merges into its foil row`() {
-        val results = emptyList<ScanResult>().addingScan(rare).addingScan(rare)
+    @Test fun `the newest scan is first`() {
+        val (once, firstId) = emptyList<ScanResult>().addingScanReturningId(common, CardLanguage.EN)
+        val (twice, secondId) = once.addingScanReturningId(other, CardLanguage.EN)
+        assertThat(twice.map { it.id }).containsExactly(secondId, firstId).inOrder()
+        assertThat(twice.first().card.id).isEqualTo("002")
+    }
+
+    @Test fun `an always foil card scans as foil`() {
+        val results = emptyList<ScanResult>().addingScan(rare)
         assertThat(results.single().isFoil).isTrue()
-        assertThat(results.single().quantity).isEqualTo(2)
     }
 
-    @Test fun `a duplicate scan does not merge into a row the user made foil`() {
-        val first = emptyList<ScanResult>().addingScan(common)
-        val results = first.togglingFoil(first.single().id).addingScan(common)
-        assertThat(results.map { it.isFoil to it.quantity }).containsExactly(true to 1, false to 1).inOrder()
+    @Test fun `binder page adds are new rows too`() {
+        val results = emptyList<ScanResult>().addingScan(common).adding(common, isFoil = false, language = CardLanguage.EN)
+        assertThat(results).hasSize(2)
     }
 
     @Test fun `setting a quantity to zero removes the row`() {
         val results = emptyList<ScanResult>().addingScan(common)
         assertThat(results.withQuantity(results.single().id, 0)).isEmpty()
+    }
+
+    @Test fun `deleting one of two identical rows keeps the other`() {
+        val results = emptyList<ScanResult>().addingScan(common).addingScan(common)
+        val remaining = results.withQuantity(results.first().id, 0)
+        assertThat(remaining.map { it.id }).containsExactly(results.last().id)
     }
 
     @Test fun `setting a quantity changes only that row`() {
@@ -58,9 +72,17 @@ class ScanResultsTest {
         assertThat(updated.map { it.quantity }).containsExactly(5, 1).inOrder()
     }
 
+    // ── Foil ─────────────────────────────────────────────────────────────────
+
     @Test fun `toggling a single copy flips it`() {
         val results = emptyList<ScanResult>().addingScan(common)
         assertThat(results.togglingFoil(results.single().id).single().isFoil).isTrue()
+    }
+
+    @Test fun `toggling leaves an identical row alone`() {
+        val results = emptyList<ScanResult>().addingScan(common).addingScan(common)
+        val toggled = results.togglingFoil(results.first().id)
+        assertThat(toggled.map { it.isFoil }).containsExactly(true, false).inOrder()
     }
 
     @Test fun `toggling a stack splits one copy into a new row right after it`() {
@@ -72,22 +94,17 @@ class ScanResultsTest {
         assertThat(toggled.first().id).isEqualTo(results.first().id)
     }
 
-    @Test fun `toggling a stack moves one copy into an existing opposite row`() {
-        val results = listOf(ScanResult(common, quantity = 3), ScanResult(common, isFoil = true))
-        val toggled = results.togglingFoil(results.first().id)
-        assertThat(toggled.map { it.isFoil to it.quantity }).containsExactly(false to 2, true to 2).inOrder()
-    }
-
-    @Test fun `toggling a single copy merges into an existing opposite row`() {
-        val results = listOf(ScanResult(common), ScanResult(common, quantity = 2, isFoil = true))
-        val toggled = results.togglingFoil(results.first().id)
-        assertThat(toggled.map { it.isFoil to it.quantity }).containsExactly(true to 3)
-    }
-
     @Test fun `always foil cards cannot be toggled`() {
         val results = emptyList<ScanResult>().addingScan(rare)
         assertThat(results.togglingFoil(results.single().id)).isEqualTo(results)
     }
+
+    @Test fun `the foil toggle keeps the row's language`() {
+        val start = emptyList<ScanResult>().addingScan(common, CardLanguage.FR)
+        assertThat(start.togglingFoil(start.single().id).single().language).isEqualTo(CardLanguage.FR)
+    }
+
+    // ── Correction ───────────────────────────────────────────────────────────
 
     @Test fun `a correction replaces the card and keeps the row identity and quantity`() {
         val results = listOf(ScanResult(common, quantity = 2))
@@ -97,10 +114,10 @@ class ScanResultsTest {
         assertThat(corrected.id).isEqualTo(results.single().id)
     }
 
-    @Test fun `a correction merges into an existing row for the new card`() {
+    @Test fun `a correction does not merge into an existing row for the new card`() {
         val results = listOf(ScanResult(common, quantity = 2), ScanResult(other))
         val corrected = results.correcting(results.first().id, other)
-        assertThat(corrected.map { it.card.id to it.quantity }).containsExactly("002" to 3)
+        assertThat(corrected.map { it.card.id to it.quantity }).containsExactly("002" to 2, "002" to 1).inOrder()
     }
 
     @Test fun `a correction to an always foil card makes the row foil`() {
@@ -129,41 +146,41 @@ class ScanResultsTest {
         val results = emptyList<ScanResult>()
             .addingScan(common, CardLanguage.EN)
             .addingScan(common, CardLanguage.FR)
-            .addingScan(common, CardLanguage.FR)
-        assertThat(results.map { it.language to it.quantity })
-            .containsExactly(CardLanguage.EN to 1, CardLanguage.FR to 2).inOrder()
+        assertThat(results.map { it.language }).containsExactly(CardLanguage.FR, CardLanguage.EN).inOrder()
     }
 
-    @Test fun `adding a scan reports the row it landed in`() {
-        val (first, firstId) = emptyList<ScanResult>().addingScanReturningId(common, CardLanguage.ZH)
-        val (second, secondId) = first.addingScanReturningId(common, CardLanguage.ZH)
-        assertThat(secondId).isEqualTo(firstId)
-        assertThat(second.single().quantity).isEqualTo(2)
+    @Test fun `changing one row's language leaves its twin alone`() {
+        val start = emptyList<ScanResult>().addingScan(common).addingScan(common)
+        val relabelled = start.withLanguage(start.first().id, CardLanguage.FR)
+        assertThat(relabelled.map { it.id to it.language })
+            .containsExactly(start[0].id to CardLanguage.FR, start[1].id to CardLanguage.EN).inOrder()
     }
 
-    @Test fun `changing a row's language moves the whole stack and merges into a twin`() {
+    @Test fun `changing to a language another row has does not merge`() {
+        val start = emptyList<ScanResult>().addingScan(common, CardLanguage.KO).addingScan(common, CardLanguage.EN)
+        val relabelled = start.withLanguage(start.first().id, CardLanguage.KO)
+        assertThat(relabelled.map { it.language to it.quantity })
+            .containsExactly(CardLanguage.KO to 1, CardLanguage.KO to 1)
+    }
+
+    // ── Write-out ────────────────────────────────────────────────────────────
+
+    @Test fun `writing out sums identical rows on the entry key`() {
         val start = emptyList<ScanResult>()
-            .addingScan(common, CardLanguage.EN).addingScan(common, CardLanguage.EN)
-            .addingScan(common, CardLanguage.KO)
-        val enId = start.first { it.language == CardLanguage.EN }.id
-
-        val merged = start.withLanguage(enId, CardLanguage.KO)
-
-        assertThat(merged.single().language).isEqualTo(CardLanguage.KO)
-        assertThat(merged.single().quantity).isEqualTo(3)
+            .addingScan(common).addingScan(common).addingScan(common, CardLanguage.FR).addingScan(rare)
+        val withPlusOne = start.withQuantity(start.last().id, 3) // a "+1"'d stack of the first scan
+        val stacks = withPlusOne.collectionStacks()
+        assertThat(stacks.map { Triple(it.card.id, it.language, it.quantity) }).containsExactly(
+            Triple("003", CardLanguage.EN, 1),
+            Triple("001", CardLanguage.FR, 1),
+            Triple("001", CardLanguage.EN, 4),
+        )
+        assertThat(stacks.sumOf { it.quantity }).isEqualTo(withPlusOne.sumOf { it.quantity })
     }
 
-    @Test fun `changing to a language with no twin relabels in place`() {
-        val start = emptyList<ScanResult>().addingScan(common)
-        val relabelled = start.withLanguage(start.single().id, CardLanguage.FR)
-        assertThat(relabelled.single().language).isEqualTo(CardLanguage.FR)
-        assertThat(relabelled.single().id).isEqualTo(start.single().id)
-    }
-
-    @Test fun `the foil toggle keeps the row's language`() {
-        val start = emptyList<ScanResult>().addingScan(common, CardLanguage.FR).addingScan(common, CardLanguage.FR)
-        val toggled = start.togglingFoil(start.single().id)
-        assertThat(toggled.map { it.isFoil to it.language })
-            .containsExactly(false to CardLanguage.FR, true to CardLanguage.FR).inOrder()
+    @Test fun `writing out keeps foil and non-foil apart`() {
+        val start = emptyList<ScanResult>().addingScan(common).addingScan(common)
+        val stacks = start.togglingFoil(start.first().id).collectionStacks()
+        assertThat(stacks.map { it.isFoil to it.quantity }).containsExactly(true to 1, false to 1)
     }
 }

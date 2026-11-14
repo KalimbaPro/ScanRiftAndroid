@@ -149,6 +149,20 @@ session sidebar (40% of the width, max 360dp), so an unfolded Fold in portrait g
 refolding drops it live. The binder-page review is photo | list side by side from 600dp
 and stacked below that.
 
+**A sheet that shows one card is an `AdaptiveCardSheet`, never a bare `ModalBottomSheet`.**
+On a wide window a bottom sheet spans the screen, covers what it was opened from and opens
+half-expanded, which crops the card. `AdaptiveCardSheet` (ui/components) is a centred
+`Dialog` (`usePlatformDefaultWidth = false`, capped at `Dimens.CardPopUpMaxWidth`, outside
+tap and back dismiss) from 600dp wide *and* 480dp tall, and the usual bottom sheet below.
+This is one of the few decisions keyed off the **window** rather than the pane — a sheet
+covers the whole window whichever pane opened it — and the height floor keeps a phone in
+landscape on the sheet. `AdaptiveRules.useCardPopUp` is the tested rule. Put the card image
+first and let the details scroll, so the whole card shows without scrolling. Card sheets
+today: `DeckCardDetailSheet`, `CardCorrectionSheet` (also the last-scanned chip's target),
+`CardVersionPicker` (its grid measures the pop-up's width, not the window's),
+and the legend choosers via `GameSheet(showsCard = true)`. Forms — settings, filters,
+import, add-to-list, end-of-game record — stay bottom sheets.
+
 **`NavigableListDetailPaneScaffold` does not react to a fold.** It renders from
 `navigator.scaffoldState`, which the navigator builds once and re-syncs *only* on
 navigation. Folding updates `scaffoldDirective` and therefore `scaffoldValue`, but
@@ -384,6 +398,86 @@ Metal shows no art. The default printing ranks Metal, judge, alternate art, sign
 overnumbered, special print, promo, any suffix and then supplemental sets (OGS, SGN) as
 successive penalties, so a legend that only exists as a Starter still has a sensible
 default. Same rule as iOS `LegendPrintings.swift`; keep the two in step.
+
+**Live language detection runs on evidence, strongest first, and both CJK passes stay
+apart.** `ScanIdentifier` is the one OCR → card → language path, shared by the scanner and
+the instrumented benchmark. Once a card is matched, `LanguageDetector.detectMatched` tries:
+the printed marker (Latin pass); the matched card's English name/subtitle vs its
+`localizations.zh/ko.name` (bigram Dice, character Dice for CJK; ≥ 0.6 and 0.2 clear);
+then script, comparing the Korean pass's Hangul with the Chinese pass's Han (ratio 0.8 —
+measured, the Korean model turns a Chinese card into some stray Hangul and the Chinese one
+a Korean card into some Han); then French only on accents + stop words outnumbering English
+2:1. Never merge the two CJK passes back into one text: that is exactly what made every
+Chinese card read as Korean. The CJK passes run unless the Latin pass already settles it
+(marker or English name) — "no Latin name" is not that test, OCR finds Latin noise on CJK
+cards. Binder pages go through the same rules: `PageIdentifier` treats each found card as a
+`FocusDecision.Focused` view of the page (its own code first, the CJK lines inside its
+outline, the art tie-break on its region of the photo).
+
+**Collector codes are read tolerantly, and a suffix-less code is a guess.**
+`CollectorText.normalize` repairs `0GN`, `1l6`, `066 a`, `066o`, `227×`, a slash read as
+`1`/`l`; a one-letter set typo (`SED`) is fixed only when the printed total confirms the set.
+Never fall back from `23*` to card 23 — that is a signature missing a digit. A code read
+without its suffix over a number with variants (`066` vs `066a`, `299` vs `299*`) is
+ambiguous: `PrintingChooser` compares a dHash of the frame's art region with each
+printing's catalogue art (`CatalogueArt`, through Coil's disk cache) and picks only with a
+clear margin; otherwise the base printing is kept and flagged (`ScanResult.ambiguous`,
+orange "?" on the set chip) until the user picks a version. Signature and overnumbered
+twins share art, so those usually stay ambiguous; that is correct.
+
+**The scan-accuracy benchmark is opt-in and never runs in CI.** It is an instrumented test
+over official EN/ZH/KO images (`app/src/androidTest/assets/scan-benchmark.json`):
+
+```bash
+./gradlew connectedDebugAndroidTest -PbundledCjkOcr \
+  -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.scanrift.android.benchmark.ScanAccuracyBenchmark \
+  -Pandroid.testInstrumentationRunnerArguments.benchmark=true
+adb pull /sdcard/Android/data/com.scanrift.android.debug/files/scan-benchmark.txt
+```
+
+`-PbundledCjkOcr` swaps in the bundled Chinese/Korean ML Kit models (same API) because the
+Play Services TFLite dies with SIGILL on Apple-silicon emulators; never ship with it. The
+emulator's 6GB data partition fills up after a few runs: `-wipe-data -partition-size 8192`.
+
+**Single-mode scanning focuses on the guide when several cards are in view.** Matching the
+whole frame takes the first collector code, which on a binder page is often the card above.
+`ScanFocusPolicy` decides per processed frame: wide (today's whole-frame match) while at most
+one collector code is read; focus once `FOCUS_MIN_CARDS` codes are read, where each code
+becomes a card region via `MultiCardScanner.scan` and only a region at least
+`FOCUS_MIN_OVERLAP` inside the guide counts — none inside means no match, never a
+neighbour. It releases to wide after `FOCUS_RELEASE_FRAMES` consecutive frames with no card
+outside the guide. The guide reaches the frame through `scanGuideRect` (the one formula the
+overlay also draws with) and `OcrGeometry.guideInImage` (FILL_CENTER crop + ImageProxy
+rotation); that mapping assumes preview and analysis share a field of view, which is why the
+single-mode `Preview` is given the analysis stream's 16:9 aspect — do not drop it. In focus,
+the match uses the focused card's own code first, and language detection (and the CJK
+lines) read only that card's region. No UI: no indicator, no toggle.
+
+**The scan session is one row per scan, newest first, and never merges while scanning.**
+Scanning a card already in the session adds a new row (ManaBox does the same): a binder's
+English and French copies each need their own row to fix language or version. Language,
+foil, correction and version changes edit that row only. Rows carry a per-row UUID that
+keys every LazyColumn and every edit — never key on the card id. Identical rows sum only on
+write-out, through `ScanResult.collectionStacks()` on the entry key; `CollectionRepository
+.addCopies` would merge them anyway, but the summing is explicit and tested. "+1" is the one
+deliberate exception: it grows the last-scanned row. Auto-add mode is unchanged (it writes
+straight to the database, which sums on the entry key).
+
+**A card's versions are grouped by name, for every type.** `CardPrintings` groups printings
+on the base identity (name minus trailing `(...)` suffixes, case- and accent-folded), so
+`Kai'Sa - Daughter of the Void (Signature)` is a version of the Rare. `LegendPrintings` is
+the same thing filtered to legends and only delegates. The scanner builds a `PrintingIndex`
+once when its catalogue snapshot loads (on `@DefaultDispatcher`) and carries it in
+`ScannerUiState`; never regroup per frame or per recomposition. The set chip under the last
+scan, each session row's set chip and each binder-page row open `CardVersionPicker` only when
+the card has more than one printing; `CardCorrectionSheet` shows the same printings as
+"Other versions". The rules live in `ScanVersions.kt` as pure functions: a pick keeps
+quantity and language, foil follows `versionFoil` (new card's `isAlwaysFoil` unless the user
+had toggled foil on), and in auto-add mode the copies the scan wrote (`lastAutoAdded`: the
+scan plus every "+1") are re-keyed with `CollectionEntryDao.moveCopies`, which moves only
+those copies and merges into an existing database stack. Auto-add writes go through one `Mutex` so a
+re-key never overtakes the scan it moves.
 
 **Export formats are byte-exact.** riftbound.gg parses the CSV it emitted, spaces after
 commas and all, in the header *and* the data rows. Golden tests pin this.

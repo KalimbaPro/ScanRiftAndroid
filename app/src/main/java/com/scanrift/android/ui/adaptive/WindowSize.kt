@@ -105,6 +105,17 @@ object AdaptiveRules {
     fun useLargeScanGuide(width: Dp, height: Dp): Boolean =
         minOf(width, height) >= Dimens.LargeScanGuideMinDimension
 
+    /**
+     * Single-card sheets open as a centred pop-up from a Medium window (600dp) up.
+     *
+     * Keyed off the **window**, not the pane, because a sheet or a dialog covers the
+     * whole window whichever pane opened it. The height floor (480dp, the Medium height
+     * breakpoint) keeps a phone in landscape — 800dp wide but ~360dp tall — on the
+     * bottom sheet, where the card can at least be scrolled to.
+     */
+    fun useCardPopUp(windowWidth: Dp, windowHeight: Dp): Boolean =
+        windowWidth >= Dimens.CardPopUpMinWindowWidth && windowHeight >= Dimens.CardPopUpMinWindowHeight
+
     /** Columns for the collection grid at a given pane width. */
     fun gridColumnCount(paneWidth: Dp): Int {
         if (useFixedGridColumns(paneWidth)) return Dimens.GRID_COLUMNS_REGULAR
@@ -116,11 +127,20 @@ object AdaptiveRules {
 
     /**
      * Columns for the legend printing chooser, from the width the chooser actually gets.
-     * The chooser lives in a bottom sheet capped at [Dimens.SheetMaxWidth], so this is
-     * measured inside the sheet rather than read off the window: a folded phone gets
-     * three columns, an unfolded Fold five.
+     * The chooser lives in a bottom sheet capped at [Dimens.SheetMaxWidth] on a phone and
+     * a pop-up capped at [Dimens.CardPopUpMaxWidth] on a wide window, so this is measured
+     * inside the container rather than read off the window: a folded phone gets three
+     * columns, an unfolded Fold four.
      */
-    fun legendPrintingColumns(width: Dp): Int {
+    fun legendPrintingColumns(width: Dp): Int = printingColumns(width)
+
+    /**
+     * Columns for any printing grid (the legend chooser, the scanner's version picker),
+     * from the width the grid is measured at inside its sheet. Never the window: the
+     * sheet is capped at [Dimens.SheetMaxWidth], so an unfolded Fold gets five columns
+     * where the window alone would suggest more.
+     */
+    fun printingColumns(width: Dp): Int {
         val spacing = Dimens.GridSpacingCompact
         val computed = ((width + spacing) / (Dimens.LegendPrintingItemMin + spacing)).toInt()
         return computed.coerceIn(Dimens.LEGEND_PRINTING_COLUMNS_MIN, Dimens.LEGEND_PRINTING_COLUMNS_MAX)
