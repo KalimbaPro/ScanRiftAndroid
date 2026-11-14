@@ -44,16 +44,16 @@ class ScanVersionsTest {
         assertThat(next.lastResultId).isEqualTo(row.id)
     }
 
-    @Test fun `picking a version merges into an identical row instead of duplicating`() {
+    @Test fun `picking a version changes only that row, never merging into an identical one`() {
         val existing = ScanResult(altArt, quantity = 3)
         val scanned = ScanResult(regular)
-        val state = ScannerUiState(results = listOf(existing, scanned), lastScanned = regular, lastResultId = scanned.id)
+        val state = ScannerUiState(results = listOf(scanned, existing), lastScanned = regular, lastResultId = scanned.id)
 
         val (next, _) = state.withVersion(VersionTarget.Row(scanned.id), altArt)
 
-        assertThat(next.results.map { it.card.id to it.quantity }).containsExactly(altArt.id to 4)
-        // The banner follows the copies into the row they merged into.
-        assertThat(next.lastResultId).isEqualTo(existing.id)
+        assertThat(next.results.map { it.id to it.quantity }).containsExactly(scanned.id to 1, existing.id to 3).inOrder()
+        assertThat(next.results.map { it.card.id }.toSet()).containsExactly(altArt.id)
+        assertThat(next.lastResultId).isEqualTo(scanned.id)
         assertThat(next.lastScanned).isEqualTo(altArt)
     }
 

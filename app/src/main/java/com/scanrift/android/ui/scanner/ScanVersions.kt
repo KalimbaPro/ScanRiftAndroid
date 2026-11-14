@@ -51,8 +51,8 @@ fun ScannerUiState.lastScanVersionTarget(): VersionTarget? = when {
 }
 
 /**
- * Re-points session row [id] at [card], merging into an identical row, and keeps the
- * last-scanned banner on the row the copies landed in when [id] was the last scan.
+ * Re-points session row [id] at [card] (that row only) and, when it is the last scan,
+ * moves the last-scanned banner with it.
  */
 fun ScannerUiState.withRowCard(id: String, card: Card): ScannerUiState {
     val (results, landedId) = results.replacingCard(id, card)

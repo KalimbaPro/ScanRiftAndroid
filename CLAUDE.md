@@ -385,6 +385,16 @@ overnumbered, special print, promo, any suffix and then supplemental sets (OGS, 
 successive penalties, so a legend that only exists as a Starter still has a sensible
 default. Same rule as iOS `LegendPrintings.swift`; keep the two in step.
 
+**The scan session is one row per scan, newest first, and never merges while scanning.**
+Scanning a card already in the session adds a new row (ManaBox does the same): a binder's
+English and French copies each need their own row to fix language or version. Language,
+foil, correction and version changes edit that row only. Rows carry a per-row UUID that
+keys every LazyColumn and every edit — never key on the card id. Identical rows sum only on
+write-out, through `ScanResult.collectionStacks()` on the entry key; `CollectionRepository
+.addCopies` would merge them anyway, but the summing is explicit and tested. "+1" is the one
+deliberate exception: it grows the last-scanned row. Auto-add mode is unchanged (it writes
+straight to the database, which sums on the entry key).
+
 **A card's versions are grouped by name, for every type.** `CardPrintings` groups printings
 on the base identity (name minus trailing `(...)` suffixes, case- and accent-folded), so
 `Kai'Sa - Daughter of the Void (Signature)` is a version of the Rare. `LegendPrintings` is
@@ -397,7 +407,7 @@ the card has more than one printing; `CardCorrectionSheet` shows the same printi
 quantity and language, foil follows `versionFoil` (new card's `isAlwaysFoil` unless the user
 had toggled foil on), and in auto-add mode the copies the scan wrote (`lastAutoAdded`: the
 scan plus every "+1") are re-keyed with `CollectionEntryDao.moveCopies`, which moves only
-those copies and merges into an existing stack. Auto-add writes go through one `Mutex` so a
+those copies and merges into an existing database stack. Auto-add writes go through one `Mutex` so a
 re-key never overtakes the scan it moves.
 
 **Export formats are byte-exact.** riftbound.gg parses the CSV it emitted, spaces after

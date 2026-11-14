@@ -301,7 +301,10 @@ class ScannerViewModel @Inject constructor(
         val matched = _uiState.value.page?.matched.orEmpty()
         if (matched.isEmpty()) return 0
         _uiState.update { state ->
-            val results = matched.fold(state.results) { acc, item -> acc.adding(item.card!!, item.isFoil, item.language) }
+            // One row per card, newest first; folding in reverse keeps the page's reading order at the top.
+            val results = matched.asReversed().fold(state.results) { acc, item ->
+                acc.adding(item.card!!, item.isFoil, item.language)
+            }
             state.copy(results = results, page = null, correctingPageItemId = null)
         }
         return matched.size
@@ -459,13 +462,13 @@ class ScannerViewModel @Inject constructor(
 
     /**
      * Applies a session edit and keeps the "last scanned" banner pointing at a real row:
-     * a merge can remove the row it pointed at, in which case it follows the card.
+     * when its row is deleted it moves to the newest remaining row.
      */
     private fun updateResults(transform: (List<ScanResult>) -> List<ScanResult>) = _uiState.update { state ->
         val results = transform(state.results)
         if (state.lastResultId == null) return@update state.copy(results = results)
         val lastRow = results.firstOrNull { it.id == state.lastResultId }
-            ?: results.firstOrNull { it.card.id == state.lastScanned?.id }
+            ?: results.firstOrNull()
         state.copy(
             results = results,
             lastResultId = lastRow?.id,
@@ -489,13 +492,14 @@ class ScannerViewModel @Inject constructor(
 
     fun toggleLastFoil() {
         val lastId = _uiState.value.lastResultId ?: return
-        // The foil toggle can split a row; follow the copy that changed.
         val before = _uiState.value.lastResult ?: return
         updateResults { it.togglingFoil(lastId) }
-        val moved = _uiState.value.results.firstOrNull {
-            it.card.id == before.card.id && it.language == before.language && it.isFoil != before.isFoil
+        if (before.quantity > 1) {
+            // A "+1" stack split one copy off just below; the banner follows that copy.
+            val results = _uiState.value.results
+            val split = results.getOrNull(results.indexOfFirst { it.id == lastId } + 1)
+            split?.let { row -> _uiState.update { it.copy(lastResultId = row.id) } }
         }
-        moved?.let { row -> _uiState.update { it.copy(lastResultId = row.id) } }
     }
 
     /** "+1": one more copy of the last scan, as if it had been scanned again. */
@@ -533,7 +537,7 @@ class ScannerViewModel @Inject constructor(
 
     fun startCorrectionForLastCard() {
         val state = _uiState.value
-        (state.lastResult ?: state.results.firstOrNull { it.card.id == state.lastScanned?.id })?.let(::startCorrection)
+        state.lastResult?.let(::startCorrection)
     }
 
     fun searchForCorrection(query: String) = _uiState.update {
@@ -594,7 +598,8 @@ class ScannerViewModel @Inject constructor(
     }
 
     fun addSessionToCollection() {
-        val results = _uiState.value.results
+        // Identical rows merge only here, on the collection's entry key.
+        val results = _uiState.value.results.collectionStacks()
         viewModelScope.launch {
             results.forEach { collectionRepository.addCopies(it.card, it.quantity, it.isFoil, language = it.language) }
             clearSession()
@@ -606,7 +611,7 @@ class ScannerViewModel @Inject constructor(
             val copies = results.groupBy { it.card.id }.mapValues { (_, rows) -> rows.sumOf { it.quantity } }
             deckRepository.addCopies(deck.id, section, copies)
             if (alsoToCollection) {
-                results.forEach { collectionRepository.addCopies(it.card, it.quantity, it.isFoil, language = it.language) }
+                results.collectionStacks().forEach { collectionRepository.addCopies(it.card, it.quantity, it.isFoil, language = it.language) }
             }
         }
     }
