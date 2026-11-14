@@ -59,6 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -112,7 +113,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { LargeTopAppBar(title = { Text("Settings") }, scrollBehavior = scrollBehavior) },
+        topBar = { LargeTopAppBar(title = { Text("Settings", maxLines = 1, overflow = TextOverflow.Ellipsis) }, scrollBehavior = scrollBehavior) },
     ) { padding ->
         Column(
             modifier = Modifier

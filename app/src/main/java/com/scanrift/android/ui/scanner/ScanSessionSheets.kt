@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -75,6 +76,7 @@ import com.scanrift.android.domain.model.DeckSection
 import com.scanrift.android.ui.components.AdaptiveCardSheet
 import com.scanrift.android.ui.components.CardThumbnail
 import com.scanrift.android.ui.components.FoilBadge
+import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.components.TappableQuantityStepper
 import com.scanrift.android.ui.util.heavyImpact
 import com.scanrift.android.ui.util.mediumImpact
@@ -239,48 +241,68 @@ fun ScanResultRow(
             }
         },
     ) {
-        Row(
-            modifier = Modifier
+        // The controls (language, foil, add-to-deck, stepper) take ~280dp. Beside the
+        // name on a phone that left the name a few letters ("Cha…"), so below
+        // ScanRowInlineControlsMinWidth they move to a line of their own under it.
+        BoxWithConstraints(
+            Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .clickable(onClick = onCorrect)
-                .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .clickable(onClick = onCorrect),
         ) {
-            ScanThumbnail(result.card, result.isFoil, result.language)
-            Column(Modifier.weight(1f)) {
-                Text(
-                    result.card.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+            val stacked = AdaptiveRules.stackScanRowControls(maxWidth)
+            val controls: @Composable () -> Unit = {
+                onLanguageChange?.let { LanguageChip(result.language, it) }
+                FoilToggle(result, onToggleFoil)
+                onAddToDeck?.let {
+                    IconButton(onClick = it) {
+                        Icon(Icons.Filled.LibraryAdd, contentDescription = "Add to deck", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                TappableQuantityStepper(
+                    quantity = result.quantity,
+                    onQuantityChange = onQuantityChange,
+                    textStyle = MaterialTheme.typography.bodyMedium,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    SetVersionLabel(result.card, onPickVersion, ambiguous = result.ambiguous)
-                    if (result.isFoil) FoilBadge()
-                    if (showCorrectHint) {
-                        Text(
-                            "Tap to correct",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ScanThumbnail(result.card, result.isFoil, result.language)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        result.card.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        SetVersionLabel(result.card, onPickVersion, ambiguous = result.ambiguous)
+                        if (result.isFoil) FoilBadge()
+                        if (showCorrectHint) {
+                            Text(
+                                "Tap to correct",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                    if (stacked) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically,
+                            content = { controls() },
                         )
                     }
                 }
+                if (!stacked) controls()
             }
-            onLanguageChange?.let { LanguageChip(result.language, it) }
-            FoilToggle(result, onToggleFoil)
-            onAddToDeck?.let {
-                IconButton(onClick = it) {
-                    Icon(Icons.Filled.LibraryAdd, contentDescription = "Add to deck", tint = MaterialTheme.colorScheme.primary)
-                }
-            }
-            TappableQuantityStepper(
-                quantity = result.quantity,
-                onQuantityChange = onQuantityChange,
-                textStyle = MaterialTheme.typography.bodyMedium,
-            )
         }
     }
 }

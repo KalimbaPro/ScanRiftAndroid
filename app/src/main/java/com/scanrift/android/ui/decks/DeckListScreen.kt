@@ -74,7 +74,7 @@ fun DeckListScreen(
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { LargeTopAppBar(title = { Text("Decks") }, scrollBehavior = scrollBehavior) },
+        topBar = { LargeTopAppBar(title = { Text("Decks", maxLines = 1, overflow = TextOverflow.Ellipsis) }, scrollBehavior = scrollBehavior) },
         floatingActionButton = {
             if (decks.isNotEmpty()) {
                 FloatingActionButton(onClick = { viewModel.createDeck(onOpenDeck) }, shape = CircleShape) {
@@ -90,7 +90,7 @@ fun DeckListScreen(
 
         LazyVerticalGrid(
             columns = GridCells.Adaptive(Dimens.HubGridItemMin),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = Dimens.FabContentClearance),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.padding(padding).fillMaxSize(),

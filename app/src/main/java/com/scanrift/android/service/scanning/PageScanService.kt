@@ -58,6 +58,10 @@ class PageScanService @Inject constructor(
                 Log.scanning.d("Tile pass: %d card(s)", page.cards.size)
             }
 
+            // Every line with its box, so a bad page can be replayed as a JUnit fixture.
+            lines.forEach { Log.ocr.v("Page line %s %.4f %.4f %.4f %.4f", it.text, it.box.left, it.box.top, it.box.right, it.box.bottom) }
+            page.cards.forEach { Log.scanning.v("Page card %s at %.3f,%.3f", it.code, it.anchorBox.left, it.anchorBox.top) }
+
             var pageOcr = PageIdentifier.pageOcr(lines, imageAspect = aspect)
             if (PageIdentifier.needsScriptPass(page, pageOcr, identifier, preference)) {
                 val (zh, ko) = ocr.recognizeScriptPasses(bitmap)

@@ -179,6 +179,7 @@ dependencies {
 
     // ML Kit
     implementation(libs.mlkit.text.recognition)
+    implementation(libs.play.services.base)
     if (providers.gradleProperty("bundledCjkOcr").isPresent) {
         // Benchmark-only switch (see ScanAccuracyBenchmark): the bundled Chinese/Korean
         // models, same API, for emulators where Play Services' TFLite dies with SIGILL.

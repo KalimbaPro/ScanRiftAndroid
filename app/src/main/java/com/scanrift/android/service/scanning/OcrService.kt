@@ -1,8 +1,13 @@
 package com.scanrift.android.service.scanning
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
 import androidx.camera.core.ImageProxy
+import com.google.android.gms.common.moduleinstall.ModuleInstall
+import com.google.android.gms.tasks.Task
+import com.scanrift.android.BuildConfig
 import com.scanrift.android.core.log.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
@@ -11,6 +16,7 @@ import com.google.mlkit.vision.text.TextRecognizer
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -30,18 +36,84 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * run only when the caller asks for a script pass — in practice a matched frame whose
  * name band has no Latin name, i.e. a zh/ko print. A device without Play Services fails
  * that pass, which is caught: language detection then falls back to the printed marker.
+ *
+ * Two more guards on those passes, because they run native code we do not control:
+ *
+ * - **Availability first.** The models are asked for through `ModuleInstall` before the
+ *   first pass; until Play Services reports both present (a deferred download is
+ *   requested), no CJK pass runs at all — instead of each one failing, or loading a
+ *   half-installed module.
+ * - **A crash is remembered** ([CjkOcrGuard]). A native crash cannot be caught; the
+ *   guard notices it on the next launch and turns the CJK pass off for that app version.
  */
 @Singleton
-class OcrService @Inject constructor() {
+class OcrService(
+    private val context: Context?,
+    private val cjkGuard: CjkOcrGuard,
+    private val checkModules: Boolean,
+) {
+
+    @Inject
+    constructor(@ApplicationContext context: Context) : this(
+        context,
+        CjkOcrGuard(SharedPreferencesStore(context), BuildConfig.VERSION_CODE.toLong()),
+        checkModules = true,
+    )
+
+    /** For the instrumented benchmark: every CJK pass runs, nothing is checked or remembered. */
+    constructor() : this(null, CjkOcrGuard.unguarded(), checkModules = false)
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     private var chinese: TextRecognizer? = null
     private var korean: TextRecognizer? = null
 
+    @Volatile private var modulesReady = false
+    @Volatile private var installRequested = false
+
     private fun scriptRecognizers(): List<TextRecognizer> = listOf(
         chinese ?: TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build()).also { chinese = it },
         korean ?: TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build()).also { korean = it },
     )
+
+    /**
+     * Whether the Chinese and Korean models are installed. Cheap after the first yes; a no
+     * asks Play Services to download them in the background (once per process) and skips
+     * the pass, so nothing ever runs against a model that is not there.
+     */
+    private suspend fun cjkModulesReady(clients: List<TextRecognizer>): Boolean {
+        if (!checkModules || modulesReady) return true
+        val ctx = context ?: return false
+        val installer = ModuleInstall.getClient(ctx)
+        val available = runCatching { installer.areModulesAvailable(*clients.toTypedArray()).await().areModulesAvailable() }
+            .onFailure { Log.ocr.w(it, "Could not check the Chinese/Korean OCR models") }
+            .getOrDefault(false)
+        if (available) {
+            modulesReady = true
+        } else if (!installRequested) {
+            installRequested = true
+            Log.ocr.i("Chinese/Korean OCR models not installed yet; requesting a deferred download")
+            runCatching { installer.deferredInstall(*clients.toTypedArray()) }
+        }
+        return available
+    }
+
+    /**
+     * Each CJK recognizer over [image], kept apart: (zh, ko), either null when it did
+     * not run or failed. Every CJK call in this class goes through here.
+     */
+    private suspend fun <T> scriptPasses(read: suspend (TextRecognizer) -> T): Pair<T?, T?> {
+        if (!cjkGuard.isEnabled) return null to null
+        val clients = scriptRecognizers()
+        if (!cjkModulesReady(clients)) return null to null
+        val results = clients.map { client ->
+            cjkGuard.guard {
+                runCatching { read(client) }
+                    .onFailure { Log.ocr.w(it, "Script recognizer unavailable") }
+                    .getOrNull()
+            }
+        }
+        return results[0] to results[1]
+    }
 
     /**
      * Recognises text in one camera frame and splits it into the card-name and
@@ -95,12 +167,7 @@ class OcrService @Inject constructor() {
         val latin = recognize(recognizer, image).toOcrResult(width, height)
         if (!needsScriptPass(latin)) return latin
         // Both recognisers, kept apart (see OcrResult.chineseLines).
-        val (zh, ko) = scriptRecognizers().map { client ->
-            runCatching { recognize(client, image) }
-                .onFailure { Log.ocr.w(it, "Script recognizer unavailable") }
-                .getOrNull()
-                ?.toOcrResult(width, height)
-        }
+        val (zh, ko) = scriptPasses { client -> recognize(client, image).toOcrResult(width, height) }
         val chinese = zh?.lines.orEmpty()
         val korean = ko?.lines.orEmpty()
         return latin.copy(
@@ -117,31 +184,26 @@ class OcrService @Inject constructor() {
      */
     suspend fun recognizeLines(bitmap: Bitmap, scripts: Boolean = false): List<TextLine> {
         val image = InputImage.fromBitmap(bitmap, 0)
-        val clients = if (scripts) scriptRecognizers() else listOf(recognizer)
-        return clients.flatMap { client ->
-            runCatching { recognize(client, image).toOcrResult(bitmap.width, bitmap.height).lines }
-                .onFailure { if (client !== recognizer) Log.ocr.w(it, "Script recognizer unavailable") else throw it }
-                .getOrDefault(emptyList())
-        }
+        val latin = recognize(recognizer, image).toOcrResult(bitmap.width, bitmap.height).lines
+        if (!scripts) return latin
+        val (zh, ko) = scriptPasses { client -> recognize(client, image).toOcrResult(bitmap.width, bitmap.height).lines }
+        return zh.orEmpty() + ko.orEmpty()
     }
 
     /** A still through the Chinese and the Korean recognizer, each pass kept apart: (zh, ko). */
     suspend fun recognizeScriptPasses(bitmap: Bitmap): Pair<List<TextLine>, List<TextLine>> {
         val image = InputImage.fromBitmap(bitmap, 0)
-        val (zh, ko) = scriptRecognizers().map { client ->
-            runCatching { recognize(client, image).toOcrResult(bitmap.width, bitmap.height).lines }
-                .onFailure { Log.ocr.w(it, "Script recognizer unavailable") }
-                .getOrDefault(emptyList())
-        }
-        return zh to ko
+        val (zh, ko) = scriptPasses { client -> recognize(client, image).toOcrResult(bitmap.width, bitmap.height).lines }
+        return zh.orEmpty() to ko.orEmpty()
     }
 
-    private suspend fun recognize(client: TextRecognizer, image: InputImage): Text =
+    private suspend fun recognize(client: TextRecognizer, image: InputImage): Text = client.process(image).await()
+
+    private suspend fun <T> Task<T>.await(): T =
         suspendCancellableCoroutine { continuation ->
-            client.process(image)
-                .addOnSuccessListener { text -> continuation.resume(text) }
-                .addOnFailureListener { error -> continuation.resumeWithException(error) }
-                .addOnCanceledListener { continuation.cancel() }
+            addOnSuccessListener { value -> continuation.resume(value) }
+            addOnFailureListener { error -> continuation.resumeWithException(error) }
+            addOnCanceledListener { continuation.cancel() }
         }
 
     fun close() {
@@ -195,5 +257,19 @@ class OcrService @Inject constructor() {
             lines = boxedLines,
             imageAspect = if (height > 0) width.toFloat() / height else 1f,
         )
+    }
+}
+
+/** [CjkOcrGuard.Store] on SharedPreferences, written with `commit()`: the marker must be on disk before native code runs. */
+private class SharedPreferencesStore(context: Context) : CjkOcrGuard.Store {
+    private val prefs by lazy { context.getSharedPreferences("ocr_guard", Context.MODE_PRIVATE) }
+
+    override fun read(key: String): Long? = if (prefs.contains(key)) prefs.getLong(key, 0) else null
+
+    @SuppressLint("ApplySharedPref")
+    override fun write(key: String, value: Long?) {
+        val editor = prefs.edit()
+        if (value == null) editor.remove(key) else editor.putLong(key, value)
+        editor.commit()
     }
 }

@@ -47,7 +47,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -57,6 +56,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.Domain
@@ -89,7 +89,7 @@ fun CollectionTopBar(
     if (controls.isSelecting) {
         TopAppBar(
             windowInsets = WindowInsets(0),
-            title = { Text(title) },
+            title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             navigationIcon = {
                 IconButton(onClick = selection.onExit) { Icon(Icons.Filled.Close, contentDescription = "Done selecting") }
             },
@@ -104,7 +104,7 @@ fun CollectionTopBar(
     }
     TopAppBar(
         windowInsets = WindowInsets(0),
-        title = { Text(title) },
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -244,10 +244,10 @@ private fun MenuHeader(label: String) {
 fun CollectionSearchField(query: String, onChange: (String) -> Unit) {
     val focusManager = LocalFocusManager.current
 
-    // The pane hands initial focus to its first focusable child, which is this field —
-    // so opening the collection popped the keyboard over half the grid. Drop that
-    // focus once, on first composition, without interfering with a real tap.
-    LaunchedEffect(Unit) { focusManager.clearFocus(force = true) }
+    // Opening the collection used to focus this field and pop the keyboard over the
+    // grid: the pane scaffold requests focus on the pane it shows, which lands on the
+    // first text field. The pane itself takes that focus (paneFocusLanding), so
+    // there is no per-field workaround here.
     OutlinedTextField(
         value = query,
         onValueChange = onChange,

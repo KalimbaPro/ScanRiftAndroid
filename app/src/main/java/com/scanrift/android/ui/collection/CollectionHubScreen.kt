@@ -99,7 +99,7 @@ fun CollectionHubScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
-                title = { Text("Collection") },
+                title = { Text("Collection", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 scrollBehavior = scrollBehavior,
             )
         },
@@ -112,7 +112,7 @@ fun CollectionHubScreen(
         ProvideContentWidth(Modifier.padding(padding).fillMaxSize()) {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = Dimens.HubGridItemMin),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = Dimens.FabContentClearance),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize(),

@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.scanrift.android.ui.components.QuantityTextField
+import com.scanrift.android.ui.theme.Dimens
 import com.scanrift.android.ui.theme.Motion
 import com.scanrift.android.ui.util.lightImpact
 import com.scanrift.android.ui.util.mediumImpact
@@ -62,7 +64,9 @@ fun CollectionFab(
     Surface(
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f),
-        modifier = modifier.dropShadow(CircleShape) {
+        // Capped at FabSize so the clearance the detail page reserves under it
+        // (Dimens.QuantityStepperContentClearance) is always enough.
+        modifier = modifier.heightIn(max = Dimens.FabSize).dropShadow(CircleShape) {
             color = Color.Black
             alpha = 0.25f
             radius = 6f * density

@@ -13,7 +13,10 @@ import kotlin.math.abs
  * 1. **Anchors.** Every collector-code match is one card. Two identical cards on one
  *    page are two anchors and therefore two copies — by design, that is what a binder
  *    page holds. Codes whose set prefix is not a known set are ignored, so "Deal 3" in
- *    rules text never becomes a card.
+ *    rules text never becomes a card. Reads at the **same position** are one card,
+ *    whatever they say ([dedupe]): the page pass and the overlapping tiles each read a
+ *    collector line, and a second anchor there listed the card twice — or, from a
+ *    clipped read like `UNL• 1.`, listed a card that is not on the page at all.
  * 2. **Card width** is the median horizontal pitch between anchors on the same row
  *    (binder pages are grids), else the vertical pitch × the card aspect ratio, else a
  *    multiple of the code line's own width for a lone card.
@@ -36,15 +39,36 @@ object MultiCardScanner {
     const val TILE_OVERLAP = 0.18f
 
     /**
-     * The collector code. Stricter than live scanning: it needs a separator (or the
-     * glued three-digit form), because a page carries far more rules text than one card.
+     * The collector code. Stricter than live scanning, because a page carries far more
+     * rules text than one card:
+     *
+     * - the number is always three digits, as printed (`043`, never `43`): a clipped
+     *   read such as `UNL• 1.` is not a code, and it used to become `UNL-001`, a card
+     *   that was nowhere on the page;
+     * - the set and number are joined by a separator, glued (`RAD010`), or — only when
+     *   the printed total follows (`OGN 043/298`) — by plain space, which is how OCR
+     *   most often reads the newer `OGN • 043/298` line once the bullet is lost.
+     *
      * Group 1 set, 2 number, 3 suffix.
      */
     private val codePattern = Regex(
-        """(?<![A-Za-z])([A-Z]{2,4})(?:\s*[-–—•·∙]\s*|(?=\d{3}))(\d{1,3})([a-z*]?)(?![0-9])""",
+        """(?<![A-Za-z])([A-Z]{2,4})(?:\s*[-–—•·∙]\s*|\s+(?=\d{3}[a-z*]?\s*/\s*\d)|(?=\d{3}))(\d{3})([a-z*]?)(?![0-9])""",
     )
 
-    data class Anchor(val code: String, val setId: String, val number: Int, val line: TextLine, val box: NormalizedBox)
+    private val totalAfter = Regex("""^\s*/\s*\d{2,3}""")
+
+    /**
+     * @param hasTotal the printed total (`/298`) follows the number, which a clipped or
+     *   garbled read rarely reproduces; it breaks ties between reads of one position.
+     */
+    data class Anchor(
+        val code: String,
+        val setId: String,
+        val number: Int,
+        val line: TextLine,
+        val box: NormalizedBox,
+        val hasTotal: Boolean = false,
+    )
 
     /**
      * One card found on the page.
@@ -81,7 +105,7 @@ object MultiCardScanner {
             val repaired = CollectorText.normalize(line.text)
             if (repaired == line.text) line else line.copy(text = repaired)
         }
-        val anchors = findAnchors(lines, knownSetIds)
+        val anchors = dedupe(findAnchors(lines, knownSetIds))
         if (anchors.isEmpty()) return PageScan(emptyList(), 0f)
 
         val width = estimateCardWidth(anchors, imageAspect)
@@ -131,10 +155,46 @@ object MultiCardScanner {
                     right = line.box.left + line.box.width * ((match.range.last + 1) / length),
                     bottom = line.box.bottom,
                 )
-                anchors += Anchor(code, setId, number, line, box)
+                val hasTotal = totalAfter.containsMatchIn(text.substring(match.range.last + 1))
+                anchors += Anchor(code, setId, number, line, box, hasTotal)
             }
         }
         return anchors
+    }
+
+    /**
+     * One anchor per physical collector line. Two anchors are the same line when they
+     * start within one code-line width of each other and sit within two line heights
+     * vertically — far closer than two cards can be (a card is ~2.5 code-line widths
+     * wide). The page pass and every overlapping tile re-read the same line, and
+     * [mergeLines] only drops a re-read whose text is identical, so `UNL • 127/219`,
+     * `UNL 127/219` and `UNL• 1.` all used to arrive as separate cards.
+     *
+     * Within a group the code read most often wins, then a read carrying the printed
+     * total, then the earliest (the full-page pass comes first). Identical cards in
+     * different pockets are never merged: they are a card width apart.
+     */
+    fun dedupe(anchors: List<Anchor>): List<Anchor> {
+        val groups = mutableListOf<MutableList<Anchor>>()
+        for (anchor in anchors) {
+            val group = groups.firstOrNull { members -> members.any { samePosition(it, anchor) } }
+            if (group == null) groups += mutableListOf(anchor) else group += anchor
+        }
+        return groups.map { members ->
+            val byCode = members.groupBy { it.code }
+            val best = byCode.values.maxWith(
+                compareBy<List<Anchor>> { it.size }
+                    .thenBy { reads -> reads.any { it.hasTotal } }
+                    .thenByDescending { reads -> members.indexOf(reads.first()) },
+            )
+            best.firstOrNull { it.hasTotal } ?: best.first()
+        }
+    }
+
+    private fun samePosition(a: Anchor, b: Anchor): Boolean {
+        val width = maxOf(a.box.width, b.box.width)
+        val height = maxOf(a.box.height, b.box.height)
+        return abs(a.box.left - b.box.left) < width && abs(a.box.centerY - b.box.centerY) < height * 2f
     }
 
     /**
