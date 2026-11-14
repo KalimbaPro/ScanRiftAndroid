@@ -27,6 +27,7 @@ class SnapshotBuilder @Inject constructor(
                 condition = entry.condition,
                 notes = entry.notes,
                 folder = entry.folder,
+                language = entry.language,
             )
         }
 

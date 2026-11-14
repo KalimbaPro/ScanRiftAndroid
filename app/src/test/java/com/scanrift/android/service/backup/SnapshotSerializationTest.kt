@@ -27,6 +27,10 @@ class SnapshotSerializationTest {
                 cardId = "card-1", quantity = 3, isFoil = true,
                 dateAdded = 1_770_000_000_456L, condition = "Near Mint",
             ),
+            CollectionSnapshot.Entry(
+                cardId = "card-1", quantity = 1, isFoil = false,
+                dateAdded = 1_770_000_001_999L, condition = "Near Mint", language = "zh",
+            ),
         ),
         decks = listOf(
             CollectionSnapshot.DeckExport(
@@ -85,10 +89,11 @@ class SnapshotSerializationTest {
         val original = sampleSnapshot()
         val decoded: CollectionSnapshot = json.decodeFromString(json.encodeToString(original))
 
-        assertThat(decoded.entries.single().cardId).isEqualTo("card-1")
-        assertThat(decoded.entries.single().quantity).isEqualTo(3)
-        assertThat(decoded.entries.single().isFoil).isTrue()
-        assertThat(decoded.entries.single().condition).isEqualTo("Near Mint")
+        assertThat(decoded.entries.first().cardId).isEqualTo("card-1")
+        assertThat(decoded.entries.first().quantity).isEqualTo(3)
+        assertThat(decoded.entries.first().isFoil).isTrue()
+        assertThat(decoded.entries.first().condition).isEqualTo("Near Mint")
+        assertThat(decoded.entries.map { it.language }).containsExactly("en", "zh").inOrder()
         assertThat(decoded.decks.single().entries.single().section).isEqualTo("mainDeck")
         assertThat(decoded.lists.single().systemType).isEqualTo("wishlist")
         assertThat(decoded.gameRecords.single().result).isEqualTo("win")
@@ -116,6 +121,26 @@ class SnapshotSerializationTest {
 
         assertThat(decoded.entries).hasSize(1)
         assertThat(decoded.gameRecords).isEmpty()
+        // No `language` key: a copy from before languages existed is English.
+        assertThat(decoded.entries.single().language).isEqualTo("en")
+    }
+
+    @Test
+    fun `language is always written, even for english`() {
+        val encoded = json.encodeToString(sampleSnapshot())
+        assertThat(encoded).contains("\"language\": \"en\"")
+        assertThat(encoded).contains("\"language\": \"zh\"")
+    }
+
+    @Test
+    fun `a file with a language key decodes it verbatim`() {
+        val file = """
+        {"version":1,"exportedAt":"2026-06-05T12:34:56Z","decks":[],"lists":[],
+         "entries":[{"cardId":"c","quantity":1,"isFoil":false,"dateAdded":"2026-06-01T10:00:00Z",
+                     "condition":"Near Mint","language":"ko"}]}
+        """.trimIndent()
+
+        assertThat(json.decodeFromString<CollectionSnapshot>(file).entries.single().language).isEqualTo("ko")
     }
 
     @Test

@@ -64,8 +64,14 @@ class SnapshotMergerTest {
         exportedAt = 1_000L, entries = entries, decks = decks, lists = lists, gameRecords = gameRecords,
     )
 
-    private fun entry(cardId: String, quantity: Int, dateAdded: Long, condition: String = "Near Mint", isFoil: Boolean = false) =
-        CollectionSnapshot.Entry(cardId, quantity, isFoil, dateAdded, condition)
+    private fun entry(
+        cardId: String,
+        quantity: Int,
+        dateAdded: Long,
+        condition: String = "Near Mint",
+        isFoil: Boolean = false,
+        language: String = "en",
+    ) = CollectionSnapshot.Entry(cardId, quantity, isFoil, dateAdded, condition, language = language)
 
     // ── Entries ──────────────────────────────────────────────────────────────
 
@@ -117,6 +123,32 @@ class SnapshotMergerTest {
 
         assertThat(result.entriesAdded).isEqualTo(3)
         assertThat(db.collectionEntryDao().getAll()).hasSize(3)
+    }
+
+    @Test
+    fun `language variants are separate stacks and merge on the four-part key`() = runTest {
+        seedCards("c1")
+        db.collectionEntryDao().insert(CollectionEntryEntity(cardId = "c1", quantity = 2, dateAdded = 100L))
+
+        val result = merger.merge(
+            snapshot(
+                entries = listOf(
+                    // Same key as the local English stack, newer: updates it.
+                    entry("c1", 5, 200L),
+                    // Same card, French: a new stack beside it.
+                    entry("c1", 1, 200L, language = "fr"),
+                    // An unknown future language is normalised to English, not stranded.
+                    entry("c1", 9, 50L, language = "xx"),
+                ),
+            ),
+        )
+
+        val byLanguage = db.collectionEntryDao().getAll().associateBy { it.language }
+        assertThat(byLanguage.keys).containsExactly("en", "fr")
+        assertThat(byLanguage.getValue("en").quantity).isEqualTo(5)
+        assertThat(byLanguage.getValue("fr").quantity).isEqualTo(1)
+        assertThat(result.entriesAdded).isEqualTo(1)
+        assertThat(result.entriesUpdated).isEqualTo(1)
     }
 
     @Test

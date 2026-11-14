@@ -3,6 +3,7 @@ package com.scanrift.android.ui.collection
 import com.google.common.truth.Truth.assertThat
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardCondition
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CardList
 import com.scanrift.android.domain.model.CollectionEntry
 import org.junit.Test
@@ -138,5 +139,66 @@ class CollectionQueryTest {
         assertThat(CollectionQuery.preferredEntry(listOf(foil, normal))).isEqualTo(normal)
         assertThat(CollectionQuery.preferredEntry(listOf(foil))).isEqualTo(foil)
         assertThat(CollectionQuery.preferredEntry(null)).isNull()
+    }
+
+    // ── Languages ────────────────────────────────────────────────────────────
+
+    private fun entryIn(card: Card, language: CardLanguage, id: Long) =
+        entry(card, id = id).copy(language = language)
+
+    @Test
+    fun `rows spanning languages are grouped en fr zh ko, keeping sort order inside each group`() {
+        val rows = listOf(
+            DisplayCard(ahri, entryIn(ahri, CardLanguage.KO, 1)),
+            DisplayCard(jinx, entryIn(jinx, CardLanguage.EN, 2)),
+            DisplayCard(teemo, entryIn(teemo, CardLanguage.FR, 3)),
+            DisplayCard(ahri, entryIn(ahri, CardLanguage.EN, 4)),
+            DisplayCard(teemo, null),
+        )
+
+        assertThat(CollectionQuery.spansLanguages(rows)).isTrue()
+        assertThat(CollectionQuery.groupByLanguage(rows).map { it.language to it.card.id })
+            .containsExactly(
+                CardLanguage.EN to "jinx", CardLanguage.EN to "ahri", CardLanguage.EN to "teemo",
+                CardLanguage.FR to "teemo",
+                CardLanguage.KO to "ahri",
+            ).inOrder()
+    }
+
+    @Test
+    fun `a single-language view is left untouched and needs no headers`() {
+        val rows = listOf(DisplayCard(jinx, entry(jinx, id = 1)), DisplayCard(ahri, null))
+        assertThat(CollectionQuery.spansLanguages(rows)).isFalse()
+        assertThat(CollectionQuery.groupByLanguage(rows)).isEqualTo(rows)
+    }
+
+    @Test
+    fun `the language filter keeps owned copies in those languages only`() {
+        val rows = listOf(
+            DisplayCard(ahri, entryIn(ahri, CardLanguage.ZH, 1)),
+            DisplayCard(ahri, entryIn(ahri, CardLanguage.EN, 2)),
+            DisplayCard(jinx, null),
+        )
+        val filtered = CollectionQuery.filter(
+            rows, "", OwnershipFilter.ALL, CollectionFilters(languages = setOf("zh")), searchArtist = false,
+        )
+        assertThat(filtered.map { it.entry?.id }).containsExactly(1L)
+    }
+
+    @Test
+    fun `the language facet appears only when two or more languages are owned`() {
+        assertThat(CollectionQuery.facets(listOf(ahri), listOf(entry(ahri))).languages).isEmpty()
+        val facets = CollectionQuery.facets(
+            listOf(ahri, jinx),
+            listOf(entryIn(ahri, CardLanguage.FR, 1), entry(jinx, id = 2), entryIn(jinx, CardLanguage.FR, 3)),
+        )
+        assertThat(facets.languages).containsExactly(Facet("en", 1), Facet("fr", 2)).inOrder()
+    }
+
+    @Test
+    fun `row ids differ by language so two language stacks are two tiles`() {
+        val en = DisplayCard(ahri, entryIn(ahri, CardLanguage.EN, 1))
+        val fr = DisplayCard(ahri, entryIn(ahri, CardLanguage.FR, 1))
+        assertThat(en.id).isNotEqualTo(fr.id)
     }
 }

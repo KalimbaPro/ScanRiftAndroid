@@ -28,9 +28,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,6 +66,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.ViewConfiguration
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,6 +75,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.core.log.Log
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.adaptive.ProvideContentWidth
 import com.scanrift.android.ui.components.AddToListSheet
@@ -84,7 +85,15 @@ import com.scanrift.android.ui.theme.Dimens
 import com.scanrift.android.ui.util.shareFile
 import kotlinx.coroutines.launch
 
-private class PagerSnapshot(val cards: List<Card>, val startIndex: Int)
+/**
+ * The pager's pages, frozen when a card is opened. [entryIds] remembers which owned
+ * copy each page came from, so opening the French row shows the French copy rather
+ * than whichever stack `preferredEntry` would pick.
+ */
+private class PagerSnapshot(val cards: List<Card>, val entryIds: List<Long?>, val startIndex: Int) {
+    constructor(rows: List<DisplayCard>, startIndex: Int) :
+        this(rows.map { it.card }, rows.map { it.entry?.id }, startIndex)
+}
 
 /**
  * The collection browser: a grid beside a card detail.
@@ -138,7 +147,7 @@ fun CollectionBrowsePane(
 
     fun openCard(index: Int) {
         val row = state.cards[index]
-        pagerSnapshot = PagerSnapshot(state.cards.map { it.card }, index)
+        pagerSnapshot = PagerSnapshot(state.cards, index)
         pagerCardId = row.card.id
         scope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, row.card.id) }
     }
@@ -237,7 +246,7 @@ fun CollectionBrowsePane(
                     val fallback = remember(detailKey, state.isLoading) {
                         state.cards.indexOfFirst { it.card.id == detailKey }
                             .takeIf { it >= 0 }
-                            ?.let { PagerSnapshot(state.cards.map { row -> row.card }, it) }
+                            ?.let { PagerSnapshot(state.cards, it) }
                     }
                     val snapshot = pagerSnapshot?.takeIf { it.cards.getOrNull(it.startIndex)?.id == detailKey } ?: fallback
                     when {
@@ -246,6 +255,7 @@ fun CollectionBrowsePane(
                         else -> key(snapshot) {
                             CardPager(
                                 pages = snapshot.cards,
+                                pageEntryIds = snapshot.entryIds,
                                 startIndex = snapshot.startIndex,
                                 state = state,
                                 actions = CardPagerActions(
@@ -254,6 +264,7 @@ fun CollectionBrowsePane(
                                     onAdjustQuantity = viewModel::adjustQuantity,
                                     onSetQuantity = viewModel::setQuantity,
                                     onConditionChange = viewModel::setCondition,
+                                    onLanguageChange = viewModel::setLanguage,
                                     onToggleWishlist = viewModel::toggleWishlist,
                                     onAddToList = { addToListCards = listOf(it) },
                                 ),
@@ -350,36 +361,92 @@ private fun CollectionGrid(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 item(key = "info", span = { GridItemSpan(maxLineSpan) }) { InfoBar(state, horizontalPadding = 0.dp) }
-                itemsIndexed(state.cards, key = { _, row -> row.id }) { index, row ->
-                    val selected = row.id in state.controls.selectedIds
-                    val shape = RoundedCornerShape(8.dp)
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(Dimens.CARD_ASPECT_RATIO)
-                            .clip(shape)
-                            .combinedClickable(
-                                onClick = { actions.onClick(index, row) },
-                                onLongClick = if (selecting) null else ({ actions.onLongClick(row) }),
-                            ),
-                    ) {
-                        CardThumbnail(
-                            card = row.card,
-                            quantity = row.quantity,
-                            isFoil = row.entry?.isFoil == true || row.card.isAlwaysFoil,
-                            showUnownedInColor = state.prefs.showUnownedInColor,
-                            // Landscape battlefields are rotated upright in the grid only.
-                            rotateLandscape = true,
-                            modifier = Modifier.matchParentSize(),
-                        )
-                        when {
-                            selecting -> SelectionOverlay(selected)
-                            row.card.id == highlightedCardId ->
-                                Box(Modifier.matchParentSize().border(3.dp, MaterialTheme.colorScheme.primary, shape))
+                languageSections(state).forEach { section ->
+                    section.language?.let { language ->
+                        item(key = "lang-${language.value}", span = { GridItemSpan(maxLineSpan) }) {
+                            LanguageHeader(language, section.copies)
+                        }
+                    }
+                    items(section.indices.count(), key = { state.cards[section.indices.first + it].id }) { offset ->
+                        val index = section.indices.first + offset
+                        val row = state.cards[index]
+                        val selected = row.id in state.controls.selectedIds
+                        val shape = RoundedCornerShape(8.dp)
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(Dimens.CARD_ASPECT_RATIO)
+                                .clip(shape)
+                                .combinedClickable(
+                                    onClick = { actions.onClick(index, row) },
+                                    onLongClick = if (selecting) null else ({ actions.onLongClick(row) }),
+                                ),
+                        ) {
+                            CardThumbnail(
+                                card = row.card,
+                                quantity = row.quantity,
+                                isFoil = row.entry?.isFoil == true || row.card.isAlwaysFoil,
+                                showUnownedInColor = state.prefs.showUnownedInColor,
+                                // Landscape battlefields are rotated upright in the grid only.
+                                rotateLandscape = true,
+                                language = row.entry?.language,
+                                modifier = Modifier.matchParentSize(),
+                            )
+                            when {
+                                selecting -> SelectionOverlay(selected)
+                                row.card.id == highlightedCardId ->
+                                    Box(Modifier.matchParentSize().border(3.dp, MaterialTheme.colorScheme.primary, shape))
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+/** A run of rows sharing a language; [language] is null when the view needs no headers. */
+private class LanguageSection(val language: CardLanguage?, val indices: IntRange, val copies: Int)
+
+/**
+ * Splits `state.cards` — already grouped by language in the ViewModel — into runs.
+ * One headerless section when the view holds a single language.
+ */
+private fun languageSections(state: CollectionBrowseState): List<LanguageSection> {
+    val cards = state.cards
+    if (cards.isEmpty()) return emptyList()
+    if (!state.showsLanguageSections) return listOf(LanguageSection(null, cards.indices, 0))
+    val sections = mutableListOf<LanguageSection>()
+    var start = 0
+    for (i in 1..cards.size) {
+        if (i == cards.size || cards[i].language != cards[start].language) {
+            val range = start until i
+            sections += LanguageSection(cards[start].language, range, range.sumOf { cards[it].quantity })
+            start = i
+        }
+    }
+    return sections
+}
+
+@Composable
+private fun LanguageHeader(language: CardLanguage, copies: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(top = 8.dp, bottom = 4.dp)
+            .semantics(mergeDescendants = true) { heading() },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(language.flag, fontSize = 18.sp)
+        Text(language.displayName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        if (copies > 0) {
+            Text(
+                "$copies",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -413,7 +480,15 @@ private fun CollectionList(state: CollectionBrowseState, listState: LazyListStat
     SelectionLongPress {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             stickyHeader(key = "info") { InfoBar(state) }
-            itemsIndexed(state.cards, key = { _, row -> row.id }) { index, row ->
+            languageSections(state).forEach { section ->
+              section.language?.let { language ->
+                stickyHeader(key = "lang-${language.value}") {
+                    LanguageHeader(language, section.copies, Modifier.padding(horizontal = 16.dp))
+                }
+              }
+              items(section.indices.count(), key = { state.cards[section.indices.first + it].id }) { offset ->
+                val index = section.indices.first + offset
+                val row = state.cards[index]
                 val selected = row.id in state.controls.selectedIds
                 Row(
                     modifier = Modifier
@@ -442,6 +517,7 @@ private fun CollectionList(state: CollectionBrowseState, listState: LazyListStat
                             showUnownedInColor = state.prefs.showUnownedInColor,
                             cornerRadius = 4.dp,
                             showQuantityBadge = false,
+                            language = row.entry?.language,
                             modifier = Modifier.matchParentSize(),
                         )
                         if (row.quantity > 1) {
@@ -485,6 +561,7 @@ private fun CollectionList(state: CollectionBrowseState, listState: LazyListStat
                     }
                 }
                 HorizontalDivider(Modifier.padding(start = if (selecting) 112.dp else 78.dp))
+              }
             }
         }
     }

@@ -60,6 +60,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.Domain
 import com.scanrift.android.domain.model.Rarity
 
@@ -358,6 +359,11 @@ fun ActiveFiltersBar(filters: CollectionFilters, onChange: (CollectionFilters) -
             RemovableChip(it) { onChange(filters.copy(rarities = filters.rarities - it)) }
         }
         filters.sets.sorted().forEach { RemovableChip(it) { onChange(filters.copy(sets = filters.sets - it)) } }
+        filters.languages.map(CardLanguage::fromValue).sortedBy { it.ordinal }.forEach { language ->
+            RemovableChip("${language.flag} ${language.code}") {
+                onChange(filters.copy(languages = filters.languages - language.value))
+            }
+        }
         if (filters.hasEnergyRange) {
             RemovableChip("Energy: ${filters.energyMin ?: 0}–${filters.energyMax ?: 99}") {
                 onChange(filters.copy(energyMin = null, energyMax = null))

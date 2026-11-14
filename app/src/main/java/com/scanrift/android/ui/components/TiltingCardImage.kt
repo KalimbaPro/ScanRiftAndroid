@@ -19,6 +19,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.ui.theme.Dimens
 import com.scanrift.android.ui.theme.Motion
 import kotlin.math.abs
@@ -28,7 +29,13 @@ private const val TILT_DISTANCE = 150f
 private const val MAX_TILT_DEGREES = 15f
 
 @Composable
-fun TiltingCardImage(card: Card, maxWidth: Dp, isOwned: Boolean = true, isFoil: Boolean = false) {
+fun TiltingCardImage(
+    card: Card,
+    maxWidth: Dp,
+    isOwned: Boolean = true,
+    isFoil: Boolean = false,
+    language: CardLanguage? = null,
+) {
     val drag = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
     val scope = rememberCoroutineScope()
     val shape = RoundedCornerShape(12.dp)
@@ -40,6 +47,7 @@ fun TiltingCardImage(card: Card, maxWidth: Dp, isOwned: Boolean = true, isFoil: 
         isFoil = isFoil,
         cornerRadius = 12.dp,
         showQuantityBadge = false,
+        language = language,
         modifier = Modifier
             .widthIn(max = maxWidth)
             .fillMaxWidth()

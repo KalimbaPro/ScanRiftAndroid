@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardCondition
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CollectionEntry
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.components.CardInfo
@@ -63,6 +64,7 @@ fun CardDetailPage(
     card: Card,
     entry: CollectionEntry?,
     onConditionChange: (CollectionEntry, CardCondition) -> Unit,
+    onLanguageChange: (CollectionEntry, CardLanguage) -> Unit,
     bottomInset: Dp,
     modifier: Modifier = Modifier,
 ) {
@@ -72,7 +74,7 @@ fun CardDetailPage(
             val paneHeight = maxHeight
             Row(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxHeight().padding(16.dp), contentAlignment = Alignment.Center) {
-                    TiltingCardImage(card, Dimens.DetailImageMax, entry != null, isFoil)
+                    TiltingCardImage(card, Dimens.DetailImageMax, entry != null, isFoil, entry?.language)
                 }
                 Column(
                     modifier = Modifier
@@ -86,7 +88,7 @@ fun CardDetailPage(
                 ) {
                     Text(card.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     CardInfo(card)
-                    entry?.let { CollectionInfoSection(it, onConditionChange) }
+                    entry?.let { CollectionInfoSection(it, onConditionChange, onLanguageChange) }
                     CardTextSection(card)
                     ErrataSection(card)
                 }
@@ -101,9 +103,9 @@ fun CardDetailPage(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                TiltingCardImage(card, CardImageMaxWidth, entry != null, isFoil)
+                TiltingCardImage(card, CardImageMaxWidth, entry != null, isFoil, entry?.language)
                 CardInfo(card)
-                entry?.let { CollectionInfoSection(it, onConditionChange) }
+                entry?.let { CollectionInfoSection(it, onConditionChange, onLanguageChange) }
                 CardTextSection(card)
                 ErrataSection(card)
             }
@@ -112,7 +114,11 @@ fun CardDetailPage(
 }
 
 @Composable
-private fun CollectionInfoSection(entry: CollectionEntry, onConditionChange: (CollectionEntry, CardCondition) -> Unit) {
+private fun CollectionInfoSection(
+    entry: CollectionEntry,
+    onConditionChange: (CollectionEntry, CardCondition) -> Unit,
+    onLanguageChange: (CollectionEntry, CardLanguage) -> Unit,
+) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         HorizontalDivider()
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -135,6 +141,10 @@ private fun CollectionInfoSection(entry: CollectionEntry, onConditionChange: (Co
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Condition", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ConditionPicker(entry.condition) { onConditionChange(entry, it) }
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Language", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                LanguagePicker(entry.language) { onLanguageChange(entry, it) }
             }
         }
         Text(
@@ -165,3 +175,25 @@ private fun ConditionPicker(current: CardCondition, onChange: (CardCondition) ->
     }
 }
 
+/**
+ * Language is part of the copy's identity, like condition: changing it to a language
+ * you already hold merges the two stacks (see `CollectionRepository.setLanguage`).
+ */
+@Composable
+private fun LanguagePicker(current: CardLanguage, onChange: (CardLanguage) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }) {
+            Text("${current.flag} ${current.code}")
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            CardLanguage.entries.forEach { language ->
+                DropdownMenuItem(
+                    text = { Text("${language.flag}  ${language.displayName}") },
+                    onClick = { open = false; if (language != current) onChange(language) },
+                )
+            }
+        }
+    }
+}

@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardLanguage
 
 /**
  * A card image with all the ownership and print-variant treatments in one place.
@@ -64,7 +65,14 @@ fun CardThumbnail(
     cornerRadius: androidx.compose.ui.unit.Dp = 8.dp,
     showQuantityBadge: Boolean = true,
     showBannedBand: Boolean = true,
+    /**
+     * The owned copy's language. Chinese and Korean copies show their localised art when
+     * the API has it, and every non-English copy gets a small flag badge. Null for
+     * "not a specific copy" (catalogue rows, deck slots).
+     */
+    language: CardLanguage? = null,
 ) {
+    val imageUrl = card.imageUrl(language ?: CardLanguage.EN)
     val isOwned = quantity > 0
     val saturation = if (isOwned || showUnownedInColor) 1f else 0f
     val imageAlpha = if (isOwned) 1f else 0.5f
@@ -75,7 +83,7 @@ fun CardThumbnail(
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        if (card.imageUrl == null) {
+        if (imageUrl == null) {
             Icon(
                 imageVector = Icons.Outlined.Image,
                 contentDescription = null,
@@ -86,7 +94,7 @@ fun CardThumbnail(
             // Swap the constraints, then rotate, so landscape art fills a portrait tile.
             BoxWithConstraints(Modifier.matchParentSize().clipToBounds()) {
                 AsyncImage(
-                    model = card.imageUrl,
+                    model = imageUrl,
                     contentDescription = card.name,
                     contentScale = ContentScale.Crop,
                     colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) }),
@@ -99,7 +107,7 @@ fun CardThumbnail(
             }
         } else {
             AsyncImage(
-                model = card.imageUrl,
+                model = imageUrl,
                 contentDescription = card.name,
                 // A landscape battlefield cropped into a portrait tile shows its middle
                 // and hides its name, so letterbox it instead. The collection grid is
@@ -117,6 +125,19 @@ fun CardThumbnail(
         }
 
         if (showBannedBand) CardBannedBand(card)
+
+        if (language != null && language != CardLanguage.EN) {
+            Text(
+                text = language.flag,
+                fontSize = 11.sp,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(3.dp)
+                    .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 2.dp)
+                    .semantics { contentDescription = language.displayName },
+            )
+        }
 
         if (showQuantityBadge && quantity > 1) {
             Box(
