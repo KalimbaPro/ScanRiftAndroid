@@ -162,6 +162,37 @@ Note the asymmetry that makes this easy to misdiagnose: unfolding *looks* fine,
 because a stale single-pane value on a wide screen just shows a wider list. Only
 refolding is visibly wrong.
 
+**The collection's divider is the library's pane expansion, not a custom splitter.**
+`ListDetailPaneScaffold(paneExpansionState, paneExpansionDragHandle)` with
+`rememberPaneExpansionState` and a material3 `VerticalDragHandle` (all in adaptive
+1.2.0 / material3 1.4.0) — so the drag, fling, anchoring and the spacer all stay inside
+the scaffold's own measure pass, and folding still just changes `scaffoldValue`. The
+glue is `ui/collection/CollectionPaneSplit.kt`; the arithmetic is `ui/adaptive/PaneSplit`
+(plain JUnit). Four things the library does not do for you:
+
+1. *Floors.* It coerces a drag only to `[0, width]`, so dragging to the edge collapses a
+   pane. Anchors are rebuilt from the measured width every time it changes, holding the
+   list ≥ `Dimens.ListPaneMinWidth` and the detail ≥ `Dimens.DetailPaneMinWidth`, and
+   `SplitDragClamp` clamps the live drag through `consumeDragDelta`. That hook sees only
+   deltas, so the clamp mirrors the position itself, re-synced from the settled anchor on
+   every press; keep it the **outermost** pointer modifier on the handle. Under ~626dp
+   both floors do not fit, the anchor list is empty, the handle is removed and
+   `state.clear()` hands the split back to the scaffold's default.
+2. *Persistence.* The split is the list pane's share of the scaffold width (a
+   proportion), saved as the `collectionListPaneProportion` float in `UserPreferences`.
+   It is a preference, not a position: restore maps it to the nearest anchor at the
+   current width, and `PaneSplit.toPersist` refuses to save that restored anchor back —
+   otherwise rotating to a narrow screen would overwrite a 30% chosen on a wide one.
+   Single-pane has no anchors, so folding ignores it and unfolding restores it.
+3. *Right-to-left.* Shares are measured from the left edge, but the list is on the right
+   in RTL. Store the list's share; mirror at the boundary.
+4. *Taps.* Never put `onClick` in the handle's `semanticsProperties`: the library turns
+   it into a `clickable`, so every tap would jump an anchor and eat the double-tap reset.
+   TalkBack gets custom actions instead; the handle is `focusable` for arrow keys.
+
+When the split is specified, it overrides the directive's hinge-aware split; the Fold
+has no separating hinge when flat, so this costs nothing there.
+
 **Enum raw values are a wire format.** `CardCondition` stores `"Near Mint"`,
 `DeckSection` stores `"mainDeck"`, `GameResult` stores `"win"`. They go into the
 database, the backup snapshot and every export verbatim. Never store `name` or ordinal.

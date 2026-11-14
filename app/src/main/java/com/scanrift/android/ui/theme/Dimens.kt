@@ -59,6 +59,14 @@ object Dimens {
     val ScannerSidebarMinWidth = 600.dp
     val LargeScanGuideMinDimension = 600.dp
 
+    /**
+     * Floors for the collection's draggable split. Below 280dp the list pane's toolbar
+     * wraps and the grid drops to two columns; below 320dp the card image in the
+     * detail pane is smaller than the thumbnail it was opened from.
+     */
+    val ListPaneMinWidth = 280.dp
+    val DetailPaneMinWidth = 320.dp
+
     // Interaction timings, in milliseconds.
     const val LONG_PRESS_MULTI_SELECT_MS = 300L
 }

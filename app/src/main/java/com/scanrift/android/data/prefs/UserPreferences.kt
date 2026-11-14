@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -45,6 +46,7 @@ class UserPreferences @Inject constructor(
         val pointTrackerRoster = stringPreferencesKey(Constants.PreferenceKeys.POINT_TRACKER_ROSTER)
         val competitiveRegion = stringPreferencesKey(Constants.PreferenceKeys.COMPETITIVE_REGION)
         val scanLanguage = stringPreferencesKey(Constants.PreferenceKeys.SCAN_LANGUAGE)
+        val collectionListPaneProportion = floatPreferencesKey(Constants.PreferenceKeys.COLLECTION_LIST_PANE_PROPORTION)
     }
 
     val hapticFeedback: Flow<Boolean> = boolean(Keys.hapticFeedback, default = true)
@@ -80,6 +82,16 @@ class UserPreferences @Inject constructor(
     /** Scanner language: `auto` detects per card, anything else forces it. */
     val scanLanguage: Flow<ScanLanguage> =
         context.dataStore.data.map { ScanLanguage.fromValue(it[Keys.scanLanguage]) }
+
+    /**
+     * The collection list pane's share of the two-pane width, as the user last left the
+     * divider. Null until they first move it; the screen maps it to the nearest anchor
+     * that fits the current width (see `PaneSplit`).
+     */
+    val collectionListPaneProportion: Flow<Float?> =
+        context.dataStore.data.map { it[Keys.collectionListPaneProportion] }
+
+    suspend fun setCollectionListPaneProportion(value: Float) = put(Keys.collectionListPaneProportion, value)
 
     suspend fun setCompetitiveRegion(value: CompetitiveRegion) = put(Keys.competitiveRegion, value.value)
     suspend fun setScanLanguage(value: ScanLanguage) = put(Keys.scanLanguage, value.value)
