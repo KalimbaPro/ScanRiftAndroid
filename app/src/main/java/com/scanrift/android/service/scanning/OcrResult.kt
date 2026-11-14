@@ -5,7 +5,8 @@ package com.scanrift.android.service.scanning
  *   see `OcrService` for why that fallback exists.
  * @param scriptText text from the Chinese/Korean recognizers, when the Latin pass found
  *   a card but no Latin name. Only language detection reads it.
- * @param lines every recognised line with its box, for multi-card page scanning.
+ * @param lines every recognised line with its box, for multi-card page scanning and
+ *   the single-card focus mode ([ScanFocusPolicy]).
  */
 data class OcrResult(
     val extractedText: String,
@@ -14,6 +15,10 @@ data class OcrResult(
     val confidence: Double = 0.0,
     val scriptText: String? = null,
     val lines: List<TextLine> = emptyList(),
+    /** The Chinese/Korean pass's lines with their boxes, so focus mode can keep one card's. */
+    val scriptLines: List<TextLine> = emptyList(),
+    /** Upright image width ÷ height; boxes are normalised per axis. */
+    val imageAspect: Float = 1f,
 ) {
     val isEmpty: Boolean get() = extractedText.isBlank()
 

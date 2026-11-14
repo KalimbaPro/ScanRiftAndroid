@@ -66,6 +66,18 @@ object Constants {
         const val NAME_BAND_MAX_MID_X = 0.7f
         const val SET_CODE_BAND_MAX_Y = 0.25f
 
+        /**
+         * Focus mode (single-card scanning with neighbours in view, e.g. a binder page):
+         * entered when at least this many collector codes are read in one frame.
+         */
+        const val FOCUS_MIN_CARDS = 2
+
+        /** Processed frames with no card outside the guide before focus mode releases. */
+        const val FOCUS_RELEASE_FRAMES = 3
+
+        /** Fraction of a card's estimated region that must lie in the guide for it to count. */
+        const val FOCUS_MIN_OVERLAP = 0.5f
+
         /** Binder page stills are scaled to at most this many pixels on the long edge. */
         const val PAGE_MAX_DIMENSION = 4096
 

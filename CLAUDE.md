@@ -385,6 +385,20 @@ overnumbered, special print, promo, any suffix and then supplemental sets (OGS, 
 successive penalties, so a legend that only exists as a Starter still has a sensible
 default. Same rule as iOS `LegendPrintings.swift`; keep the two in step.
 
+**Single-mode scanning focuses on the guide when several cards are in view.** Matching the
+whole frame takes the first collector code, which on a binder page is often the card above.
+`ScanFocusPolicy` decides per processed frame: wide (today's whole-frame match) while at most
+one collector code is read; focus once `FOCUS_MIN_CARDS` codes are read, where each code
+becomes a card region via `MultiCardScanner.scan` and only a region at least
+`FOCUS_MIN_OVERLAP` inside the guide counts — none inside means no match, never a
+neighbour. It releases to wide after `FOCUS_RELEASE_FRAMES` consecutive frames with no card
+outside the guide. The guide reaches the frame through `scanGuideRect` (the one formula the
+overlay also draws with) and `OcrGeometry.guideInImage` (FILL_CENTER crop + ImageProxy
+rotation); that mapping assumes preview and analysis share a field of view, which is why the
+single-mode `Preview` is given the analysis stream's 16:9 aspect — do not drop it. In focus,
+the match uses the focused card's own code first, and language detection (and the CJK
+lines) read only that card's region. No UI: no indicator, no toggle.
+
 **The scan session is one row per scan, newest first, and never merges while scanning.**
 Scanning a card already in the session adds a new row (ManaBox does the same): a binder's
 English and French copies each need their own row to fix language or version. Language,

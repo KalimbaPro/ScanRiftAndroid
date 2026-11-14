@@ -93,7 +93,18 @@ class CameraService @Inject constructor() {
 
             val executor = analysisExecutor ?: Executors.newSingleThreadExecutor().also { analysisExecutor = it }
 
-            val preview = Preview.Builder().build().apply {
+            // Single mode: the preview shares the analysis stream's 16:9 aspect, so both see
+            // the same field of view and the on-screen guide maps onto the analysed frame
+            // (OcrGeometry.guideInImage).
+            val preview = Preview.Builder().apply {
+                if (!pageMode) {
+                    setResolutionSelector(
+                        ResolutionSelector.Builder()
+                            .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                            .build(),
+                    )
+                }
+            }.build().apply {
                 surfaceProvider = previewView.surfaceProvider
             }
 

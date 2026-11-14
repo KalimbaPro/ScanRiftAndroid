@@ -27,10 +27,14 @@ import com.scanrift.android.service.scanning.CameraState
 import com.scanrift.android.service.scanning.CardMatchingService
 import com.scanrift.android.service.scanning.LanguageDetector
 import com.scanrift.android.service.scanning.NormalizedBox
+import com.scanrift.android.service.scanning.MatchCandidate
 import com.scanrift.android.service.scanning.PageScanService
 import com.scanrift.android.service.scanning.MotionDetector
 import com.scanrift.android.service.scanning.OcrResult
 import com.scanrift.android.service.scanning.OcrService
+import com.scanrift.android.service.scanning.FocusDecision
+import com.scanrift.android.service.scanning.OcrGeometry
+import com.scanrift.android.service.scanning.ScanFocusPolicy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.DateFormat
 import java.util.Date
@@ -146,6 +150,13 @@ class ScannerViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val motionDetector = MotionDetector()
+
+    /** Wide vs focus matching when several cards are in view; see [ScanFocusPolicy]. */
+    private val focusPolicy = ScanFocusPolicy()
+
+    /** The scan guide as laid out on screen, in view pixels; null until measured. */
+    @Volatile
+    private var scanGuide: Pair<Size2, NormalizedBox>? = null
     private var matcher: CardMatchingService? = null
 
     /** Set ids a binder-page code may start with, raw and normalised. */
@@ -310,7 +321,16 @@ class ScannerViewModel @Inject constructor(
         return matched.size
     }
 
+    /**
+     * Where the camera layer drew the guide: the view's size and the guide rect, both in
+     * view pixels. Frames map it into their own coordinates ([OcrGeometry.guideInImage]).
+     */
+    fun setScanGuide(viewWidth: Float, viewHeight: Float, guide: NormalizedBox) {
+        scanGuide = Size2(viewWidth, viewHeight) to guide
+    }
+
     fun startScanning() {
+        focusPolicy.reset()
         resumeJob?.cancel()
         isPaused = false
         motionDetector.reset(waitForChange = false)
@@ -375,6 +395,14 @@ class ScannerViewModel @Inject constructor(
             return
         }
 
+        // Map the guide now: the proxy's size and rotation are gone once OCR closes it.
+        val guide = scanGuide?.let { (view, rect) ->
+            OcrGeometry.guideInImage(
+                view.width, view.height, rect,
+                imageProxy.width, imageProxy.height, imageProxy.imageInfo.rotationDegrees,
+            )
+        }
+
         isProcessingFrame = true
         motionDetector.readyToScan = false
         _uiState.update { it.copy(overlayState = ScannerOverlayState.PROCESSING) }
@@ -383,13 +411,17 @@ class ScannerViewModel @Inject constructor(
             try {
                 // extractText closes the proxy in its own finally. The Chinese/Korean
                 // pass is paid only for a matched card with no Latin name, in Auto.
+                // In focus mode both the gate and the CJK lines read only the focused card.
                 val auto = _uiState.value.scanLanguage == ScanLanguage.AUTO
-                val ocr = ocrService.extractText(imageProxy) { latin ->
-                    auto && !LanguageDetector.hasLatinName(latin.cardNameRegion) &&
-                        latin.confidence > Constants.Scanning.MINIMUM_OCR_CONFIDENCE &&
-                        matcher.findMatch(latin) != null
+                var decision: FocusDecision? = null
+                val decide = { latin: OcrResult ->
+                    focusPolicy.evaluate(latin.lines, guide, knownSetIds, latin.imageAspect).also { decision = it }
                 }
-                handleOcr(ocr, matcher)
+                val ocr = ocrService.extractText(imageProxy) { latin ->
+                    val (view, match) = focusedMatch(latin, decide(latin), matcher)
+                    auto && view != null && match != null && !LanguageDetector.hasLatinName(view.cardNameRegion)
+                }
+                handleOcr(ocr, matcher, decision ?: decide(ocr))
             } catch (e: Exception) {
                 Log.ocr.w(e, "OCR failed for this frame")
                 updateDebug { it.copy(ocrText = "ERROR: ${e.message}") }
@@ -407,7 +439,28 @@ class ScannerViewModel @Inject constructor(
         }
     }
 
-    private suspend fun handleOcr(ocr: OcrResult, matcher: CardMatchingService) {
+    /**
+     * The frame as [decision] sees it — the whole OCR, or just the focused card's lines —
+     * and its match. A focused card matches on its own collector code first: its OCR
+     * line can also carry a neighbour's code when two cards' bottoms read as one line.
+     */
+    private fun focusedMatch(
+        ocr: OcrResult,
+        decision: FocusDecision,
+        matcher: CardMatchingService,
+    ): Pair<OcrResult?, MatchCandidate?> {
+        if (ocr.confidence <= Constants.Scanning.MINIMUM_OCR_CONFIDENCE) return null to null
+        return when (decision) {
+            FocusDecision.Wide -> ocr to matcher.findMatch(ocr)
+            is FocusDecision.Focused -> {
+                val view = ScanFocusPolicy.focusedOcr(ocr, decision.card)
+                view to (matcher.findByCardCode(decision.card.code) ?: matcher.findMatch(view))
+            }
+            FocusDecision.NoCardInGuide -> null to null
+        }
+    }
+
+    private suspend fun handleOcr(ocr: OcrResult, matcher: CardMatchingService, decision: FocusDecision) {
         updateDebug {
             it.copy(
                 ocrText = ocr.extractedText,
@@ -415,9 +468,14 @@ class ScannerViewModel @Inject constructor(
             )
         }
 
-        val match = if (ocr.confidence > Constants.Scanning.MINIMUM_OCR_CONFIDENCE) matcher.findMatch(ocr) else null
-        updateDebug { it.copy(matchCount = if (match == null) 0 else 1) }
-        if (match == null) {
+        val (view, match) = focusedMatch(ocr, decision, matcher)
+        updateDebug {
+            it.copy(
+                matchCount = if (match == null) 0 else 1,
+                motionStatus = "${it.motionStatus} · ${if (decision == FocusDecision.Wide) "wide" else "focus"}",
+            )
+        }
+        if (match == null || view == null) {
             motionDetector.markRetry()
             return
         }
@@ -425,7 +483,7 @@ class ScannerViewModel @Inject constructor(
         lastScanAtMs = System.currentTimeMillis()
         motionDetector.markScanned()
 
-        val detection = LanguageDetector.resolve(_uiState.value.scanLanguage, ocr.languageText)
+        val detection = LanguageDetector.resolve(_uiState.value.scanLanguage, view.languageText)
         updateDebug { it.copy(ocrText = "${ocr.extractedText}\n[language ${detection.language.code} via ${detection.source}]") }
 
         val autoAdd = userPreferences.autoAddToCollection.first()
@@ -643,3 +701,6 @@ class ScannerViewModel @Inject constructor(
         super.onCleared()
     }
 }
+
+/** A width and height in view pixels. */
+data class Size2(val width: Float, val height: Float)

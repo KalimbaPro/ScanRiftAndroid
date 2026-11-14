@@ -83,12 +83,15 @@ class OcrService @Inject constructor() {
         val latin = recognize(recognizer, image).toOcrResult(width, height)
         if (!needsScriptPass(latin)) return latin
         val scripts = scriptRecognizers().mapNotNull { client ->
-            runCatching { recognize(client, image).text }
+            runCatching { recognize(client, image) }
                 .onFailure { Log.ocr.w(it, "Script recognizer unavailable") }
                 .getOrNull()
-                ?.takeIf { it.isNotBlank() }
+                ?.takeIf { it.text.isNotBlank() }
         }
-        return latin.copy(scriptText = scripts.joinToString("\n").takeIf { it.isNotEmpty() })
+        return latin.copy(
+            scriptText = scripts.joinToString("\n") { it.text }.takeIf { it.isNotEmpty() },
+            scriptLines = scripts.flatMap { it.toOcrResult(width, height).lines },
+        )
     }
 
     /**
@@ -163,6 +166,7 @@ class OcrService @Inject constructor() {
             setCodeRegion = setCodeParts.joinToString(" ").trim().takeIf { it.isNotEmpty() },
             confidence = confidence,
             lines = boxedLines,
+            imageAspect = if (height > 0) width.toFloat() / height else 1f,
         )
     }
 }

@@ -79,7 +79,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.contentDescription
@@ -232,8 +234,23 @@ private fun CameraLayer(
     }
 
     val cameraError = (cameraState as? CameraState.Failed)?.message
+    val density = LocalDensity.current
+    val guideWidth = if (largeGuide) Dimens.ScanGuideRegularWidth else Dimens.ScanGuideCompactWidth
+    val guideHeight = if (largeGuide) Dimens.ScanGuideRegularHeight else Dimens.ScanGuideCompactHeight
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            // Report where the guide is drawn, so focus mode knows which card is "in" it.
+            .onSizeChanged { size ->
+                val w = size.width.toFloat()
+                val h = size.height.toFloat()
+                with(density) {
+                    viewModel.setScanGuide(w, h, scanGuideRect(w, h, guideWidth.toPx(), guideHeight.toPx()))
+                }
+            },
+    ) {
         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
         Box(
             Modifier
@@ -253,8 +270,8 @@ private fun CameraLayer(
         } else {
             CardDetectionOverlay(
                 state = if (cameraError != null) ScannerOverlayState.ERROR else state.overlayState,
-                guideWidth = if (largeGuide) Dimens.ScanGuideRegularWidth else Dimens.ScanGuideCompactWidth,
-                guideHeight = if (largeGuide) Dimens.ScanGuideRegularHeight else Dimens.ScanGuideCompactHeight,
+                guideWidth = guideWidth,
+                guideHeight = guideHeight,
             )
         }
 
