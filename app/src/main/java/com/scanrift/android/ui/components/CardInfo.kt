@@ -34,6 +34,7 @@ import com.scanrift.android.ui.text.RichCardText
 @Composable
 fun CardInfo(card: Card, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        CardStatusPills(card)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             InfoBadge("Set", card.setLabel)
             InfoBadge("Rarity", card.rarity)
@@ -90,6 +91,42 @@ fun CardInfo(card: Card, modifier: Modifier = Modifier) {
     }
 }
 
+private val StatusBannedRed = Color(0xFFD70015)
+private val StatusErrataOrange = Color(0xFFFF9500)
+
+/**
+ * "Banned" and "Errata" pills right under the image, so a card's status reads at a
+ * glance instead of only from the corner sash and the Errata card further down.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CardStatusPills(card: Card) {
+    val errata = card.errata?.isNotBlank() == true
+    if (!card.banned && !errata) return
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (card.banned) StatusPill("Banned", StatusBannedRed)
+        if (errata) {
+            val date = card.errataDate?.let { " · ${formatErrataDate(it)}" }.orEmpty()
+            StatusPill("Errata$date", StatusErrataOrange)
+        }
+    }
+}
+
+@Composable
+private fun StatusPill(text: String, color: Color) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = color,
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(color.copy(alpha = 0.14f))
+            .border(1.dp, color.copy(alpha = 0.5f), CircleShape)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    )
+}
+
 @Composable
 private fun InfoBadge(label: String, value: String) {
     Column(
@@ -125,9 +162,9 @@ fun CardTextSection(card: Card) {
 }
 
 /**
- * Official errata, shown under the card text. The printed card is wrong; this is the
- * text that applies. Styled like [CardTextSection] with an accent edge so it reads as
- * a correction to the block above it rather than a second description.
+ * Official errata, shown above the card text so it is seen first. The printed card is
+ * wrong; this is the text that applies. Styled like [CardTextSection] with an accent
+ * edge so it reads as a correction rather than a second description.
  */
 @Composable
 fun ErrataSection(card: Card) {
@@ -143,7 +180,7 @@ fun ErrataSection(card: Card) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Errata", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text("Errata", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = accent, modifier = Modifier.weight(1f))
             card.errataDate?.let { date ->
                 Text(
                     formatErrataDate(date),
@@ -152,6 +189,11 @@ fun ErrataSection(card: Card) {
                 )
             }
         }
+        Text(
+            "Riot changed this card's text. This is the version that applies, whatever the printed card says.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         RichCardText(errata, modifier = Modifier.fillMaxWidth())
     }
 }
