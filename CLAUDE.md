@@ -502,6 +502,46 @@ get a copy limit of 12.
   `Dispatchers.IO` directly, so tests can substitute.
 - **Images**: Coil 3 through the shared `OkHttpClient`.
 
+## Store screenshots
+
+Play screenshots live outside the repo, in `../ScanRift-store-assets/android/` (`phone/`,
+`tablet-7/`, `tablet-10/`, `foldable/`, with a `README.md` of captions). To regenerate
+them, seed a debug build with the demo data set:
+
+```bash
+./gradlew assembleDebug
+scripts/screenshot-demo.sh <adb-serial>   # demo-mode status bar, install, seed
+adb -s <serial> shell cmd uimode night yes   # the current set is shot in dark mode
+```
+
+The seeder (`app/src/debug/.../demo/`) is **debug source set only** — the activity is
+declared in `src/debug/AndroidManifest.xml`, so release builds contain neither. It
+replaces the collection, decks, game history, wishlist and tracker roster with
+`DemoData`, which names cards by `riftbound_id`; `DemoDataTest` fails if a catalogue
+refresh drops one, if a deck stops validating, or if a deck needs more copies than the
+collection owns. It waits for the launch bootstrap before writing, because the
+catalogue's de-duplication can swap the rows the demo points at.
+
+Things the emulator needs that a phone does not:
+
+- **Scores are never persisted**, so the tracker always restores at 0–0. Tap points in
+  (press a seat's right half, then a dot) before capturing.
+- **The binder-page shot** comes from a photo, not the camera: compose a 3×3 page from
+  nine card images, `adb push` it to `/sdcard/Pictures/`, run
+  `adb shell content call --uri content://media/external/file --method scan_volume --arg external_primary`,
+  then Scan → Page → the photo button. The seed forces the scan language to English:
+  with Auto, the Chinese/Korean OCR pass loads Play Services' TFLite module, which dies
+  with SIGILL on the arm64 emulator and takes the app with it.
+- **A foldable has two displays**: `adb exec-out screencap -d <id> -p`, with the id from
+  `adb shell dumpsys SurfaceFlinger --display-id`.
+- Use `adb exec-out screencap`, not the emulator window, so no device frame is captured.
+- **Play rejects a screenshot whose long side is more than twice its short side**, so a
+  1080×2400 phone capture will not upload. Run `adb shell wm size 1080x2160` on the phone
+  emulator before capturing (and `wm size reset` after).
+- The 7" set is shot in landscape (`settings put system user_rotation 1` with
+  `accelerometer_rotation 0`); in portrait the collection's list pane is too narrow and
+  its "Collection" title wraps one syllable per line.
+
 ## Not ported from iOS
 
 Cardmarket pricing (`PricingService`, `CardmarketAPI`, `CardPriceSection`,
