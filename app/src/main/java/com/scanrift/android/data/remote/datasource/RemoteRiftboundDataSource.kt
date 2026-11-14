@@ -5,7 +5,9 @@ import com.scanrift.android.data.remote.api.RiftboundApi
 import com.scanrift.android.data.remote.dto.CardDto
 import com.scanrift.android.data.remote.dto.LegalityResponseDto
 import com.scanrift.android.data.remote.dto.RiftboundSetDto
+import com.scanrift.android.data.remote.dto.VersionDto
 import javax.inject.Inject
+import kotlinx.coroutines.withTimeout
 
 /** Pages through `/cards` and `/sets`, 100 at a time, exactly as iOS does. */
 class RemoteRiftboundDataSource @Inject constructor(
@@ -26,6 +28,13 @@ class RemoteRiftboundDataSource @Inject constructor(
     }
 
     override suspend fun fetchLegality(region: String): LegalityResponseDto = api.legality(region)
+
+    /**
+     * Runs on every launch, so it gets its own short budget instead of the client's
+     * 60-second call timeout. Cancelling the coroutine cancels the OkHttp call.
+     */
+    override suspend fun fetchVersion(): VersionDto =
+        withTimeout(Constants.Api.VERSION_CHECK_TIMEOUT_MS) { api.version() }
 
     private suspend inline fun paginate(
         noinline onProgress: ((Int, Int) -> Unit)?,

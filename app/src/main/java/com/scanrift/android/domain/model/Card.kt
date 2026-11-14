@@ -11,11 +11,7 @@ import java.util.Locale
  *
  * @param setId normalised set id — promos collapse to [SetNormalizer.PROMO_SET_ID].
  * @param sourceSetId the raw `set_id` the API returned, before normalisation.
- *   Not present on iOS, and it fixes a live bug there: `syncDelta` counts local cards
- *   by the normalised id but compares against the raw id from `/sets`, so the count for
- *   OPP/JDG/PR is always zero and all three promo sets refetch on every single sync.
- * @param updatedOn epoch millis from `metadata.updated_on`; drives the delta sync's
- *   "unchanged, skip the write" check.
+ * @param updatedOn epoch millis from `metadata.updated_on`.
  */
 data class Card(
     val id: String,

@@ -346,14 +346,14 @@ private fun SyncRow(
     val sync = if (catalogueIsEmpty) onLoad else onCheckForUpdates
     when (state) {
         BootstrapState.Idle -> ActionRow(
-            label = if (catalogueIsEmpty) "Load Card Database" else "Check for Updates",
+            label = if (catalogueIsEmpty) "Load Card Database" else "Refresh Card Database",
             icon = Icons.Filled.Refresh,
             onClick = sync,
         )
         BootstrapState.CheckingForUpdates -> ProgressRow("Checking for updates…")
         BootstrapState.SeedingBundle -> ProgressRow("Loading…")
         is BootstrapState.Syncing -> ProgressRow(
-            if (state.total > 0) "Updating set ${state.done} of ${state.total}…" else "Loading…",
+            if (state.total > 0) "Downloading page ${state.done} of ${state.total}…" else "Loading…",
         )
         BootstrapState.UpToDate -> SettledRow("Up to date", onSettled)
         is BootstrapState.Updated -> SettledRow(

@@ -55,8 +55,8 @@ data class CardEntity(
     /**
      * The raw `set_id` from the API, before promo normalisation.
      *
-     * Delta sync compares `/sets` card counts against local counts; counting by the
-     * normalised id would report zero for every promo set and refetch them forever.
+     * Keeps the promo sets (OPP, JDG, PR) distinguishable after normalisation folds
+     * them into one.
      */
     val sourceSetId: String,
 
@@ -68,7 +68,7 @@ data class CardEntity(
     val overnumbered: Boolean = false,
     val signature: Boolean = false,
 
-    /** Epoch millis from `metadata.updated_on`; drives the delta sync's skip check. */
+    /** Epoch millis from `metadata.updated_on`; de-duplication prefers the newest record. */
     val updatedOn: Long?,
 
     @ColumnInfo(defaultValue = CardOrientation.PORTRAIT)
@@ -98,7 +98,7 @@ data class CardLegality(
     val errataDate: String?,
 )
 
-/** Lightweight projection for sync, so a delta check never materialises 1500 full rows. */
+/** Lightweight projection for dedup and legality, so they never materialise every full row. */
 data class CardIdentity(
     val id: String,
     val riftboundId: String,

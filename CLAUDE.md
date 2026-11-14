@@ -99,6 +99,31 @@ foreign-key cascades. The previous version of this app cleared the catalogue on 
 sync and took the user's collection with it. Sync is `@Upsert`-only, and the child FKs
 are `ON DELETE SET NULL` so the failure mode cannot recur.
 
+**The catalogue updates when the API's `/version` tag changes, and only then.**
+`GET /version` returns a `tag` that changes exactly when cards, sets or any region's
+legality change. On every launch `DatabaseBootstrapper` reads it (5 s budget,
+`Cache-Control: no-cache` so OkHttp's disk cache cannot hand back a stale tag) and
+`CatalogueTagSync` decides:
+
+- same as the stored `catalogueTag` preference → nothing is fetched or written;
+- different, or none stored → full refresh: `/sets`, every `/cards` page, upsert every
+  card (no `updated_on` skip — a legality or localisation edit can leave it alone), the
+  dedup and orphan passes, then `/legality` for the current region;
+- the tag is stored only after every step succeeded. Any failure, including the version
+  check, is logged and leaves the old tag, so the next launch retries. The tag stored
+  is the one read *before* the refresh, so an API change mid-refresh errs towards
+  refreshing again.
+
+The bundled seed carries its tag as an extra envelope field (`"tag"` next to `items`),
+stored on a cold start, so a fresh install only hits the network for cards when the live
+catalogue has moved on since the APK was built. Refresh the seed by copying
+`RiftboundAPI/dist/seed/cards.json` over `res/raw/cards.json`. The Settings button forces
+a full refresh; changing the competitive region re-applies legality only.
+
+Do not bring back a TTL or a per-set count comparison. The `synced_sets` table is a
+leftover of the count comparison: nothing reads or writes it, and it stays only because
+dropping it would need a Room migration.
+
 **Backup timestamps must never carry fractional seconds.** Swift decodes
 `collection-snapshot.json` with `.iso8601`, which rejects them, and one bad timestamp
 makes iOS throw while decoding the *entire* file — the restore then fails with no
@@ -255,9 +280,10 @@ decks and lists point at `cards.id`. The API keeps every RiftCodex id and gives 
 RiftCodex lacks (all of Radiance, Secret Garden) `sha1(riftbound_id).hex[:24]`, frozen in
 its id map. Never re-key cards locally, and never "fix" an id by name. Its extra card fields
 (`banned`, `banned_formats`, `errata`, `errata_date`, `localizations`) are all optional;
-absent means legal / no errata / no localisation, and the bundled seed has none of them.
+absent means legal / no errata / no localisation. The bundled seed comes from the own API
+and carries them too.
 
-**The legality refresh never deletes.** Every update check and every change of the
+**The legality refresh never deletes.** Every full catalogue refresh and every change of the
 "Competitive region" setting pulls `GET /legality?region=` and `CardDao.applyLegality`
 rewrites the legality columns of the whole catalogue in one transaction: clear everything,
 then UPDATE the listed cards (matched by `id`, falling back to `riftbound_id`). Not listed

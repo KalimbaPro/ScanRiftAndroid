@@ -7,6 +7,9 @@ import com.scanrift.android.data.local.ScanRiftDatabase
 import com.scanrift.android.data.local.entity.CollectionEntryEntity
 import com.scanrift.android.data.local.entity.DeckEntity
 import com.scanrift.android.data.local.entity.DeckEntryEntity
+import com.scanrift.android.data.remote.datasource.RiftboundDataSource
+import com.scanrift.android.data.remote.dto.LegalityItemDto
+import com.scanrift.android.data.remote.dto.LegalityResponseDto
 import com.scanrift.android.data.remote.dto.RiftboundSetDto
 import com.scanrift.android.fake.AkaliFixture
 import com.scanrift.android.fake.FakeRiftboundDataSource
@@ -43,7 +46,6 @@ class CardDatabaseServiceTest {
             db = db,
             cardDao = db.cardDao(),
             maintenanceDao = db.maintenanceDao(),
-            syncedSetDao = db.syncedSetDao(),
             source = source,
             io = Dispatchers.Unconfined,
         )
@@ -84,16 +86,13 @@ class CardDatabaseServiceTest {
     }
 
     @Test
-    fun `delta sync cleans up pre-existing duplicates without refetching the set`() = runTest {
+    fun `a refresh cleans up pre-existing duplicates the api no longer serves`() = runTest {
         seedRawDuplicates()
-        // card_count matches what a de-duplicated catalogue would hold, so the refetch
-        // check does not fire — only the unconditional cleanup pass should run.
+        // The API serves nothing: only the de-duplication pass can touch the rows.
         source.sets = listOf(venSet(cardCount = 2))
 
-        val report = service.syncDelta()
+        service.refreshCatalogue("global")
 
-        assertThat(report.setsRefetched).isEqualTo(0)
-        assertThat(source.fetchedSetIds).isEmpty()
         assertThat(db.cardDao().getAll().map { it.riftboundId })
             .containsExactly("ven-021-166", "ven-021a-166")
     }
@@ -105,7 +104,7 @@ class CardDatabaseServiceTest {
         db.collectionEntryDao().insert(CollectionEntryEntity(cardId = "stub-021", quantity = 1, dateAdded = 1L))
         source.sets = listOf(venSet(cardCount = 2))
 
-        service.syncDelta()
+        service.refreshCatalogue("global")
 
         val all = db.cardDao().getAll()
         assertThat(all).hasSize(2)
@@ -125,7 +124,7 @@ class CardDatabaseServiceTest {
         db.deckDao().upsertEntry(DeckEntryEntity(deckId = "deck-1", cardId = "stub-021a", quantity = 2))
         source.sets = listOf(venSet(cardCount = 2))
 
-        service.syncDelta()
+        service.refreshCatalogue("global")
 
         val entries = db.deckDao().getAllEntries()
         val survivingIds = db.cardDao().getAll().map { it.id }.toSet()
@@ -143,7 +142,7 @@ class CardDatabaseServiceTest {
         db.collectionEntryDao().insert(CollectionEntryEntity(cardId = "stub-021", quantity = 3, dateAdded = 1L))
         source.sets = listOf(venSet(cardCount = 2))
 
-        service.syncDelta()
+        service.refreshCatalogue("global")
 
         // They must merge into one stack of 5 — iOS would have left two rows, which the
         // unique index makes impossible here.
@@ -153,117 +152,73 @@ class CardDatabaseServiceTest {
     }
 
     @Test
-    fun `a set is refetched only when the api reports more cards than we hold`() = runTest {
-        source.cards = AkaliFixture.decode()
-        source.sets = listOf(venSet(cardCount = 2))
-
-        // Empty catalogue: 2 > 0, so the set is fetched.
-        val first = service.syncDelta()
-        assertThat(first.setsRefetched).isEqualTo(1)
-        assertThat(first.added).isEqualTo(2)
-
-        // Now we hold 2 of 2, so a second pass fetches nothing.
-        source.fetchedSetIds.clear()
-        val second = service.syncDelta()
-        assertThat(second.setsRefetched).isEqualTo(0)
-        assertThat(source.fetchedSetIds).isEmpty()
-    }
-
-    @Test
-    fun `promo sets do not refetch forever`() = runTest {
-        // The live iOS bug: local counts are keyed on the normalised set id ("PROMO")
-        // but compared against the raw id from /sets ("OPP"), so the count reads zero
-        // and every promo set refetches on every sync. sourceSetId fixes it.
-        val promo = AkaliFixture.decode().first { it.id == "final-021" }.let {
-            it.copy(id = "promo-1", riftboundId = "opp-001-100", set = it.set.copy(setId = "OPP", label = "Promos"))
-        }
-        source.cards = listOf(promo)
-        source.sets = listOf(RiftboundSetDto(id = "s-opp", name = "Promos", setId = "OPP", cardCount = 1))
-
-        service.syncDelta()
-        assertThat(db.cardDao().getAll().single().setId).isEqualTo("PROMO")
-        assertThat(db.cardDao().getAll().single().sourceSetId).isEqualTo("OPP")
-
-        source.fetchedSetIds.clear()
-        val second = service.syncDelta()
-        assertThat(second.setsRefetched).isEqualTo(0)
-    }
-
-    @Test
-    fun `a set is not refetched forever just because dedup shrank it`() = runTest {
-        // The bug this guards, which iOS still has: card_count counts the raw records
-        // the API serves, while the local count is what survives de-duplication.
-        // Vendetta serves 358 records that collapse to 227 real cards, so a
-        // `cardCount > localCount` test is true forever and refetches the whole set on
-        // every sync. Here the 4 Akali records collapse to 2 against a count of 4.
+    fun `a refresh fetches every card and the sets, not set by set`() = runTest {
         source.cards = AkaliFixture.decode()
         source.sets = listOf(venSet(cardCount = 4))
 
-        val first = service.syncDelta()
-        assertThat(first.setsRefetched).isEqualTo(1)
+        val count = service.refreshCatalogue("global")
+
+        assertThat(count).isEqualTo(2)
+        assertThat(source.fetchAllCalls).isEqualTo(1)
+        assertThat(source.fetchedSetIds).isEmpty()
         assertThat(db.cardDao().count()).isEqualTo(2)
-
-        // 4 > 2 still holds, but the API's number has not changed, so nothing refetches.
-        source.fetchedSetIds.clear()
-        val second = service.syncDelta()
-        assertThat(second.setsRefetched).isEqualTo(0)
-        assertThat(source.fetchedSetIds).isEmpty()
     }
 
     @Test
-    fun `a set is refetched when the api count changes in either direction`() = runTest {
+    fun `a refresh rewrites every card even when updated_on is unchanged`() = runTest {
+        // A tag change can come from a legality or localisation edit that leaves
+        // updated_on alone, so nothing may be skipped on it.
         source.cards = AkaliFixture.decode()
-        source.sets = listOf(venSet(cardCount = 4))
-        service.syncDelta()
+        service.refreshCatalogue("global")
 
-        // Growth.
-        source.fetchedSetIds.clear()
-        source.sets = listOf(venSet(cardCount = 5))
-        assertThat(service.syncDelta().setsRefetched).isEqualTo(1)
+        source.cards = AkaliFixture.decode().map { it.copy(name = "${it.name} v2") }
+        service.refreshCatalogue("global")
 
-        // And shrinkage, which a `>` test could never have caught.
-        source.fetchedSetIds.clear()
-        source.sets = listOf(venSet(cardCount = 3))
-        assertThat(service.syncDelta().setsRefetched).isEqualTo(1)
-    }
-
-    @Test
-    fun `an unchanged updated_on skips the write`() = runTest {
-        source.cards = AkaliFixture.decode()
-        source.sets = listOf(venSet(cardCount = 2))
-        service.syncDelta()
-
-        // Force a refetch by changing the API's count, but return the same data.
-        source.sets = listOf(venSet(cardCount = 99))
-        val report = service.syncDelta()
-
-        assertThat(report.setsRefetched).isEqualTo(1)
-        assertThat(report.unchanged).isEqualTo(2)
-        assertThat(report.updated).isEqualTo(0)
-        assertThat(report.added).isEqualTo(0)
-        assertThat(report.hasChanges).isFalse()
-    }
-
-    @Test
-    fun `a changed updated_on rewrites the row`() = runTest {
-        source.cards = AkaliFixture.decode()
-        source.sets = listOf(venSet(cardCount = 2))
-        service.syncDelta()
-
-        source.cards = AkaliFixture.decode().map {
-            it.copy(
-                name = "${it.name} v2",
-                metadata = it.metadata.copy(updatedOn = "2027-01-01T00:00:00+00:00"),
-            )
-        }
-        source.sets = listOf(venSet(cardCount = 99))
-        val report = service.syncDelta()
-
-        assertThat(report.updated).isEqualTo(2)
-        assertThat(report.hasChanges).isTrue()
         assertThat(db.cardDao().getAll().map { it.name }).containsExactly(
             "Akali, Deadly Weapon v2", "Akali, Deadly Weapon (Alternate Art) v2",
         )
+    }
+
+    @Test
+    fun `a refresh never deletes a card the api stopped serving`() = runTest {
+        source.cards = AkaliFixture.decode()
+        service.refreshCatalogue("global")
+        db.collectionEntryDao().insert(CollectionEntryEntity(cardId = "final-021a", quantity = 1, dateAdded = 1L))
+
+        source.cards = AkaliFixture.decode().filter { it.riftboundId == "ven-021-166" }
+        service.refreshCatalogue("global")
+
+        assertThat(db.cardDao().getAll().map { it.riftboundId })
+            .containsExactly("ven-021-166", "ven-021a-166")
+        assertThat(db.collectionEntryDao().getAll().single().cardId).isEqualTo("final-021a")
+    }
+
+    @Test
+    fun `a refresh applies the region's legality after the cards`() = runTest {
+        source.cards = AkaliFixture.decode()
+        source.legality["kr"] = LegalityResponseDto(
+            region = "kr",
+            items = listOf(LegalityItemDto(id = "final-021", banned = true, bannedFormats = listOf("standard"))),
+        )
+
+        service.refreshCatalogue("kr")
+
+        assertThat(source.legalityCalls).isEqualTo(1)
+        assertThat(db.cardDao().getById("final-021")!!.banned).isTrue()
+        assertThat(db.cardDao().getById("final-021a")!!.banned).isFalse()
+    }
+
+    @Test
+    fun `a failing step fails the whole refresh`() = runTest {
+        val failing = object : RiftboundDataSource by source {
+            override suspend fun fetchLegality(region: String): LegalityResponseDto? = error("HTTP 503")
+        }
+        source.cards = AkaliFixture.decode()
+        val failingService = CardDatabaseService(db, db.cardDao(), db.maintenanceDao(), failing, Dispatchers.Unconfined)
+
+        val result = runCatching { failingService.refreshCatalogue("global") }
+
+        assertThat(result.exceptionOrNull()).hasMessageThat().isEqualTo("HTTP 503")
     }
 
     @Test

@@ -24,7 +24,7 @@ class AppViewModel @Inject constructor(
     val bootstrapState = bootstrapper.state
 
     init {
-        // Seeds the catalogue on a cold start and runs the TTL-gated delta sync.
+        // Seeds the catalogue on a cold start, then checks the API's /version tag.
         bootstrapper.start()
     }
 

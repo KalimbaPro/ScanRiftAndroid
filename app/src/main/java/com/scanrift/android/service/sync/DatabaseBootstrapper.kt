@@ -1,6 +1,6 @@
 package com.scanrift.android.service.sync
 
-import com.scanrift.android.core.Constants
+import androidx.annotation.VisibleForTesting
 import com.scanrift.android.core.log.Log
 import com.scanrift.android.data.prefs.UserPreferences
 import com.scanrift.android.data.repository.CardListRepository
@@ -9,9 +9,9 @@ import com.scanrift.android.di.Remote
 import com.scanrift.android.data.local.ScanRiftDatabase
 import com.scanrift.android.data.local.dao.CardDao
 import com.scanrift.android.data.local.dao.MaintenanceDao
-import com.scanrift.android.data.local.dao.SyncedSetDao
 import com.scanrift.android.data.remote.datasource.RiftboundDataSource
 import com.scanrift.android.di.IoDispatcher
+import com.scanrift.android.domain.model.CompetitiveRegion
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,13 +44,14 @@ sealed interface BootstrapState {
  * Launch orchestration, ported from iOS `ContentView.checkDatabaseStatus`.
  *
  * Every CloudKit wait is gone — with no cloud there is no import race to guard
- * against, so the 8-second catalogue wait and the 5-second wishlist poll simply do not
- * apply. What remains:
+ * against. What remains, on every launch:
  *
- * 1. Empty catalogue → seed from the bundled JSON, then force a delta sync. The
- *    bundle is a snapshot: the live API already serves 1451 cards to its 1064, so a
- *    seed-only install would be missing an entire set.
- * 2. Otherwise → de-duplicate, then a TTL-gated delta check (one per hour).
+ * 1. Empty catalogue → seed from the bundled JSON and store the seed's `/version` tag.
+ * 2. Ask the API for its `/version` tag. Same as stored → nothing at all is written.
+ *    Different or never stored → full refresh (every set, every card, legality), and
+ *    the new tag is stored only once all of it succeeded. A failure anywhere, including
+ *    the version check itself, is logged and leaves the old tag, so the next launch
+ *    retries. See [CatalogueTagSync].
  * 3. Always → reconcile the single system Wishlist.
  */
 @Singleton
@@ -58,7 +59,6 @@ class DatabaseBootstrapper @Inject constructor(
     private val db: ScanRiftDatabase,
     private val cardDao: CardDao,
     private val maintenanceDao: MaintenanceDao,
-    private val syncedSetDao: SyncedSetDao,
     @param:Bundled private val bundledSource: RiftboundDataSource,
     @param:Remote private val remoteSource: RiftboundDataSource,
     private val listRepository: CardListRepository,
@@ -72,32 +72,39 @@ class DatabaseBootstrapper @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + io)
     private val mutex = Mutex()
 
-    /** Idempotent: safe to call from every Activity creation. */
+    /** Idempotent: safe to call from every Activity creation. Runs once per process. */
     fun start() {
         if (!started.compareAndSet(false, true)) return
         scope.launch {
-            runCatching { mutex.withLock { bootstrap() } }.onFailure { failure -> _state.value = failed(failure) }
+            runCatching { runLaunch() }.onFailure { failure -> _state.value = failed(failure) }
         }
     }
 
+    /** The launch sequence itself, callable directly so tests can await it. */
+    @VisibleForTesting
+    internal suspend fun runLaunch() = mutex.withLock { bootstrap() }
+
+    /** Settings, empty catalogue: load the bundled seed. */
     fun loadCardDatabase() = runManually {
         _state.value = BootstrapState.Syncing(0, 0)
-        val count = service(bundledSource).fetchAndStoreCards { done, total ->
-            _state.value = BootstrapState.Syncing(done, total)
-        }
-        userPreferences.setLastDatabaseSync(System.currentTimeMillis())
-        BootstrapState.Updated(count)
+        BootstrapState.Updated(seedFromBundle())
     }
 
+    /** Settings: a forced full refresh, whatever the tags say. */
     fun checkForUpdates() = runManually {
         _state.value = BootstrapState.CheckingForUpdates
-        val report = syncDelta(service(remoteSource))
-        if (report.hasChanges) BootstrapState.Updated(report.added + report.updated) else BootstrapState.UpToDate
+        when (val outcome = syncCatalogue(force = true)) {
+            is CatalogueSyncOutcome.Refreshed -> BootstrapState.Updated(outcome.cardCount)
+            is CatalogueSyncOutcome.UpToDate -> BootstrapState.UpToDate
+            is CatalogueSyncOutcome.CheckFailed -> throw outcome.error
+            is CatalogueSyncOutcome.RefreshFailed -> throw outcome.error
+        }
     }
 
     /**
-     * Re-applies `/legality` for the current competitive region, outside the update
-     * TTL. Called when the region setting changes, so the ban list follows it at once.
+     * Re-applies `/legality` for the current competitive region. Called when the
+     * region setting changes, so the ban list follows it at once. The catalogue tag is
+     * untouched: it covers every region's legality, so it has not changed.
      */
     fun refreshLegality() {
         scope.launch {
@@ -124,49 +131,60 @@ class DatabaseBootstrapper @Inject constructor(
     }
 
     private suspend fun bootstrap() {
-        val bundledService = service(bundledSource)
-        val remoteService = service(remoteSource)
-
         if (cardDao.count() == 0) {
             _state.value = BootstrapState.SeedingBundle
-            bundledService.fetchAndStoreCards()
-            userPreferences.setLastDatabaseSync(System.currentTimeMillis())
-            // Forced, not TTL-gated: the bundle is always behind the API.
-            syncOnLaunch(remoteService, force = true)
-        } else {
-            remoteService.deduplicateLocalCards()
-            maintenanceDao.deleteOrphans()
-            syncOnLaunch(remoteService, force = false)
+            seedFromBundle()
         }
+
+        _state.value = BootstrapState.CheckingForUpdates
+        // Never blocks launch and never surfaces an error: the local catalogue is
+        // already usable, so a failure only means "slightly stale until next launch".
+        when (val outcome = syncCatalogue(force = false)) {
+            is CatalogueSyncOutcome.UpToDate -> Log.database.i("Catalogue up to date (%s)", outcome.tag)
+            is CatalogueSyncOutcome.Refreshed -> Log.database.i("Catalogue refreshed to %s", outcome.tag)
+            is CatalogueSyncOutcome.CheckFailed ->
+                Log.database.w(outcome.error, "Version check failed; keeping the local catalogue")
+            is CatalogueSyncOutcome.RefreshFailed ->
+                Log.database.w(outcome.error, "Catalogue refresh failed; keeping the old tag to retry next launch")
+        }
+        _state.value = BootstrapState.Idle
 
         listRepository.reconcileWishlist()
     }
 
-    private suspend fun syncOnLaunch(service: CardDatabaseService, force: Boolean) {
-        if (!force) {
-            val lastCheck = userPreferences.lastUpdateCheck.first()
-            if (lastCheck != null && System.currentTimeMillis() - lastCheck < Constants.Api.UPDATE_CHECK_TTL_MS) return
+    /**
+     * Seeds from the bundle and records the bundle's tag, so the version check right
+     * after compares the live API against what the seed actually holds.
+     */
+    private suspend fun seedFromBundle(): Int {
+        val count = service(bundledSource).fetchAndStoreCards { done, total ->
+            _state.value = BootstrapState.Syncing(done, total)
         }
-
-        _state.value = BootstrapState.CheckingForUpdates
-        // A failed network sync must not block launch — the bundled catalogue is
-        // already usable, so this degrades to "you have slightly stale data".
-        runCatching { syncDelta(service) }
-            .onFailure { error -> Log.database.w(error, "Delta sync failed; continuing with the local catalogue") }
-        _state.value = BootstrapState.Idle
+        bundledSource.fetchVersion()?.tag?.let { userPreferences.setCatalogueTag(it) }
+        userPreferences.setLastDatabaseSync(System.currentTimeMillis())
+        // The seed carries the global ban list. A restored install (Auto Backup brings
+        // the region preference back) may need another one, and a matching tag would
+        // otherwise never re-apply it.
+        if (userPreferences.competitiveRegion.first() != CompetitiveRegion.GLOBAL) {
+            runCatching { applyLegality(service(remoteSource)) }
+                .onFailure { Log.database.w(it, "Legality refresh after seeding failed") }
+        }
+        return count
     }
 
-    private suspend fun syncDelta(service: CardDatabaseService): SyncReport {
-        val now = System.currentTimeMillis()
-        val report = service.syncDelta { done, total -> _state.value = BootstrapState.Syncing(done, total) }
-        // After the card sync, never before: an upserted card carries the API's
-        // default-region `banned`, which the region-resolved legality must overwrite.
-        // A failure here is not a failed update check — the cards are already stored.
-        runCatching { applyLegality(service) }
-            .onFailure { Log.database.w(it, "Legality refresh failed; keeping the current ban list") }
-        userPreferences.setLastUpdateCheck(now)
-        if (report.hasChanges) userPreferences.setLastDatabaseSync(now)
-        return report
+    private suspend fun syncCatalogue(force: Boolean): CatalogueSyncOutcome {
+        val remote = service(remoteSource)
+        return CatalogueTagSync(
+            fetchRemoteTag = { remoteSource.fetchVersion()?.tag ?: error("The catalogue source has no /version") },
+            readStoredTag = { userPreferences.catalogueTag.first() },
+            writeStoredTag = { userPreferences.setCatalogueTag(it) },
+            refresh = {
+                _state.value = BootstrapState.Syncing(0, 0)
+                val region = userPreferences.competitiveRegion.first().value
+                remote.refreshCatalogue(region) { done, total -> _state.value = BootstrapState.Syncing(done, total) }
+                    .also { userPreferences.setLastDatabaseSync(System.currentTimeMillis()) }
+            },
+        ).run(force)
     }
 
     private suspend fun applyLegality(service: CardDatabaseService) {
@@ -179,5 +197,5 @@ class DatabaseBootstrapper @Inject constructor(
     }
 
     private fun service(source: RiftboundDataSource) =
-        CardDatabaseService(db, cardDao, maintenanceDao, syncedSetDao, source, io)
+        CardDatabaseService(db, cardDao, maintenanceDao, source, io)
 }

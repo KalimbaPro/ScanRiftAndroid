@@ -3,6 +3,7 @@ package com.scanrift.android.data.remote.datasource
 import com.scanrift.android.data.remote.dto.CardDto
 import com.scanrift.android.data.remote.dto.LegalityResponseDto
 import com.scanrift.android.data.remote.dto.RiftboundSetDto
+import com.scanrift.android.data.remote.dto.VersionDto
 
 /**
  * The catalogue source seam.
@@ -26,4 +27,11 @@ interface RiftboundDataSource {
      * seed, test fakes), which callers treat as "leave legality as it is".
      */
     suspend fun fetchLegality(region: String): LegalityResponseDto? = null
+
+    /**
+     * The data tag this source serves: `GET /version` for the network, the envelope's
+     * `tag` for the bundled seed. Null when the source has none (test fakes, a seed
+     * built before tags existed).
+     */
+    suspend fun fetchVersion(): VersionDto? = null
 }

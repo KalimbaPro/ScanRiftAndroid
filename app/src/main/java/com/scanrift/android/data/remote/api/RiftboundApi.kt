@@ -3,10 +3,22 @@ package com.scanrift.android.data.remote.api
 import com.scanrift.android.data.remote.dto.LegalityResponseDto
 import com.scanrift.android.data.remote.dto.PaginatedCardsResponse
 import com.scanrift.android.data.remote.dto.PaginatedSetsResponse
+import com.scanrift.android.data.remote.dto.VersionDto
 import retrofit2.http.GET
+import retrofit2.http.Headers
 import retrofit2.http.Query
 
 interface RiftboundApi {
+
+    /**
+     * The catalogue's data tag. `no-cache` because the Worker sends
+     * `Cache-Control: max-age=3600` and the shared OkHttp client has a disk cache:
+     * without it a launch within the hour would read a stale tag from disk and miss
+     * an update. `no-cache` still allows a cheap conditional revalidation.
+     */
+    @Headers("Cache-Control: no-cache")
+    @GET("/version")
+    suspend fun version(): VersionDto
 
     @GET("/cards")
     suspend fun cards(

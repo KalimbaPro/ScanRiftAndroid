@@ -38,7 +38,7 @@ class UserPreferences @Inject constructor(
         val luchoParameter = booleanPreferencesKey(Constants.PreferenceKeys.LUCHO_PARAMETER)
         val dynamicColor = booleanPreferencesKey(Constants.PreferenceKeys.DYNAMIC_COLOR)
         val lastDatabaseSync = longPreferencesKey(Constants.PreferenceKeys.LAST_DATABASE_SYNC)
-        val lastUpdateCheck = longPreferencesKey(Constants.PreferenceKeys.LAST_UPDATE_CHECK)
+        val catalogueTag = stringPreferencesKey(Constants.PreferenceKeys.CATALOGUE_TAG)
         val lastBackup = longPreferencesKey(Constants.PreferenceKeys.LAST_BACKUP)
         val backupUri = stringPreferencesKey(Constants.PreferenceKeys.BACKUP_URI)
         val cloudSnapshotAutoSync = booleanPreferencesKey(Constants.PreferenceKeys.CLOUD_SNAPSHOT_AUTO_SYNC)
@@ -62,7 +62,12 @@ class UserPreferences @Inject constructor(
     val dynamicColor: Flow<Boolean> = boolean(Keys.dynamicColor, default = false)
 
     val lastDatabaseSync: Flow<Long?> = nullableLong(Keys.lastDatabaseSync)
-    val lastUpdateCheck: Flow<Long?> = nullableLong(Keys.lastUpdateCheck)
+
+    /**
+     * The `/version` tag of the data the catalogue holds. Null until the first seed or
+     * full refresh completes; a mismatch with the API's tag triggers a full refresh.
+     */
+    val catalogueTag: Flow<String?> = context.dataStore.data.map { it[Keys.catalogueTag] }
     val lastBackup: Flow<Long?> = nullableLong(Keys.lastBackup)
     val backupUri: Flow<String?> = context.dataStore.data.map { it[Keys.backupUri] }
     val cloudSnapshotAutoSync: Flow<Boolean> = boolean(Keys.cloudSnapshotAutoSync, default = true)
@@ -86,7 +91,7 @@ class UserPreferences @Inject constructor(
     suspend fun setLuchoParameter(value: Boolean) = put(Keys.luchoParameter, value)
     suspend fun setDynamicColor(value: Boolean) = put(Keys.dynamicColor, value)
     suspend fun setLastDatabaseSync(value: Long) = put(Keys.lastDatabaseSync, value)
-    suspend fun setLastUpdateCheck(value: Long) = put(Keys.lastUpdateCheck, value)
+    suspend fun setCatalogueTag(value: String) = put(Keys.catalogueTag, value)
     suspend fun setLastBackup(value: Long) = put(Keys.lastBackup, value)
     suspend fun setBackupUri(value: String?) = context.dataStore.edit { prefs ->
         if (value == null) prefs.remove(Keys.backupUri) else prefs[Keys.backupUri] = value

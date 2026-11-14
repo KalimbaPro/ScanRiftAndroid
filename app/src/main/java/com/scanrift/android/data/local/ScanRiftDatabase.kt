@@ -9,7 +9,6 @@ import com.scanrift.android.data.local.dao.CollectionEntryDao
 import com.scanrift.android.data.local.dao.DeckDao
 import com.scanrift.android.data.local.dao.GameRecordDao
 import com.scanrift.android.data.local.dao.MaintenanceDao
-import com.scanrift.android.data.local.dao.SyncedSetDao
 import com.scanrift.android.data.local.entity.CardEntity
 import com.scanrift.android.data.local.entity.CardListCrossRef
 import com.scanrift.android.data.local.entity.CardListEntity
@@ -41,6 +40,8 @@ import com.scanrift.android.data.local.entity.SyncedSetEntity
         DeckEntity::class,
         DeckEntryEntity::class,
         GameRecordEntity::class,
+        // Unused since the /version tag replaced the per-set count check. Kept so
+        // the schema does not change: dropping it would need a migration.
         SyncedSetEntity::class,
     ],
     version = 2,
@@ -54,7 +55,6 @@ abstract class ScanRiftDatabase : RoomDatabase() {
     abstract fun deckDao(): DeckDao
     abstract fun gameRecordDao(): GameRecordDao
     abstract fun maintenanceDao(): MaintenanceDao
-    abstract fun syncedSetDao(): SyncedSetDao
 
     companion object {
         const val NAME = "scanrift.db"

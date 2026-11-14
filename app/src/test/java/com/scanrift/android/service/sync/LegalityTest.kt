@@ -80,7 +80,7 @@ class LegalityApplicationTest {
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), ScanRiftDatabase::class.java)
             .allowMainThreadQueries().build()
         source = FakeLegalitySource()
-        service = CardDatabaseService(db, db.cardDao(), db.maintenanceDao(), db.syncedSetDao(), source, Dispatchers.Unconfined)
+        service = CardDatabaseService(db, db.cardDao(), db.maintenanceDao(), source, Dispatchers.Unconfined)
     }
 
     @After

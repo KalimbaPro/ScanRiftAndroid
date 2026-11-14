@@ -154,7 +154,7 @@ class SettingsViewModel @Inject constructor(
     fun setDebugMode(value: Boolean) = update { userPreferences.setDebugMode(value) }
     fun setLuchoParameter(value: Boolean) = update { userPreferences.setLuchoParameter(value) }
 
-    /** Persists the region, then re-applies its ban list straight away (outside the update TTL). */
+    /** Persists the region, then re-applies its ban list straight away (the catalogue tag is unaffected). */
     fun setCompetitiveRegion(value: CompetitiveRegion) = update {
         if (userPreferences.competitiveRegion.first() == value) return@update
         userPreferences.setCompetitiveRegion(value)
