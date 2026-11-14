@@ -26,6 +26,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -129,7 +131,7 @@ private fun buildInlineContent(
                             } else {
                                 null
                             },
-                            modifier = Modifier.size(fontSize.value.dp * 1.1f),
+                            modifier = Modifier.fillMaxSize(),
                         )
                     }
                 }
@@ -140,15 +142,27 @@ private fun buildInlineContent(
                         // Inverted per theme, as on iOS: light disc on dark, dark on light.
                         val disc = if (isDark) Color.White else Color.Black
                         val digit = if (isDark) Color.Black else Color.White
+                        // Fill the placeholder rather than sizing in dp: the placeholder is in sp,
+                        // so a dp size drifts off-centre as soon as the system font scale isn't 1.
                         Box(
-                            modifier = Modifier.size(fontSize.value.dp * 1.15f).clip(CircleShape).background(disc),
+                            modifier = Modifier.fillMaxSize().clip(CircleShape).background(disc),
                             contentAlignment = Alignment.Center,
                         ) {
+                            // The digit would otherwise inherit the paragraph's line height and
+                            // font padding, which sit it below the centre of the disc.
                             Text(
                                 text = "${segment.value}",
                                 color = digit,
-                                fontSize = fontSize * 0.66f,
-                                fontWeight = FontWeight.Bold,
+                                style = TextStyle(
+                                    fontSize = fontSize * 0.66f,
+                                    lineHeight = fontSize * 0.66f,
+                                    fontWeight = FontWeight.Bold,
+                                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                    lineHeightStyle = LineHeightStyle(
+                                        alignment = LineHeightStyle.Alignment.Center,
+                                        trim = LineHeightStyle.Trim.Both,
+                                    ),
+                                ),
                             )
                         }
                     }

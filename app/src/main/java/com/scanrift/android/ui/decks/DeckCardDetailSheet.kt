@@ -166,8 +166,8 @@ fun DeckCardDetailSheet(
             }
 
             CardInfo(card)
-            CardTextSection(card)
             ErrataSection(card)
+            CardTextSection(card)
         }
     }
 }

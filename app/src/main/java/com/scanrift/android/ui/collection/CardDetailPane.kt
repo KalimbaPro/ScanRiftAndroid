@@ -89,8 +89,8 @@ fun CardDetailPage(
                     Text(card.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     CardInfo(card)
                     entry?.let { CollectionInfoSection(it, onConditionChange, onLanguageChange) }
-                    CardTextSection(card)
                     ErrataSection(card)
+                    CardTextSection(card)
                 }
             }
         } else {
@@ -106,8 +106,8 @@ fun CardDetailPage(
                 TiltingCardImage(card, CardImageMaxWidth, entry != null, isFoil, entry?.language)
                 CardInfo(card)
                 entry?.let { CollectionInfoSection(it, onConditionChange, onLanguageChange) }
-                CardTextSection(card)
                 ErrataSection(card)
+                CardTextSection(card)
             }
         }
     }
