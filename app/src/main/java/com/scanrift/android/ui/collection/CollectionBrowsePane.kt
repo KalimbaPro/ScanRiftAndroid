@@ -71,6 +71,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -79,7 +80,9 @@ import com.scanrift.android.core.log.Log
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.ui.adaptive.AdaptiveRules
+import com.scanrift.android.ui.adaptive.PaneSplit
 import com.scanrift.android.ui.adaptive.ProvideContentWidth
+import com.scanrift.android.ui.adaptive.paneFocusLanding
 import com.scanrift.android.ui.components.AddToListSheet
 import com.scanrift.android.ui.components.CardThumbnail
 import com.scanrift.android.ui.components.EmptyState
@@ -112,7 +115,6 @@ private class PagerSnapshot(val cards: List<Card>, val entryIds: List<Long?>, va
  * the index now points at a different card, silently. Keying on `DisplayCard.id` makes
  * that impossible; a card filtered out of the list resolves to nothing instead.
  */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun CollectionBrowsePane(
     listId: String?,
@@ -120,6 +122,26 @@ fun CollectionBrowsePane(
     initialQuery: String? = null,
     initialCardId: String? = null,
     viewModel: CollectionBrowseViewModel = hiltViewModel(),
+) {
+    // This screen has no Scaffold of its own, so nothing else consumes the status
+    // bar, navigation bar or display cutout — without this the toolbar sits under
+    // the clock and the grid runs behind the gesture bar. The width measured here,
+    // inside the insets, is the width the scaffold lays its panes out in.
+    BoxWithConstraints(Modifier.windowInsetsPadding(WindowInsets.safeDrawing)) {
+        CollectionBrowseContent(listId, onBack, initialQuery, initialCardId, viewModel, maxWidth, constraints.maxWidth)
+    }
+}
+
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+@Composable
+private fun CollectionBrowseContent(
+    listId: String?,
+    onBack: () -> Unit,
+    initialQuery: String?,
+    initialCardId: String?,
+    viewModel: CollectionBrowseViewModel,
+    availableWidth: Dp,
+    availableWidthPx: Int,
 ) {
     LaunchedEffect(listId) { viewModel.setListContext(listId) }
     // Arriving from the home page's global search: show every card (owned or not)
@@ -141,8 +163,13 @@ fun CollectionBrowsePane(
     var pagerSnapshot by remember { mutableStateOf<PagerSnapshot?>(null) }
     var pagerCardId by remember { mutableStateOf<String?>(null) }
 
+    // Two panes only when both can meet their floors (list ≥ ListPaneMinWidth, detail ≥
+    // DetailPaneMinWidth). The Medium-width directive splits any window from 600dp, and a
+    // 7" tablet in portrait is 600dp *before* the navigation rail takes its share: the
+    // list pane came out so narrow that "Collection" wrapped a syllable per line.
+    val baseDirective = calculatePaneScaffoldDirectiveWithTwoPanesOnMediumWidth(currentWindowAdaptiveInfo())
     val navigator = rememberListDetailPaneScaffoldNavigator<String>(
-        scaffoldDirective = calculatePaneScaffoldDirectiveWithTwoPanesOnMediumWidth(currentWindowAdaptiveInfo()),
+        scaffoldDirective = PaneSplit.directiveFor(baseDirective, availableWidth),
     )
     val detailKey = navigator.currentDestination?.contentKey
     val singlePane = navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] == PaneAdaptedValue.Hidden ||
@@ -205,16 +232,12 @@ fun CollectionBrowsePane(
     // `CollectionPaneSplit`). Its anchors come from the width measured here, inside the
     // insets — the same width the scaffold lays out in — and are empty whenever the
     // scaffold value is single-pane, so folding drops the split and unfolding restores
-    // the saved one.
-    //
-    // This screen has no Scaffold of its own, so nothing else consumes the status
-    // bar, navigation bar or display cutout — without this the toolbar sits under
-    // the clock and the grid runs behind the gesture bar.
+    // the saved one. Insets are consumed by CollectionBrowsePane, around this.
     val storedListShare by viewModel.listPaneProportion.collectAsStateWithLifecycle()
-    BoxWithConstraints(Modifier.windowInsetsPadding(WindowInsets.safeDrawing)) {
+    Box(Modifier.fillMaxSize()) {
         val split = rememberCollectionPaneSplit(
-            totalWidth = maxWidth,
-            widthPx = constraints.maxWidth,
+            totalWidth = availableWidth,
+            widthPx = availableWidthPx,
             spacer = navigator.scaffoldDirective.horizontalPartitionSpacerSize,
             twoPanes = !singlePane,
             listOnLeft = LocalLayoutDirection.current == LayoutDirection.Ltr,
@@ -229,7 +252,7 @@ fun CollectionBrowsePane(
             paneExpansionDragHandle = if (split.isResizable) ({ CollectionPaneDragHandle(split) }) else null,
             listPane = {
                 AnimatedPane {
-                    ProvideContentWidth {
+                    ProvideContentWidth(Modifier.paneFocusLanding()) {
                         Column(Modifier.fillMaxSize()) {
                             CollectionTopBar(
                                 state = state,
@@ -282,7 +305,7 @@ fun CollectionBrowsePane(
             },
             detailPane = {
                 AnimatedPane {
-                    ProvideContentWidth {
+                    ProvideContentWidth(Modifier.paneFocusLanding()) {
                         val fallback = remember(detailKey, state.isLoading) {
                             state.cards.indexOfFirst { it.card.id == detailKey }
                                 .takeIf { it >= 0 }

@@ -29,8 +29,13 @@ class ScanIdentifier(private val matcher: CardMatchingService) {
 
     /**
      * The frame as [decision] sees it — the whole OCR, or just the focused card's lines —
-     * and its match. A focused card matches on its own collector code first: its OCR
-     * line can also carry a neighbour's code when two cards' bottoms read as one line.
+     * and its match. A focused card matches on its own collector code, then on its own
+     * collector line (where the set-letter repair and the suffix retry can still save
+     * it), and never on the rest of its text: its OCR line can carry a neighbour's code
+     * when two cards' bottoms read as one line, and its body can hold another card's
+     * collector line that the geometry assigned to the wrong cell. A card whose own code
+     * does not name a card is left unmatched for the user to correct, rather than
+     * matched to whatever code turns up nearby.
      */
     fun identify(ocr: OcrResult, decision: FocusDecision = FocusDecision.Wide): Identification {
         if (ocr.confidence <= Constants.Scanning.MINIMUM_OCR_CONFIDENCE) return Identification(null, null)
@@ -38,7 +43,8 @@ class ScanIdentifier(private val matcher: CardMatchingService) {
             FocusDecision.Wide -> Identification(ocr, matcher.findMatch(ocr))
             is FocusDecision.Focused -> {
                 val view = ScanFocusPolicy.focusedOcr(ocr, decision.card)
-                Identification(view, matcher.findByCardCode(decision.card.code) ?: matcher.findMatch(view))
+                val match = matcher.findByCardCode(decision.card.code) ?: matcher.findByCardCode(decision.card.anchorText)
+                Identification(view, match)
             }
             FocusDecision.NoCardInGuide -> Identification(null, null)
         }

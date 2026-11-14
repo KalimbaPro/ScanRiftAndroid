@@ -43,6 +43,9 @@ mlkitTextRecognition = "16.0.1"
 # falls back to marker / stop-word detection.
 mlkitTextRecognitionCjk = "16.0.2"
 mlkitTextRecognitionCjkBundled = "16.0.1"
+# ModuleInstall, to check the Chinese/Korean models are present before a pass. Already on
+# the runtime classpath through the CJK recognizers; declared because OcrService calls it.
+playServicesBase = "18.5.0"
 # 3.6.x pulls Compose Multiplatform 1.12, which drags the whole androidx
 # Compose stack to 1.12.0 and back over the AGP 9.1 line. 3.5.0 targets 1.11.1.
 coil = "3.5.0"
@@ -115,6 +118,7 @@ camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", vers
 camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 
 # ML Kit (bundled model: offline OCR on every device, no Play Services dependency)
+play-services-base = { group = "com.google.android.gms", name = "play-services-base", version.ref = "playServicesBase" }
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
 mlkit-text-recognition-chinese = { group = "com.google.android.gms", name = "play-services-mlkit-text-recognition-chinese", version.ref = "mlkitTextRecognitionCjk" }
 mlkit-text-recognition-korean = { group = "com.google.android.gms", name = "play-services-mlkit-text-recognition-korean", version.ref = "mlkitTextRecognitionCjk" }

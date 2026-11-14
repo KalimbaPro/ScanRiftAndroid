@@ -71,13 +71,32 @@ object Dimens {
     val ScannerSidebarMinWidth = 600.dp
     val LargeScanGuideMinDimension = 600.dp
 
+    /** Thumbnail + a readable name (~180dp) + language, foil, add-to-deck and stepper (~300dp). */
+    val ScanRowInlineControlsMinWidth = 520.dp
+
     /**
-     * Floors for the collection's draggable split. Below 280dp the list pane's toolbar
-     * wraps and the grid drops to two columns; below 320dp the card image in the
-     * detail pane is smaller than the thumbnail it was opened from.
+     * Floors for the collection's draggable split. Below 260dp the list pane's toolbar
+     * wraps; below 300dp the card image in the detail pane gets smaller than the
+     * thumbnail it was opened from. Together with the 24dp spacer that is 584dp, which
+     * an unfolded Fold held upright (~621dp beside the rail) still clears, so the
+     * device the split exists for keeps its two panes, while a 7" tablet in portrait
+     * (520dp beside the rail) stays single-pane.
      */
-    val ListPaneMinWidth = 280.dp
-    val DetailPaneMinWidth = 320.dp
+    val ListPaneMinWidth = 260.dp
+    val DetailPaneMinWidth = 300.dp
+
+    /**
+     * Floating buttons over scrolling content. A list under a FAB pads its end by
+     * [FabContentClearance] — the button, the margin below it and the same gap again
+     * above it — so the last item can always be scrolled clear of the button.
+     */
+    val FabSize = 56.dp
+    val FabMargin = 16.dp
+    val FabContentClearance = FabSize + FabMargin * 2
+
+    /** The card detail's floating quantity stepper sits this far from the pane's bottom-end corner. */
+    val QuantityStepperMargin = 24.dp
+    val QuantityStepperContentClearance = FabSize + QuantityStepperMargin + FabMargin
 
     // Interaction timings, in milliseconds.
     const val LONG_PRESS_MULTI_SELECT_MS = 300L

@@ -101,6 +101,12 @@ object AdaptiveRules {
      */
     fun usePageReviewSplit(width: Dp): Boolean = width >= Dimens.TwoPaneMinWidth
 
+    /**
+     * A scan-session row puts its controls on a line under the card name below this
+     * width; beside the name they would leave it a few letters.
+     */
+    fun stackScanRowControls(rowWidth: Dp): Boolean = rowWidth < Dimens.ScanRowInlineControlsMinWidth
+
     /** The larger scan guide is independent of the sidebar. */
     fun useLargeScanGuide(width: Dp, height: Dp): Boolean =
         minOf(width, height) >= Dimens.LargeScanGuideMinDimension

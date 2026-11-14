@@ -1,5 +1,7 @@
 package com.scanrift.android.ui.adaptive
 
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.layout.PaneScaffoldDirective
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.ui.theme.Dimens
@@ -62,6 +64,32 @@ object PaneSplit {
         val low = ceil3((minLeft + half) / totalWidth)
         val high = floor3((totalWidth - minRight - half) / totalWidth)
         return if (low <= high) low..high else null
+    }
+
+    /**
+     * Whether [totalWidth] holds both panes at their floors plus the spacer. Below this
+     * the collection is single-pane: a list squeezed under its floor wraps its title a
+     * syllable per line, and an unresizable divider is worse than no divider.
+     */
+    fun fitsTwoPanes(
+        totalWidth: Dp,
+        spacer: Dp,
+        minLeft: Dp = Dimens.ListPaneMinWidth,
+        minRight: Dp = Dimens.DetailPaneMinWidth,
+    ): Boolean = proportionRange(totalWidth, spacer, minLeft, minRight) != null
+
+    /**
+     * Caps the number of panes for the width actually available. [maxPartitions] is what
+     * the window-based directive asked for; the result is 1 when two panes would not fit.
+     */
+    fun paneCount(maxPartitions: Int, totalWidth: Dp, spacer: Dp): Int =
+        if (maxPartitions > 1 && !fitsTwoPanes(totalWidth, spacer)) 1 else maxPartitions
+
+    /** [directive] with [paneCount] applied. */
+    @OptIn(ExperimentalMaterial3AdaptiveApi::class)
+    fun directiveFor(directive: PaneScaffoldDirective, totalWidth: Dp): PaneScaffoldDirective {
+        val panes = paneCount(directive.maxHorizontalPartitions, totalWidth, directive.horizontalPartitionSpacerSize)
+        return if (panes == directive.maxHorizontalPartitions) directive else directive.copy(maxHorizontalPartitions = panes)
     }
 
     /**

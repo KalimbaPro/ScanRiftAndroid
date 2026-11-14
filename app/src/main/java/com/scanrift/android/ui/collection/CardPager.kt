@@ -31,6 +31,7 @@ import com.scanrift.android.domain.model.CardCondition
 import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CollectionEntry
 import com.scanrift.android.ui.adaptive.AdaptiveRules
+import com.scanrift.android.ui.theme.Dimens
 import com.scanrift.android.ui.theme.RarityShowcase
 import com.scanrift.android.ui.util.lightImpact
 
@@ -108,7 +109,7 @@ fun CardPager(
                         entry = entryFor(index),
                         onConditionChange = actions.onConditionChange,
                         onLanguageChange = actions.onLanguageChange,
-                        bottomInset = FabClearance,
+                        bottomInset = Dimens.QuantityStepperContentClearance,
                     )
                 }
                 CollectionFab(
@@ -116,11 +117,11 @@ fun CardPager(
                     onIncrement = { actions.onAdjustQuantity(current, currentEntry, 1) },
                     onDecrement = { actions.onAdjustQuantity(current, currentEntry, -1) },
                     onSetQuantity = { actions.onSetQuantity(current, currentEntry, it) },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 24.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 20.dp, bottom = Dimens.QuantityStepperMargin),
                 )
             }
         }
     }
 }
-
-private val FabClearance = 88.dp

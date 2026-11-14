@@ -189,9 +189,14 @@ glue is `ui/collection/CollectionPaneSplit.kt`; the arithmetic is `ui/adaptive/P
    list ≥ `Dimens.ListPaneMinWidth` and the detail ≥ `Dimens.DetailPaneMinWidth`, and
    `SplitDragClamp` clamps the live drag through `consumeDragDelta`. That hook sees only
    deltas, so the clamp mirrors the position itself, re-synced from the settled anchor on
-   every press; keep it the **outermost** pointer modifier on the handle. Under ~626dp
-   both floors do not fit, the anchor list is empty, the handle is removed and
-   `state.clear()` hands the split back to the scaffold's default.
+   every press; keep it the **outermost** pointer modifier on the handle. Under ~586dp
+   (260 + 300 + the 24dp spacer) both floors do not fit, and then the collection is **single-pane**:
+   `PaneSplit.directiveFor` caps the directive at one partition for the width measured
+   inside the insets. The Medium-width directive alone split a 7" tablet in portrait
+   (600dp window, ~520dp after the rail) into a list so narrow its title wrapped a
+   syllable per line, with no handle to widen it. Do not raise the floors past what an
+   unfolded Fold held upright clears (~621dp beside the rail): that is the device the
+   split exists for, and 280/320 once silently made it single-pane.
 2. *Persistence.* The split is the list pane's share of the scaffold width (a
    proportion), saved as the `collectionListPaneProportion` float in `UserPreferences`.
    It is a preference, not a position: restore maps it to the nearest anchor at the
@@ -206,6 +211,18 @@ glue is `ui/collection/CollectionPaneSplit.kt`; the arithmetic is `ui/adaptive/P
 
 When the split is specified, it overrides the directive's hinge-aware split; the Fold
 has no separating hinge when flat, so this costs nothing there.
+
+**The pane scaffold focuses the pane it shows — give it something harmless to land on.**
+`ThreePaneScaffold` (adaptive-layout 1.2) calls `requestFocus()` on the current
+destination's pane whenever the destination changes. The request enters the pane and
+lands on its first focusable node, and in touch mode that is a text field (clickables
+are not focusable in touch mode). It focused the collection's search box at launch and
+the stepper's quantity field on every card opened — keyboard up, and once an ANR. Each
+pane's content root carries `Modifier.paneFocusLanding()` (a plain `focusable()`), so the
+request stops on the pane. Not `onEnter { cancelFocusChange() }`: a tapped field requests
+focus with the same `Enter` direction, so that makes every field in the pane untappable.
+And not `ComposeUiFlags.isInitialFocusOnFocusableAvailable`: that is window focus, a
+different path.
 
 **Enum raw values are a wire format.** `CardCondition` stores `"Near Mint"`,
 `DeckSection` stores `"mainDeck"`, `GameResult` stores `"win"`. They go into the
@@ -414,6 +431,24 @@ cards. Binder pages go through the same rules: `PageIdentifier` treats each foun
 `FocusDecision.Focused` view of the page (its own code first, the CJK lines inside its
 outline, the art tie-break on its region of the photo).
 
+**A CJK pass runs native code we cannot catch, so it is gated twice.** `OcrService` asks
+`ModuleInstall.areModulesAvailable` before the first pass (no models → no pass, plus one
+deferred download request), and every pass goes through `CjkOcrGuard`, which writes an
+in-flight marker with a synchronous `commit()` before the recognizer runs and clears it
+after. A marker found at the next launch means the process died inside a pass (SIGILL on
+the arm64 emulator; not expected on real devices, which report their CPU features
+truthfully, but not provable for every SoC and Play Services update): CJK OCR is then off
+until the next app version and language falls back to the marker and the Latin name.
+
+**A binder page is one anchor per pocket.** `MultiCardScanner` reads codes strictly: three
+digits always (`UNL• 1.` from a clipped tile is not `UNL-001`), and a space-only separator
+only when the printed total follows (`SFD 057/221`, OCR's usual reading of the bulleted
+line). `dedupe` then collapses every read of one collector line — page pass and the
+overlapping tiles — into one anchor (most-read code, then the one with its total), so a
+card is never listed twice. A focused card matches its own code, then its own collector
+line, and never the rest of its text, so a misread leaves the row for the user to correct
+instead of naming a neighbour.
+
 **Collector codes are read tolerantly, and a suffix-less code is a guess.**
 `CollectorText.normalize` repairs `0GN`, `1l6`, `066 a`, `066o`, `227×`, a slash read as
 `1`/`l`; a one-letter set typo (`SED`) is fixed only when the printed total confirms the set.
@@ -501,6 +536,53 @@ get a copy limit of 12.
 - **Dispatchers**: inject `@IoDispatcher` / `@DefaultDispatcher`; never reference
   `Dispatchers.IO` directly, so tests can substitute.
 - **Images**: Coil 3 through the shared `OkHttpClient`.
+
+## Store screenshots
+
+Play screenshots live outside the repo, in `../ScanRift-store-assets/android/` (`phone/`,
+`tablet-7/`, `tablet-10/`, `foldable/`, with a `README.md` of captions). To regenerate
+them, seed a debug build with the demo data set:
+
+```bash
+./gradlew assembleDebug
+scripts/screenshot-demo.sh <adb-serial>   # demo-mode status bar, install, seed
+adb -s <serial> shell cmd uimode night yes   # the current set is shot in dark mode
+```
+
+The seeder (`app/src/debug/.../demo/`) is **debug source set only** — the activity is
+declared in `src/debug/AndroidManifest.xml`, so release builds contain neither. It
+replaces the collection, decks, game history, wishlist and tracker roster with
+`DemoData`, which names cards by `riftbound_id`; `DemoDataTest` fails if a catalogue
+refresh drops one, if a deck stops validating, or if a deck needs more copies than the
+collection owns. It waits for the launch bootstrap before writing, because the
+catalogue's de-duplication can swap the rows the demo points at.
+
+Things the emulator needs that a phone does not:
+
+- **Scores are never persisted**, so the tracker always restores at 0–0. Tap points in
+  (press a seat's right half, then a dot) before capturing.
+- **The binder-page shot** comes from a photo, not the camera: compose a 3×3 page from
+  nine card images, `adb push` it to `/sdcard/Pictures/`, run
+  `adb shell content call --uri content://media/external/file --method scan_volume --arg external_primary`,
+  then Scan → Page → the photo button. The seed forces the scan language to English:
+  with Auto, the Chinese/Korean OCR pass loads Play Services' TFLite module, which dies
+  with SIGILL on the arm64 emulator and takes the app with it. `CjkOcrGuard` notices
+  that on the next launch and turns the CJK pass off for that app version, but it cannot
+  stop the first crash. The page-scan log (`adb logcat -s OCR:V Scanning:V`) prints
+  every recognised line with its box — that is how `BinderPageFixtureTest` was built.
+- **A foldable has two displays**: `adb exec-out screencap -d <id> -p`, with the id from
+  `adb shell dumpsys SurfaceFlinger --display-id`.
+- Use `adb exec-out screencap`, not the emulator window, so no device frame is captured.
+- **Play rejects a screenshot whose long side is more than twice its short side**, so a
+  1080×2400 phone capture will not upload. Run `adb shell wm size 1080x2160` on the phone
+  emulator before capturing (and `wm size reset` after).
+- The 7" set is shot in landscape (`settings put system user_rotation 1` with
+  `accelerometer_rotation 0`); in portrait the collection is single-pane.
+- **The errata shots must fit pills and Errata card above the floating stepper.** On
+  the phone that needs `wm density 400` (reset after) with Zhonya's Hourglass; on the 7"
+  detail pane an owned card's "In Your Collection" block leaves no room, so it uses the
+  unowned Emperor's Dais (banned, errata with icons). Re-send the demo-mode broadcasts
+  after a density change, or the status bar shows two Wi-Fi icons.
 
 ## Not ported from iOS
 

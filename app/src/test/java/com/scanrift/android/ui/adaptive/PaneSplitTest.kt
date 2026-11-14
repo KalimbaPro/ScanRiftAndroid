@@ -50,10 +50,10 @@ class PaneSplitTest {
 
     @Test
     fun `too narrow for both floors is not resizable`() {
-        // 280 + 320 + 24 = 624dp is the least that holds both.
-        assertThat(PaneSplit.proportionRange(600.dp, spacer)).isNull()
-        assertThat(PaneSplit.anchors(600.dp, spacer)).isEmpty()
-        assertThat(PaneSplit.anchors(626.dp, spacer)).isEmpty()
+        // 260 + 300 + 24 = 584dp is the least that holds both.
+        assertThat(PaneSplit.proportionRange(560.dp, spacer)).isNull()
+        assertThat(PaneSplit.anchors(560.dp, spacer)).isEmpty()
+        assertThat(PaneSplit.anchors(585.dp, spacer)).isEmpty()
         assertThat(PaneSplit.isResizable(emptyList())).isFalse()
         assertThat(PaneSplit.anchors(0.dp, spacer)).isEmpty()
     }
@@ -145,5 +145,46 @@ class PaneSplitTest {
         val clamp = SplitDragClamp()
         clamp.begin(500)
         assertThat(clamp.consume(-50f, 700, 300)).isEqualTo(-50f)
+    }
+
+    @Test
+    fun `a 7 inch tablet in portrait is single pane`() {
+        // 1200px at xhdpi is 600dp; the navigation rail takes 80 of it.
+        assertThat(PaneSplit.fitsTwoPanes(520.dp, spacer)).isFalse()
+        assertThat(PaneSplit.paneCount(2, 520.dp, spacer)).isEqualTo(1)
+    }
+
+    @Test
+    fun `an unfolded Fold held upright keeps two resizable panes`() {
+        // ~673dp of window, ~621dp beside the navigation rail.
+        assertThat(PaneSplit.paneCount(2, 621.dp, spacer)).isEqualTo(2)
+        assertThat(PaneSplit.isResizable(PaneSplit.anchors(621.dp, spacer))).isTrue()
+    }
+
+    @Test
+    fun `two panes need both floors plus the spacer`() {
+        // Shares are rounded inward to three decimals, so allow a dp for that.
+        val floor = Dimens.ListPaneMinWidth + Dimens.DetailPaneMinWidth + spacer
+        assertThat(PaneSplit.fitsTwoPanes(floor + 1.dp, spacer)).isTrue()
+        assertThat(PaneSplit.fitsTwoPanes(floor - 1.dp, spacer)).isFalse()
+        assertThat(PaneSplit.paneCount(2, floor + 1.dp, spacer)).isEqualTo(2)
+    }
+
+    @Test
+    fun `wide panes keep what the window directive asked for`() {
+        assertThat(PaneSplit.paneCount(2, 880.dp, spacer)).isEqualTo(2)
+        // A single-pane directive (a phone) is never widened to two.
+        assertThat(PaneSplit.paneCount(1, 1280.dp, spacer)).isEqualTo(1)
+    }
+
+    @Test
+    fun `whenever two panes are allowed the divider has room to move`() {
+        // The old failure: a split the floors could not hold, with no handle to drag.
+        for (width in 400..1400) {
+            val total = width.dp
+            if (PaneSplit.paneCount(2, total, spacer) == 2) {
+                assertThat(PaneSplit.proportionRange(total, spacer)).isNotNull()
+            }
+        }
     }
 }

@@ -49,8 +49,15 @@ data class DeckBuilderState(
 ) {
     val missingCount: Int get() = missingCards.sumOf { it.deficit }
 
-    fun addBlockReason(card: Card): String? =
-        deck?.let { DeckValidator.addBlockReason(it, card, filters.showAllCards) } ?: "Cannot add"
+    /**
+     * Why [card] cannot be added, or null when it can. Not `deck?.let { … } ?: "Cannot add"`:
+     * the elvis also catches the validator's null — "nothing blocks this card" — so every
+     * addable card came back blocked and the whole browser was dimmed.
+     */
+    fun addBlockReason(card: Card): String? {
+        val current = deck ?: return "Cannot add"
+        return DeckValidator.addBlockReason(current, card, filters.showAllCards)
+    }
 
     fun entryFor(card: Card): DeckEntry? = deck?.entries?.firstOrNull { it.cardId == card.id }
 }
