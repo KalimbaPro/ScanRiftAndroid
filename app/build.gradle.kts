@@ -40,10 +40,12 @@ android {
         applicationId = "com.scanrift.android"
         minSdk = 26
         targetSdk = 36
-        // Play refuses a re-upload at a versionCode that has already been used, so
-        // this only ever goes up, once per release, whether or not Play saw the last one.
-        versionCode = 8
-        versionName = "1.3.2"
+        // Play refuses a re-upload at a versionCode that has already been used. CI sets
+        // VERSION_CODE on every build of main (100 + the Release workflow's run number), so
+        // each merge produces an uploadable bundle without a manual bump; the literal is
+        // only what local builds use. versionName is still bumped by hand per release.
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 9
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

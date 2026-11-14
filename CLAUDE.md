@@ -74,6 +74,11 @@ Compose version moves unexpectedly, check Coil first.
 - `main` is protected; work on `dev` and open PRs. The `pre-push` hook enforces this —
   activate it once per clone with `git config core.hooksPath .githooks`.
 - Commit style: `feat(scanRift):` / `fix(scanRift):` / `chore(scanRift):`, matching iOS.
+- **Every merge to `main` is a release build.** The Release workflow signs an `.aab` and
+  an `.apk` and publishes them on the GitHub release `v<versionName>`, replacing the
+  previous build's files. CI sets `VERSION_CODE` to 100 + the workflow's run number, so
+  each build is uploadable to Play without a manual bump; bump `versionName` by hand when
+  a release should get a new name (and a new GitHub release).
 
 ## Architecture
 
