@@ -1,10 +1,7 @@
 package com.scanrift.android.ui.game
 
-import com.scanrift.android.domain.model.Card
-import com.scanrift.android.domain.model.CardType
 import com.scanrift.android.domain.model.GameRecord
 import com.scanrift.android.domain.model.GameResult
-import com.scanrift.android.domain.model.Rarity
 
 enum class RoundOutcome { UNSET, LEFT_WON, RIGHT_WON, TIED }
 
@@ -129,10 +126,3 @@ fun freeForAllRecords(players: List<PlayerState>): List<PendingGameRecord> {
         )
     }
 }
-
-fun List<Card>.pickableLegends(): List<Card> = filter { card ->
-    card.type == CardType.LEGEND &&
-        !card.name.contains("(Metal)") &&
-        !card.isAlternateArt &&
-        card.rarity != Rarity.PROMO
-}.sortedBy { it.name }

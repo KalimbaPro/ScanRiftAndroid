@@ -10,7 +10,10 @@ import com.scanrift.android.data.prefs.UserPreferences
 import com.scanrift.android.data.repository.CollectionRepository
 import com.scanrift.android.data.repository.DeckRepository
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardType
 import com.scanrift.android.domain.model.Deck
+import com.scanrift.android.domain.model.LegendGroup
+import com.scanrift.android.domain.model.LegendPrintings
 import com.scanrift.android.domain.model.ScoreCategory
 import com.scanrift.android.data.local.mapper.toEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -164,8 +167,18 @@ class PointTrackerViewModel @Inject constructor(
     private val _state = MutableStateFlow(PointTrackerState(players = defaultRoster()))
     val state: StateFlow<PointTrackerState> = _state.asStateFlow()
 
-    val legends: StateFlow<List<Card>> = collectionRepository.observeAllCards()
-        .map { it.pickableLegends() }
+    /**
+     * Every legend card, special printings included: a seat holds whichever printing the
+     * player chose, and a deck may carry a Metal or promo legend, so the lookup behind
+     * [PointTrackerState.legendsById] must not filter any of them out.
+     */
+    private val legendCards: StateFlow<List<Card>> = collectionRepository.observeAllCards()
+        .map { cards -> cards.filter { it.type == CardType.LEGEND } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** One group per legend for the picker; the printing is chosen inside the group. */
+    val legends: StateFlow<List<LegendGroup>> = legendCards
+        .map { LegendPrintings.groups(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val decks: StateFlow<List<Deck>> = deckRepository.observeDecks()
@@ -182,7 +195,7 @@ class PointTrackerViewModel @Inject constructor(
                 startingPlayerIndex,
                 isRandomizing,
                 isFullScreen,
-                combine(legends, hapticsEnabled, match, ::Triple),
+                combine(legendCards, hapticsEnabled, match, ::Triple),
             ) { roster, starting, randomizing, fullScreen, (legendCards, haptics, progress) ->
                 PointTrackerState(
                     players = roster,

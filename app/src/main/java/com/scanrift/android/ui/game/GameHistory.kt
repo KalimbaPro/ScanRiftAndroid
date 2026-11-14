@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -61,6 +62,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.GameRecord
 import com.scanrift.android.domain.model.GameResult
+import com.scanrift.android.domain.model.LegendGroup
+import com.scanrift.android.domain.model.LegendPrintings
 import com.scanrift.android.domain.model.ScoreCategory
 import com.scanrift.android.ui.components.CardThumbnail
 import java.text.DateFormat
@@ -271,7 +274,7 @@ private enum class LegendSlot { PLAYER, OPPONENT }
 private fun GameRecordEditorSheet(
     record: GameRecord,
     cardsById: Map<String, Card>,
-    legends: List<Card>,
+    legends: List<LegendGroup>,
     onSave: (GameRecord) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -367,6 +370,10 @@ private fun GameRecordEditorSheet(
     choosingLegend?.let { slot ->
         LegendChooserSheet(
             legends = legends,
+            selectedCardId = when (slot) {
+                LegendSlot.PLAYER -> legendId
+                LegendSlot.OPPONENT -> opponentLegendId
+            },
             onSelect = { picked ->
                 when (slot) {
                     LegendSlot.PLAYER -> legendId = picked?.id
@@ -450,9 +457,15 @@ private fun StepperRow(
 private const val STEPPER_MAX = 99
 
 @Composable
-private fun LegendChooserSheet(legends: List<Card>, onSelect: (Card?) -> Unit, onDismiss: () -> Unit) {
+private fun LegendChooserSheet(
+    legends: List<LegendGroup>,
+    selectedCardId: String?,
+    onSelect: (Card?) -> Unit,
+    onDismiss: () -> Unit,
+) {
     var search by rememberSaveable { mutableStateOf("") }
-    val query = search.trim()
+    var choosingIdentity by rememberSaveable { mutableStateOf<String?>(null) }
+    val choosing = choosingIdentity?.let { id -> legends.firstOrNull { it.identity == id } }
     GameSheet(
         title = "Choose Legend",
         onDismiss = onDismiss,
@@ -463,17 +476,20 @@ private fun LegendChooserSheet(legends: List<Card>, onSelect: (Card?) -> Unit, o
     ) {
         if (legends.isEmpty()) {
             EmptyHint(Icons.Filled.WorkspacePremium, "No legends loaded", "Sync the card database first.")
+        } else if (choosing != null) {
+            LegendPrintingChooser(
+                group = choosing,
+                selectedCardId = selectedCardId,
+                onSelect = onSelect,
+                onBack = { choosingIdentity = null },
+                modifier = Modifier.height(480.dp),
+            )
         } else {
             OutlinedTextField(search, { search = it }, placeholder = { Text("Search") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             LazyColumn(Modifier.heightIn(max = 480.dp)) {
-                items(legends.filter { it.name.contains(query, ignoreCase = true) }, key = { it.id }) { legend ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onSelect(legend) }.padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        LegendThumb(legend, width = 30.dp, height = 42.dp)
-                        Text(legend.name)
+                items(LegendPrintings.filter(legends, search), key = { it.identity }) { group ->
+                    LegendGroupRow(group, thumbWidth = 30.dp) {
+                        group.onTap(onSelect) { choosingIdentity = it.identity }
                     }
                 }
             }

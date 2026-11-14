@@ -24,6 +24,11 @@ object Dimens {
     /** Guard against absurdly thin tiles in desktop-sized windows. */
     const val GRID_COLUMNS_MAX = 8
 
+    // Legend printing chooser: narrowest tile that still reads as card art.
+    val LegendPrintingItemMin = 96.dp
+    const val LEGEND_PRINTING_COLUMNS_MIN = 2
+    const val LEGEND_PRINTING_COLUMNS_MAX = 6
+
     // Hub / deck grids use an adaptive cell rather than a fixed count.
     val HubGridItemMin = 160.dp
     val HubGridItemMax = 250.dp

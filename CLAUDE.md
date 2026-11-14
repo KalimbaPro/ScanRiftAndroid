@@ -340,6 +340,20 @@ cameras refuse.
 `SetNormalizer` pins `RAD` "Radiance" and `SGN` "Secret Garden". **SGN must never join
 the promo merge**: its printed code `SGN-001/003` is what scans.
 
+**A legend card id names a printing, not a legend.** Seats and game records store the
+exact card the player picked, so the tile shows the art they brought — Irelia's Lunar
+Revel promo, Lillia's Secret Garden print, a Metal. Anything that compares or groups
+legends must go through `LegendPrintings.identity` / `isSameLegend` (the name with every
+trailing `(...)` suffix removed, case- and diacritic-folded), never the id. Pickers show
+one entry per `LegendGroup` and open `LegendPrintingChooser` when it has more than one
+printing; never filter printings out of a picker again (the old `pickableLegends()` made
+promo-only art unpickable). Lookups that resolve a stored legend id, like
+`PointTrackerState.legendsById`, must cover **every** legend card, or a seat holding a
+Metal shows no art. The default printing ranks Metal, judge, alternate art, signature,
+overnumbered, special print, promo, any suffix and then supplemental sets (OGS, SGN) as
+successive penalties, so a legend that only exists as a Starter still has a sensible
+default. Same rule as iOS `LegendPrintings.swift`; keep the two in step.
+
 **Export formats are byte-exact.** riftbound.gg parses the CSV it emitted, spaces after
 commas and all, in the header *and* the data rows. Golden tests pin this.
 

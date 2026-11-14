@@ -49,11 +49,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.core.Constants
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.Deck
+import com.scanrift.android.domain.model.LegendGroup
+import com.scanrift.android.domain.model.LegendPrintings
 import com.scanrift.android.ui.components.CardThumbnail
 import com.scanrift.android.ui.theme.Dimens
 
@@ -161,7 +162,7 @@ private fun AssignmentLabel(title: String, subtitle: String?) {
 fun LegendOrDeckPickerSheet(
     player: PlayerState,
     showNameField: Boolean,
-    legends: List<Card>,
+    legends: List<LegendGroup>,
     decks: List<Deck>,
     onRename: (String) -> Unit,
     onPickLegend: (String) -> Unit,
@@ -171,6 +172,9 @@ fun LegendOrDeckPickerSheet(
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var search by rememberSaveable { mutableStateOf("") }
+    // The legend whose printing chooser is showing, by identity so it survives rotation.
+    var choosingIdentity by rememberSaveable { mutableStateOf<String?>(null) }
+    val choosing = choosingIdentity?.let { id -> legends.firstOrNull { it.identity == id } }
     var name by remember(player.id) { mutableStateOf(player.name) }
     val query = search.trim()
 
@@ -208,15 +212,26 @@ fun LegendOrDeckPickerSheet(
             }
         }
 
-        OutlinedTextField(
-            value = search,
-            onValueChange = { search = it },
-            placeholder = { Text("Search") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (tab != 0 || choosing == null) {
+            OutlinedTextField(
+                value = search,
+                onValueChange = { search = it },
+                placeholder = { Text("Search") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
-        if (tab == 0) {
+        val pick: (Card) -> Unit = { card -> onPickLegend(card.id); onDismiss() }
+        if (tab == 0 && choosing != null) {
+            LegendPrintingChooser(
+                group = choosing,
+                selectedCardId = player.legendCardId,
+                onSelect = pick,
+                onBack = { choosingIdentity = null },
+                modifier = Modifier.height(420.dp),
+            )
+        } else if (tab == 0) {
             if (legends.isEmpty()) {
                 EmptyHint(Icons.Filled.WorkspacePremium, "No legends loaded", "Sync the card database first.")
             } else {
@@ -227,11 +242,12 @@ fun LegendOrDeckPickerSheet(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.height(420.dp),
                 ) {
-                    items(legends.filter { it.name.contains(query, ignoreCase = true) }, key = { it.id }) { legend ->
-                        LegendTile(
-                            legend = legend,
-                            selected = player.legendCardId == legend.id,
-                            onClick = { onPickLegend(legend.id); onDismiss() },
+                    items(LegendPrintings.filter(legends, query), key = { it.identity }) { group ->
+                        LegendGroupTile(
+                            group = group,
+                            // Any printing of this legend counts: the seat holds one of them.
+                            selected = group.printings.any { it.id == player.legendCardId },
+                            onClick = { group.onTap(pick) { choosingIdentity = it.identity } },
                         )
                     }
                 }
@@ -249,38 +265,6 @@ fun LegendOrDeckPickerSheet(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LegendTile(legend: Card, selected: Boolean, onClick: () -> Unit) {
-    Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box {
-            CardThumbnail(
-                card = legend,
-                quantity = 1,
-                showQuantityBadge = false,
-                cornerRadius = 4.dp,
-                modifier = Modifier.fillMaxWidth().aspectRatio(Dimens.CARD_ASPECT_RATIO),
-            )
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = "Selected",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
-                )
-            }
-        }
-        Text(
-            text = legend.name,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 4.dp),
-        )
     }
 }
 
