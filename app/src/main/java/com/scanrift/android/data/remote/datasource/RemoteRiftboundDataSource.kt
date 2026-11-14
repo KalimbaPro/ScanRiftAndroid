@@ -3,6 +3,7 @@ package com.scanrift.android.data.remote.datasource
 import com.scanrift.android.core.Constants
 import com.scanrift.android.data.remote.api.RiftboundApi
 import com.scanrift.android.data.remote.dto.CardDto
+import com.scanrift.android.data.remote.dto.LegalityResponseDto
 import com.scanrift.android.data.remote.dto.RiftboundSetDto
 import javax.inject.Inject
 
@@ -23,6 +24,8 @@ class RemoteRiftboundDataSource @Inject constructor(
         val rest = (2..first.pages).flatMap { api.sets(page = it, size = PAGE_SIZE).items }
         return first.items + rest
     }
+
+    override suspend fun fetchLegality(region: String): LegalityResponseDto = api.legality(region)
 
     private suspend inline fun paginate(
         noinline onProgress: ((Int, Int) -> Unit)?,

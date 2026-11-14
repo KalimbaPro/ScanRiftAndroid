@@ -1,6 +1,7 @@
 package com.scanrift.android.data.remote.datasource
 
 import com.scanrift.android.data.remote.dto.CardDto
+import com.scanrift.android.data.remote.dto.LegalityResponseDto
 import com.scanrift.android.data.remote.dto.RiftboundSetDto
 
 /**
@@ -19,4 +20,10 @@ interface RiftboundDataSource {
     suspend fun fetchCardsInSet(setId: String, onProgress: ((Int, Int) -> Unit)? = null): List<CardDto>
 
     suspend fun fetchSets(): List<RiftboundSetDto>
+
+    /**
+     * `GET /legality?region=`. Null when the source has no such endpoint (the bundled
+     * seed, test fakes), which callers treat as "leave legality as it is".
+     */
+    suspend fun fetchLegality(region: String): LegalityResponseDto? = null
 }

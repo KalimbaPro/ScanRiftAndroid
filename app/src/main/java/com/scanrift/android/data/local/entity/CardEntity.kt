@@ -74,6 +74,28 @@ data class CardEntity(
     @ColumnInfo(defaultValue = CardOrientation.PORTRAIT)
     val orientation: String = CardOrientation.PORTRAIT,
     val tags: List<String> = emptyList(),
+
+    /**
+     * Legality for the user's competitive region. Written by card sync and then
+     * overwritten by the `/legality` refresh, which only ever UPDATEs these columns.
+     */
+    @ColumnInfo(defaultValue = "0")
+    val banned: Boolean = false,
+    @ColumnInfo(defaultValue = "[]")
+    val bannedFormats: List<String> = emptyList(),
+    val errata: String? = null,
+    val errataDate: String? = null,
+
+    /** `localizations` JSON in the API's own shape; see `LocalizationsCodec`. */
+    val localizations: String? = null,
+)
+
+/** One card's legality columns, as applied by the `/legality` refresh. */
+data class CardLegality(
+    val banned: Boolean,
+    val bannedFormats: List<String>,
+    val errata: String?,
+    val errataDate: String?,
 )
 
 /** Lightweight projection for sync, so a delta check never materialises 1500 full rows. */

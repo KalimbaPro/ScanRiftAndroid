@@ -206,5 +206,23 @@ class CardDatabaseService @Inject constructor(
         removed
     }
 
+    /**
+     * Pulls `/legality` for [region] and rewrites the legality columns of the whole
+     * catalogue in one transaction. Never deletes a card.
+     *
+     * Must run **after** a card sync: an upserted card carries the API's default-region
+     * `banned`, which this then overwrites with the region-resolved value.
+     *
+     * @return how many cards are banned or have errata, or null when the source has no
+     *   legality endpoint (the bundled seed).
+     */
+    suspend fun refreshLegality(region: String): Int? = withContext(io) {
+        val response = source.fetchLegality(region) ?: return@withContext null
+        val legality = LegalityResolver.resolve(response.items, cardDao.getAllIdentities())
+        cardDao.applyLegality(legality)
+        Log.database.i("Legality (%s): %d listed, %d applied", region, response.items.size, legality.size)
+        legality.size
+    }
+
     suspend fun cardCount(): Int = withContext(io) { cardDao.count() }
 }

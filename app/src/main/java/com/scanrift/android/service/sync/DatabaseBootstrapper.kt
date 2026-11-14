@@ -95,6 +95,19 @@ class DatabaseBootstrapper @Inject constructor(
         if (report.hasChanges) BootstrapState.Updated(report.added + report.updated) else BootstrapState.UpToDate
     }
 
+    /**
+     * Re-applies `/legality` for the current competitive region, outside the update
+     * TTL. Called when the region setting changes, so the ban list follows it at once.
+     */
+    fun refreshLegality() {
+        scope.launch {
+            mutex.withLock {
+                runCatching { applyLegality(service(remoteSource)) }
+                    .onFailure { Log.database.w(it, "Legality refresh failed; keeping the current ban list") }
+            }
+        }
+    }
+
     fun resetSyncState() {
         _state.update { if (it is BootstrapState.UpToDate || it is BootstrapState.Updated) BootstrapState.Idle else it }
     }
@@ -146,9 +159,18 @@ class DatabaseBootstrapper @Inject constructor(
     private suspend fun syncDelta(service: CardDatabaseService): SyncReport {
         val now = System.currentTimeMillis()
         val report = service.syncDelta { done, total -> _state.value = BootstrapState.Syncing(done, total) }
+        // After the card sync, never before: an upserted card carries the API's
+        // default-region `banned`, which the region-resolved legality must overwrite.
+        // A failure here is not a failed update check — the cards are already stored.
+        runCatching { applyLegality(service) }
+            .onFailure { Log.database.w(it, "Legality refresh failed; keeping the current ban list") }
         userPreferences.setLastUpdateCheck(now)
         if (report.hasChanges) userPreferences.setLastDatabaseSync(now)
         return report
+    }
+
+    private suspend fun applyLegality(service: CardDatabaseService) {
+        service.refreshLegality(userPreferences.competitiveRegion.first().value)
     }
 
     private fun failed(error: Throwable): BootstrapState {

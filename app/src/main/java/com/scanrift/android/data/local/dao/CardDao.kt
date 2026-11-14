@@ -6,6 +6,7 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import com.scanrift.android.data.local.entity.CardEntity
 import com.scanrift.android.data.local.entity.CardIdentity
+import com.scanrift.android.data.local.entity.CardLegality
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -144,6 +145,30 @@ interface CardDao {
     /** Every riftboundId that has more than one row — the de-duplication work list. */
     @Query("SELECT riftboundId FROM cards GROUP BY riftboundId HAVING COUNT(*) > 1")
     suspend fun duplicatedRiftboundIds(): List<String>
+
+    /**
+     * Legality refresh, step 1: every card back to "legal, no errata".
+     *
+     * A column UPDATE, never a delete — the `/legality` payload lists only the cards
+     * that are banned or have errata, and "not listed" means exactly this.
+     */
+    @Query("UPDATE cards SET banned = 0, bannedFormats = '[]', errata = NULL, errataDate = NULL")
+    suspend fun clearLegality()
+
+    @Query(
+        """
+        UPDATE cards SET banned = :banned, bannedFormats = :bannedFormats, errata = :errata, errataDate = :errataDate
+        WHERE id = :id
+        """,
+    )
+    suspend fun updateLegality(id: String, banned: Boolean, bannedFormats: List<String>, errata: String?, errataDate: String?)
+
+    /** Applies a whole region's legality atomically, so no reader sees the cleared state. */
+    @Transaction
+    suspend fun applyLegality(legality: Map<String, CardLegality>) {
+        clearLegality()
+        legality.forEach { (id, l) -> updateLegality(id, l.banned, l.bannedFormats, l.errata, l.errataDate) }
+    }
 
     @Transaction
     suspend fun upsertAllChunked(cards: List<CardEntity>, chunkSize: Int = 500) {

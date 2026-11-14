@@ -1,10 +1,12 @@
 package com.scanrift.android.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.scanrift.android.domain.model.CardCondition
+import com.scanrift.android.domain.model.CardLanguage
 
 /**
  * One owned stack of a card.
@@ -17,7 +19,7 @@ import com.scanrift.android.domain.model.CardCondition
  * so an orphaned row simply disappears from the UI while its quantity survives; a
  * maintenance pass reclaims rows whose card is genuinely gone.
  *
- * The unique index is iOS's `EntryKey` promoted to a database constraint, so scan-add,
+ * The unique index `(cardId, isFoil, condition, language)` is iOS's `EntryKey` promoted to a database constraint, so scan-add,
  * import and snapshot restore are idempotent by construction rather than by discipline.
  */
 @Entity(
@@ -32,7 +34,7 @@ import com.scanrift.android.domain.model.CardCondition
     ],
     indices = [
         Index("cardId"),
-        Index(value = ["cardId", "isFoil", "condition"], unique = true),
+        Index(value = ["cardId", "isFoil", "condition", "language"], unique = true),
     ],
 )
 data class CollectionEntryEntity(
@@ -45,4 +47,10 @@ data class CollectionEntryEntity(
     val condition: String = CardCondition.NEAR_MINT.value,
     val notes: String? = null,
     val folder: String? = null,
+    /**
+     * Stores [CardLanguage.value] verbatim (`en`, `fr`, `zh`, `ko`). Part of the identity:
+     * an English and a French copy of one card are two stacks.
+     */
+    @ColumnInfo(defaultValue = "en")
+    val language: String = CardLanguage.EN.value,
 )

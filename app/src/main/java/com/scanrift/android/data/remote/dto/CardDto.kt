@@ -1,6 +1,7 @@
 package com.scanrift.android.data.remote.dto
 
 import com.scanrift.android.core.time.Iso8601
+import com.scanrift.android.data.local.LocalizationsCodec
 import com.scanrift.android.data.local.entity.CardEntity
 import com.scanrift.android.domain.model.CardOrientation
 import com.scanrift.android.domain.model.SetNormalizer
@@ -32,6 +33,14 @@ data class CardDto(
     val tags: List<String> = emptyList(),
     val orientation: String = CardOrientation.PORTRAIT,
     val metadata: CardMetadataDto = CardMetadataDto(),
+
+    // Own-API additions. All optional: RiftCodex, the bundled seed and older API
+    // builds omit them, and absence means "not banned, no errata, no localisation".
+    val banned: Boolean = false,
+    @SerialName("banned_formats") val bannedFormats: List<String>? = null,
+    val errata: String? = null,
+    @SerialName("errata_date") val errataDate: String? = null,
+    val localizations: Map<String, CardLocalizationDto>? = null,
 ) {
     /**
      * `public_code` is absent from **every** card the live API currently returns, so
@@ -94,9 +103,45 @@ data class CardDto(
             updatedOn = updatedOnMillis,
             orientation = orientation,
             tags = tags,
+            banned = banned,
+            bannedFormats = bannedFormats.orEmpty(),
+            errata = errata?.takeIf { it.isNotBlank() },
+            errataDate = errataDate?.takeIf { it.isNotBlank() },
+            localizations = LocalizationsCodec.encode(localizations),
         )
     }
 }
+
+/** `localizations.<lang>` on a card. Unknown keys (`text` today, more later) are tolerated. */
+@Serializable
+data class CardLocalizationDto(
+    val name: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
+    val text: String? = null,
+)
+
+/**
+ * `GET /legality?region=` — every card that is banned **or** has errata in that region.
+ *
+ * A card that is not listed is `banned = false, errata = null`; the refresh applies that
+ * as a column UPDATE over the whole catalogue, never a delete.
+ */
+@Serializable
+data class LegalityResponseDto(
+    val region: String = "global",
+    @SerialName("updated_at") val updatedAt: String? = null,
+    val items: List<LegalityItemDto> = emptyList(),
+)
+
+@Serializable
+data class LegalityItemDto(
+    val id: String? = null,
+    @SerialName("riftbound_id") val riftboundId: String? = null,
+    val banned: Boolean = false,
+    @SerialName("banned_formats") val bannedFormats: List<String>? = null,
+    val errata: String? = null,
+    @SerialName("errata_date") val errataDate: String? = null,
+)
 
 @Serializable
 data class CardAttributesDto(

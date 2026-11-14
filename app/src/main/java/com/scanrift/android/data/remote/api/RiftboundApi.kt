@@ -1,5 +1,6 @@
 package com.scanrift.android.data.remote.api
 
+import com.scanrift.android.data.remote.dto.LegalityResponseDto
 import com.scanrift.android.data.remote.dto.PaginatedCardsResponse
 import com.scanrift.android.data.remote.dto.PaginatedSetsResponse
 import retrofit2.http.GET
@@ -25,6 +26,10 @@ interface RiftboundApi {
         @Query("search") query: String,
         @Query("size") size: Int = 100,
     ): PaginatedCardsResponse
+
+    /** Own API only: every card banned or errata'd in [region] (`global`, `kr`, `tc`). */
+    @GET("/legality")
+    suspend fun legality(@Query("region") region: String): LegalityResponseDto
 
     @GET("/sets")
     suspend fun sets(

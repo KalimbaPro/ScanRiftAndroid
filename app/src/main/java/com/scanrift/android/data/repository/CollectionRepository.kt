@@ -6,6 +6,7 @@ import com.scanrift.android.data.local.entity.CollectionEntryEntity
 import com.scanrift.android.data.local.mapper.toDomain
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardCondition
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CollectionEntry
 import com.scanrift.android.di.IoDispatcher
 import javax.inject.Inject
@@ -44,7 +45,8 @@ class CollectionRepository @Inject constructor(
     }
 
     /**
-     * Adds copies, merging into the existing stack for the same identity triple.
+     * Adds copies, merging into the existing stack for the same identity
+     * `(card, isFoil, condition, language)`.
      *
      * Callers pass the card so `isAlwaysFoil` can default the foil flag the way the
      * scanner does.
@@ -54,15 +56,16 @@ class CollectionRepository @Inject constructor(
         quantity: Int = 1,
         isFoil: Boolean = card.isAlwaysFoil,
         condition: CardCondition = CardCondition.NEAR_MINT,
+        language: CardLanguage = CardLanguage.EN,
         now: Long = System.currentTimeMillis(),
     ) = withContext(io) {
         if (quantity <= 0) return@withContext
-        val existing = entryDao.findEntry(card.id, isFoil, condition.value)
+        val existing = entryDao.findEntry(card.id, isFoil, condition.value, language.value)
         if (existing == null) {
             entryDao.insert(
                 CollectionEntryEntity(
                     cardId = card.id, quantity = quantity, isFoil = isFoil,
-                    dateAdded = now, condition = condition.value,
+                    dateAdded = now, condition = condition.value, language = language.value,
                 ),
             )
         } else {
@@ -70,10 +73,12 @@ class CollectionRepository @Inject constructor(
         }
     }
 
+    private suspend fun stored(entry: CollectionEntry): CollectionEntryEntity? =
+        entry.cardId?.let { entryDao.findEntry(it, entry.isFoil, entry.condition.value, entry.language.value) }
+
     /** Sets an exact quantity; zero or less deletes the stack. */
     suspend fun setQuantity(entry: CollectionEntry, quantity: Int) = withContext(io) {
-        val stored = entry.cardId?.let { entryDao.findEntry(it, entry.isFoil, entry.condition.value) }
-            ?: return@withContext
+        val stored = stored(entry) ?: return@withContext
         if (quantity <= 0) entryDao.delete(stored) else entryDao.update(stored.copy(quantity = quantity))
     }
 
@@ -87,28 +92,38 @@ class CollectionRepository @Inject constructor(
             cardId = card.id,
             isFoil = entry?.isFoil ?: card.isAlwaysFoil,
             condition = (entry?.condition ?: CardCondition.NEAR_MINT).value,
+            language = (entry?.language ?: CardLanguage.EN).value,
             delta = delta,
             now = now,
         )
     }
 
-    suspend fun setCondition(entry: CollectionEntry, condition: CardCondition) = withContext(io) {
-        val stored = entry.cardId?.let { entryDao.findEntry(it, entry.isFoil, entry.condition.value) }
-            ?: return@withContext
-        // Condition is part of the identity triple, so changing it can collide with an
-        // existing stack; merge rather than violating the unique index.
-        val target = entryDao.findEntry(stored.cardId!!, stored.isFoil, condition.value)
-        if (target == null) {
-            entryDao.update(stored.copy(condition = condition.value))
-        } else {
-            entryDao.update(target.copy(quantity = target.quantity + stored.quantity))
-            entryDao.delete(stored)
+    suspend fun setCondition(entry: CollectionEntry, condition: CardCondition) =
+        rekey(entry) { it.copy(condition = condition.value) }
+
+    suspend fun setLanguage(entry: CollectionEntry, language: CardLanguage) =
+        rekey(entry) { it.copy(language = language.value) }
+
+    /**
+     * Condition and language are part of the identity, so changing either can collide
+     * with an existing stack; merge into it rather than violating the unique index.
+     */
+    private suspend fun rekey(entry: CollectionEntry, change: (CollectionEntryEntity) -> CollectionEntryEntity) =
+        withContext(io) {
+            val stored = stored(entry) ?: return@withContext
+            val changed = change(stored)
+            if (changed == stored) return@withContext
+            val target = entryDao.findEntry(stored.cardId!!, changed.isFoil, changed.condition, changed.language)
+            if (target == null) {
+                entryDao.update(changed)
+            } else {
+                entryDao.update(target.copy(quantity = target.quantity + stored.quantity))
+                entryDao.delete(stored)
+            }
         }
-    }
 
     suspend fun delete(entry: CollectionEntry) = withContext(io) {
-        val stored = entry.cardId?.let { entryDao.findEntry(it, entry.isFoil, entry.condition.value) }
-        stored?.let { entryDao.delete(it) }
+        stored(entry)?.let { entryDao.delete(it) }
     }
 
     suspend fun clearCollection() = withContext(io) { entryDao.deleteAll() }

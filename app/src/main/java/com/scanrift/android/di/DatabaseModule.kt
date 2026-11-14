@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.scanrift.android.data.local.Migrations
 import com.scanrift.android.data.local.ScanRiftDatabase
 import com.scanrift.android.data.local.dao.CardDao
 import com.scanrift.android.data.local.dao.CardListDao
@@ -28,6 +29,7 @@ object DatabaseModule {
     fun provideDatabase(@ApplicationContext context: Context): ScanRiftDatabase =
         Room.databaseBuilder(context, ScanRiftDatabase::class.java, ScanRiftDatabase.NAME)
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+            .addMigrations(*Migrations.ALL)
             .build()
 
     @Provides

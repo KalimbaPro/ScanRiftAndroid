@@ -7,6 +7,7 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.scanrift.android.core.Constants
+import com.scanrift.android.domain.model.CompetitiveRegion
 import com.scanrift.android.core.log.Log
 import com.scanrift.android.data.prefs.UserPreferences
 import com.scanrift.android.data.repository.CollectionRepository
@@ -64,7 +65,7 @@ data class SettingsState(
     val autoAddToCollection: Boolean = false,
     val debugMode: Boolean = false,
     val luchoParameter: Boolean = false,
-    val showUnownedInColor: Boolean = false,
+    val competitiveRegion: CompetitiveRegion = CompetitiveRegion.GLOBAL,
     val dynamicColor: Boolean = false,
     val lastDatabaseSync: Long? = null,
     val lastBackup: Long? = null,
@@ -116,7 +117,7 @@ class SettingsViewModel @Inject constructor(
         combine(
             userPreferences.debugMode,
             userPreferences.luchoParameter,
-            userPreferences.showUnownedInColor,
+            userPreferences.competitiveRegion,
             userPreferences.dynamicColor,
             ::Quadruple,
         ),
@@ -138,7 +139,7 @@ class SettingsViewModel @Inject constructor(
             autoAddToCollection = feedback.third,
             debugMode = display.first,
             luchoParameter = display.second,
-            showUnownedInColor = display.third,
+            competitiveRegion = display.third,
             dynamicColor = display.fourth,
             lastDatabaseSync = backup.first,
             lastBackup = backup.second,
@@ -152,7 +153,13 @@ class SettingsViewModel @Inject constructor(
     fun setAutoAddToCollection(value: Boolean) = update { userPreferences.setAutoAddToCollection(value) }
     fun setDebugMode(value: Boolean) = update { userPreferences.setDebugMode(value) }
     fun setLuchoParameter(value: Boolean) = update { userPreferences.setLuchoParameter(value) }
-    fun setShowUnownedInColor(value: Boolean) = update { userPreferences.setShowUnownedInColor(value) }
+
+    /** Persists the region, then re-applies its ban list straight away (outside the update TTL). */
+    fun setCompetitiveRegion(value: CompetitiveRegion) = update {
+        if (userPreferences.competitiveRegion.first() == value) return@update
+        userPreferences.setCompetitiveRegion(value)
+        bootstrapper.refreshLegality()
+    }
     fun setDynamicColor(value: Boolean) = update { userPreferences.setDynamicColor(value) }
     fun setCloudSnapshotAutoSync(value: Boolean) = update { userPreferences.setCloudSnapshotAutoSync(value) }
 

@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.scanrift.android.core.Constants
+import com.scanrift.android.domain.model.CompetitiveRegion
+import com.scanrift.android.domain.model.ScanLanguage
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,6 +44,8 @@ class UserPreferences @Inject constructor(
         val backupUri = stringPreferencesKey(Constants.PreferenceKeys.BACKUP_URI)
         val cloudSnapshotAutoSync = booleanPreferencesKey(Constants.PreferenceKeys.CLOUD_SNAPSHOT_AUTO_SYNC)
         val pointTrackerRoster = stringPreferencesKey(Constants.PreferenceKeys.POINT_TRACKER_ROSTER)
+        val competitiveRegion = stringPreferencesKey(Constants.PreferenceKeys.COMPETITIVE_REGION)
+        val scanLanguage = stringPreferencesKey(Constants.PreferenceKeys.SCAN_LANGUAGE)
     }
 
     val hapticFeedback: Flow<Boolean> = boolean(Keys.hapticFeedback, default = true)
@@ -67,6 +71,17 @@ class UserPreferences @Inject constructor(
     val backupUri: Flow<String?> = context.dataStore.data.map { it[Keys.backupUri] }
     val cloudSnapshotAutoSync: Flow<Boolean> = boolean(Keys.cloudSnapshotAutoSync, default = true)
     val pointTrackerRoster: Flow<String?> = context.dataStore.data.map { it[Keys.pointTrackerRoster] }
+
+    /** Which ban list applies. Stored as the raw value (`global`, `kr`, `tc`). */
+    val competitiveRegion: Flow<CompetitiveRegion> =
+        context.dataStore.data.map { CompetitiveRegion.fromValue(it[Keys.competitiveRegion]) }
+
+    /** Scanner language: `auto` detects per card, anything else forces it. */
+    val scanLanguage: Flow<ScanLanguage> =
+        context.dataStore.data.map { ScanLanguage.fromValue(it[Keys.scanLanguage]) }
+
+    suspend fun setCompetitiveRegion(value: CompetitiveRegion) = put(Keys.competitiveRegion, value.value)
+    suspend fun setScanLanguage(value: ScanLanguage) = put(Keys.scanLanguage, value.value)
 
     suspend fun setHapticFeedback(value: Boolean) = put(Keys.hapticFeedback, value)
     suspend fun setSoundFeedback(value: Boolean) = put(Keys.soundFeedback, value)

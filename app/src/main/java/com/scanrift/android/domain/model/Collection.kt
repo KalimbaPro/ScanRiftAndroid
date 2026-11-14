@@ -3,7 +3,7 @@ package com.scanrift.android.domain.model
 /**
  * One owned stack of a card.
  *
- * The identity triple `(cardId, isFoil, condition)` is the upsert key everywhere —
+ * The identity `(cardId, isFoil, condition, language)` is the upsert key everywhere —
  * scanning, importing and restoring a backup all merge on it. Room enforces it with a
  * unique index so the invariant survives a bug rather than depending on discipline.
  *
@@ -21,12 +21,21 @@ data class CollectionEntry(
     val condition: CardCondition = CardCondition.NEAR_MINT,
     val notes: String? = null,
     val folder: String? = null,
+    val language: CardLanguage = CardLanguage.EN,
 ) {
-    val key: EntryKey? get() = cardId?.let { EntryKey(it, isFoil, condition.value) }
+    val key: EntryKey? get() = cardId?.let { EntryKey(it, isFoil, condition.value, language.value) }
 }
 
-/** The upsert key shared by scan-add, import and snapshot restore. */
-data class EntryKey(val cardId: String, val isFoil: Boolean, val condition: String)
+/**
+ * The upsert key shared by scan-add, import and snapshot restore. [language] is a raw
+ * [CardLanguage.value]; iOS uses the same four-part key.
+ */
+data class EntryKey(
+    val cardId: String,
+    val isFoil: Boolean,
+    val condition: String,
+    val language: String = CardLanguage.EN.value,
+)
 
 /**
  * A wishlist or user-created list.

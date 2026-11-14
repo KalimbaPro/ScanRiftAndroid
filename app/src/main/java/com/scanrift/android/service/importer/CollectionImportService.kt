@@ -6,6 +6,7 @@ import com.scanrift.android.data.local.entity.CardEntity
 import com.scanrift.android.data.local.entity.CollectionEntryEntity
 import com.scanrift.android.di.IoDispatcher
 import com.scanrift.android.domain.model.CardCondition
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.EntryKey
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
@@ -186,7 +187,7 @@ class CollectionImportService @Inject constructor(
         suspend fun prime() {
             db.collectionEntryDao().getAll().forEach { entry ->
                 val cardId = entry.cardId ?: return@forEach
-                index[EntryKey(cardId, entry.isFoil, entry.condition)] = entry
+                index[EntryKey(cardId, entry.isFoil, entry.condition, entry.language)] = entry
             }
         }
 
@@ -212,7 +213,8 @@ class CollectionImportService @Inject constructor(
 
         fun add(cardId: String, quantity: Int, isFoil: Boolean, condition: CardCondition) {
             if (quantity <= 0) return
-            val key = EntryKey(cardId, isFoil, condition.value)
+            // Imported formats carry no language column, so imports are English copies.
+            val key = EntryKey(cardId, isFoil, condition.value, CardLanguage.EN.value)
             val existing = pending[key] ?: index[key]
 
             if (existing == null) {

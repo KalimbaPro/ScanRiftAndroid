@@ -13,7 +13,12 @@ package com.scanrift.android.core
 object Constants {
 
     object Api {
-        const val BASE_URL = "https://api.riftcodex.com"
+        /**
+         * The own API (RiftCodex-compatible paths plus `/legality`, Radiance, bans,
+         * errata and zh/ko localisations). Placeholder host until the Cloudflare account
+         * exists; iOS's `Constants.API.baseURL` must hold the same value.
+         */
+        const val BASE_URL = "https://riftbound-api.kalimbapro.workers.dev"
         const val DEFAULT_PAGE_SIZE = 100
 
         /**
@@ -130,6 +135,12 @@ object Constants {
         const val BACKUP_URI = "backupUri"
         const val CLOUD_SNAPSHOT_AUTO_SYNC = "cloudSnapshotAutoSync"
         const val POINT_TRACKER_ROSTER = "pointTracker.roster.v1"
+
+        /** Raw [com.scanrift.android.domain.model.CompetitiveRegion.value]: `global` | `kr` | `tc`. */
+        const val COMPETITIVE_REGION = "competitiveRegion"
+
+        /** Raw [com.scanrift.android.domain.model.ScanLanguage.value]: `auto` | `en` | `fr` | `zh` | `ko`. */
+        const val SCAN_LANGUAGE = "scanLanguage"
     }
 
     object ImageCache {

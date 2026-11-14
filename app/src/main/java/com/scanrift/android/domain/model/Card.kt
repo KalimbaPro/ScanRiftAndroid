@@ -45,7 +45,24 @@ data class Card(
     val updatedOn: Long? = null,
     val orientation: String = CardOrientation.PORTRAIT,
     val tags: List<String> = emptyList(),
+    /** Banned in Standard for the user's competitive region (resolved by `/legality`). */
+    val banned: Boolean = false,
+    /** Formats the card is banned in for that region, e.g. `standard`, `2v2`. */
+    val bannedFormats: List<String> = emptyList(),
+    /** Official errata: the full new text, or null when the card has none. */
+    val errata: String? = null,
+    /** ISO date (`2026-10-09`) the errata was published. */
+    val errataDate: String? = null,
+    /** Localised name / image keyed by [CardLanguage.value] (`zh`, `ko`). */
+    val localizations: Map<String, CardLocalization> = emptyMap(),
 ) {
+    /**
+     * The image for a copy printed in [language]: the localised art when the API has
+     * one, the English image otherwise.
+     */
+    fun imageUrl(language: CardLanguage): String? =
+        localizations[language.value]?.imageUrl?.takeIf { it.isNotBlank() } ?: imageUrl
+
     /** Rare, Epic and Showcase printings only exist as foils. */
     val isAlwaysFoil: Boolean
         get() = rarity in Rarity.alwaysFoil
@@ -135,4 +152,11 @@ val CardNumberComparator: Comparator<Card> = compareBy(
     { it.setOrderRank },
     { it.collectorNumber },
     { it.isAlternateArt },
+)
+
+/** One localisation of a card, as served by the API under `localizations.<lang>`. */
+data class CardLocalization(
+    val name: String? = null,
+    val imageUrl: String? = null,
+    val text: String? = null,
 )
