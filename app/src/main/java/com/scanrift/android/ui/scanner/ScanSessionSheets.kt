@@ -72,6 +72,7 @@ import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.Deck
 import com.scanrift.android.domain.model.DeckSection
+import com.scanrift.android.ui.components.AdaptiveCardSheet
 import com.scanrift.android.ui.components.CardThumbnail
 import com.scanrift.android.ui.components.FoilBadge
 import com.scanrift.android.ui.components.TappableQuantityStepper
@@ -330,12 +331,11 @@ private fun FoilToggle(result: ScanResult, onToggle: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardCorrectionSheet(state: ScannerUiState, viewModel: ScannerViewModel) {
     val focusManager = LocalFocusManager.current
 
-    ModalBottomSheet(onDismissRequest = viewModel::dismissCorrection) {
+    AdaptiveCardSheet(onDismiss = viewModel::dismissCorrection) {
         SheetTitleBar(
             title = "Correct Card",
             leading = { TextButton(onClick = viewModel::dismissCorrection) { Text("Cancel") } },

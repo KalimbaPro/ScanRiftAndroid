@@ -20,14 +20,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +43,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.domain.model.GameResult
+import com.scanrift.android.ui.components.AdaptiveCardSheet
+import com.scanrift.android.ui.components.shouldShowCardPopUp
 import com.scanrift.android.ui.theme.Dimens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,20 +54,25 @@ fun GameSheet(
     onDismiss: () -> Unit,
     dismissLabel: String = "Cancel",
     scrollable: Boolean = true,
+    showsCard: Boolean = false,
     action: @Composable () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    // A sheet that picks a card becomes a centred pop-up on a wide window, like every
+    // other single-card sheet; the forms (settings, end-of-game record) stay sheets.
+    val popUp = showsCard && shouldShowCardPopUp()
+    AdaptiveCardSheet(
+        onDismiss = onDismiss,
+        skipPartiallyExpanded = true,
         sheetMaxWidth = Dimens.SheetMaxWidth,
+        popUp = popUp,
     ) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .widthIn(max = Dimens.SheetMaxWidth)
-                .navigationBarsPadding()
-                .padding(bottom = 24.dp),
+                .then(if (popUp) Modifier else Modifier.navigationBarsPadding())
+                .padding(bottom = if (popUp) 16.dp else 24.dp),
         ) {
             Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
                 TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
