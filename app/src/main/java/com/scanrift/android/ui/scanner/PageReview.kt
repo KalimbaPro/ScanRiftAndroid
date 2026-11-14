@@ -59,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.domain.model.CardLanguage
+import com.scanrift.android.domain.model.PrintingIndex
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.theme.Dimens
 
@@ -91,12 +92,12 @@ fun PageReviewScreen(state: ScannerUiState, viewModel: ScannerViewModel, onAdded
                 Row(Modifier.weight(1f)) {
                     PagePhoto(page, viewModel, Modifier.weight(1f).fillMaxHeight())
                     VerticalDivider()
-                    PageItemList(page, viewModel, Modifier.width(Dimens.ScannerSidebarWidth).fillMaxHeight())
+                    PageItemList(page, state.printingIndex, viewModel, Modifier.width(Dimens.ScannerSidebarWidth).fillMaxHeight())
                 }
             } else {
                 PagePhoto(page, viewModel, Modifier.weight(1f).fillMaxWidth())
                 HorizontalDivider()
-                PageItemList(page, viewModel, Modifier.weight(1f).fillMaxWidth())
+                PageItemList(page, state.printingIndex, viewModel, Modifier.weight(1f).fillMaxWidth())
             }
             HorizontalDivider()
             val count = page.matched.size
@@ -184,7 +185,7 @@ private fun fittedFrame(container: Size, imageWidth: Int, imageHeight: Int): Pai
 }
 
 @Composable
-private fun PageItemList(page: PageReview, viewModel: ScannerViewModel, modifier: Modifier) {
+private fun PageItemList(page: PageReview, printingIndex: PrintingIndex, viewModel: ScannerViewModel, modifier: Modifier) {
     if (!page.isProcessing && page.items.isEmpty()) {
         Box(modifier, contentAlignment = Alignment.Center) {
             Text(
@@ -198,14 +199,14 @@ private fun PageItemList(page: PageReview, viewModel: ScannerViewModel, modifier
     }
     LazyColumn(modifier) {
         items(page.items, key = { it.id }) { item ->
-            PageItemRow(item, viewModel)
+            PageItemRow(item, viewModel, hasVersions = printingIndex.hasChoice(item.card))
             HorizontalDivider(Modifier.padding(start = 72.dp))
         }
     }
 }
 
 @Composable
-private fun PageItemRow(item: PageItem, viewModel: ScannerViewModel) {
+private fun PageItemRow(item: PageItem, viewModel: ScannerViewModel, hasVersions: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -233,12 +234,20 @@ private fun PageItemRow(item: PageItem, viewModel: ScannerViewModel) {
                 overflow = TextOverflow.Ellipsis,
                 color = if (card == null) UnmatchedOrange else MaterialTheme.colorScheme.onSurface,
             )
-            Text(
-                if (card == null) "${item.code} · tap to pick the card" else "${card.setLabel} · ${card.publicCode}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
+            if (card != null && hasVersions) {
+                SetVersionLabel(
+                    card,
+                    onPickVersion = { viewModel.openVersionPicker(VersionTarget.PageItem(item.id)) },
+                    ambiguous = item.ambiguous,
+                )
+            } else {
+                Text(
+                    if (card == null) "${item.code} · tap to pick the card" else "${card.setLabel} · ${card.publicCode}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
         }
         PageLanguageChip(item.language) { viewModel.setPageItemLanguage(item.id, it) }
         IconButton(onClick = { viewModel.togglePageItemFoil(item.id) }, enabled = card != null && !card.isAlwaysFoil) {

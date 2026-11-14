@@ -76,6 +76,45 @@ interface CollectionEntryDao {
         }
     }
 
+    /**
+     * Moves up to [quantity] copies from one stack to another, merging into the target
+     * stack when it exists. Used when the scanner's version picker re-keys copies that
+     * auto-add already wrote: only the scanned copies move, so copies the user owned
+     * before the scan stay where they were. Atomic, so a crash cannot drop the copies
+     * between the two stacks.
+     *
+     * @return how many copies actually moved (fewer than asked when the source stack
+     *   was edited in the meantime; zero when it is gone).
+     */
+    @Transaction
+    suspend fun moveCopies(
+        fromCardId: String,
+        fromFoil: Boolean,
+        toCardId: String,
+        toFoil: Boolean,
+        condition: String,
+        language: String,
+        quantity: Int,
+        now: Long,
+    ): Int {
+        if (quantity <= 0 || (fromCardId == toCardId && fromFoil == toFoil)) return 0
+        val source = findEntry(fromCardId, fromFoil, condition, language) ?: return 0
+        val moved = minOf(quantity, source.quantity)
+        if (moved == source.quantity) delete(source) else update(source.copy(quantity = source.quantity - moved))
+        val target = findEntry(toCardId, toFoil, condition, language)
+        if (target == null) {
+            insert(
+                CollectionEntryEntity(
+                    cardId = toCardId, quantity = moved, isFoil = toFoil, dateAdded = now,
+                    condition = condition, language = language,
+                ),
+            )
+        } else {
+            update(target.copy(quantity = target.quantity + moved))
+        }
+        return moved
+    }
+
     @Query("SELECT SUM(quantity) FROM collection_entries")
     fun observeTotalCardCount(): Flow<Int?>
 

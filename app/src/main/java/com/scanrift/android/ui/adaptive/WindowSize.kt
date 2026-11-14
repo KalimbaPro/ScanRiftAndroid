@@ -132,7 +132,15 @@ object AdaptiveRules {
      * inside the container rather than read off the window: a folded phone gets three
      * columns, an unfolded Fold four.
      */
-    fun legendPrintingColumns(width: Dp): Int {
+    fun legendPrintingColumns(width: Dp): Int = printingColumns(width)
+
+    /**
+     * Columns for any printing grid (the legend chooser, the scanner's version picker),
+     * from the width the grid is measured at inside its sheet. Never the window: the
+     * sheet is capped at [Dimens.SheetMaxWidth], so an unfolded Fold gets five columns
+     * where the window alone would suggest more.
+     */
+    fun printingColumns(width: Dp): Int {
         val spacing = Dimens.GridSpacingCompact
         val computed = ((width + spacing) / (Dimens.LegendPrintingItemMin + spacing)).toInt()
         return computed.coerceIn(Dimens.LEGEND_PRINTING_COLUMNS_MIN, Dimens.LEGEND_PRINTING_COLUMNS_MAX)

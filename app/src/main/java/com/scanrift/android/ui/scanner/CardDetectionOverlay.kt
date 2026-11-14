@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.scanrift.android.service.scanning.NormalizedBox
 import com.scanrift.android.ui.theme.Motion
 
 /**
@@ -23,6 +24,19 @@ import com.scanrift.android.ui.theme.Motion
  * static guide iOS falls back to when no rectangle is found, tinted by scanner state —
  * which carries the same "hold the card here, it's locked on" affordance for free.
  */
+/**
+ * Where the guide sits in a view of [viewWidth] × [viewHeight] pixels: centred, capped
+ * at 90% × 80% of the view. The overlay draws it and the scanner maps the same rect into
+ * each analysed frame, so the two can never disagree.
+ */
+fun scanGuideRect(viewWidth: Float, viewHeight: Float, guideWidthPx: Float, guideHeightPx: Float): NormalizedBox {
+    val w = guideWidthPx.coerceAtMost(viewWidth * 0.9f)
+    val h = guideHeightPx.coerceAtMost(viewHeight * 0.8f)
+    val left = (viewWidth - w) / 2f
+    val top = (viewHeight - h) / 2f
+    return NormalizedBox(left, top, left + w, top + h)
+}
+
 @Composable
 fun CardDetectionOverlay(
     state: ScannerOverlayState,
@@ -43,10 +57,11 @@ fun CardDetectionOverlay(
     )
 
     Canvas(modifier.fillMaxSize()) {
-        val w = guideWidth.toPx().coerceAtMost(size.width * 0.9f)
-        val h = guideHeight.toPx().coerceAtMost(size.height * 0.8f)
-        val left = (size.width - w) / 2f
-        val top = (size.height - h) / 2f
+        val guide = scanGuideRect(size.width, size.height, guideWidth.toPx(), guideHeight.toPx())
+        val w = guide.width
+        val h = guide.height
+        val left = guide.left
+        val top = guide.top
         val armLength = 30.dp.toPx()
         val strokeWidth = 3.dp.toPx()
 
