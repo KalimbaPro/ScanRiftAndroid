@@ -90,19 +90,37 @@ fun List<ScanResult>.withLanguage(id: String, language: CardLanguage): List<Scan
     return results
 }
 
-fun List<ScanResult>.correcting(id: String, card: Card): List<ScanResult> {
+/**
+ * The foil flag a copy keeps when it is re-pointed at [newCard]: the new card's default
+ * (`isAlwaysFoil`) unless the user had explicitly made the old one foil, which is only
+ * possible when the old card was not always-foil.
+ */
+fun versionFoil(oldCard: Card?, oldFoil: Boolean, newCard: Card): Boolean =
+    newCard.isAlwaysFoil || (oldFoil && oldCard?.isAlwaysFoil != true)
+
+/** As [replacingCard], dropping the landing row id. */
+fun List<ScanResult>.correcting(id: String, card: Card): List<ScanResult> = replacingCard(id, card).first
+
+/**
+ * Re-points row [id] at [card] (a correction, or another printing from the version
+ * picker), keeping its quantity and language and following [versionFoil] for the foil
+ * flag. Merges into a row that already has the new identity.
+ *
+ * @return the new list and the id of the row the copies landed in (null when [id] is
+ *   not in the list).
+ */
+fun List<ScanResult>.replacingCard(id: String, card: Card): Pair<List<ScanResult>, String?> {
     val index = indexOfFirst { it.id == id }
-    if (index < 0) return this
+    if (index < 0) return this to null
     val corrected = this[index]
-    val keepsChosenFoil = corrected.isFoil && !corrected.card.isAlwaysFoil
-    val isFoil = card.isAlwaysFoil || keepsChosenFoil
+    val isFoil = versionFoil(corrected.card, corrected.isFoil, card)
     val twin = indexOfFirst { it.id != id && it.sameStack(card, isFoil, corrected.language) }
     val results = toMutableList()
     if (twin >= 0) {
         results[twin] = results[twin].copy(quantity = results[twin].quantity + corrected.quantity)
         results.removeAt(index)
-    } else {
-        results[index] = corrected.copy(card = card, isFoil = isFoil)
+        return results to this[twin].id
     }
-    return results
+    results[index] = corrected.copy(card = card, isFoil = isFoil)
+    return results to id
 }

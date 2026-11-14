@@ -17,6 +17,9 @@ import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.Deck
 import com.scanrift.android.domain.model.DeckSection
+import com.scanrift.android.domain.model.CardPrintings
+import com.scanrift.android.domain.model.PrintingIndex
+import com.scanrift.android.di.DefaultDispatcher
 import com.scanrift.android.domain.model.ScanLanguage
 import com.scanrift.android.service.feedback.FeedbackService
 import com.scanrift.android.service.scanning.CameraService
@@ -32,7 +35,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.DateFormat
 import java.util.Date
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -98,12 +105,22 @@ data class ScannerUiState(
     val isCapturing: Boolean = false,
     val correctionQuery: String = "",
     val correctionResults: List<Card> = emptyList(),
+    /** Every card's printings, built once when the catalogue snapshot loads. */
+    val printingIndex: PrintingIndex = PrintingIndex.EMPTY,
+    /** Non-null while the version picker is open. */
+    val versionTarget: VersionTarget? = null,
+    /** Auto-add mode: the copies the last scan wrote, which a version change re-keys. */
+    val lastAutoAdded: AutoAddedScan? = null,
 ) {
     val scannedCount: Int get() = results.sumOf { it.quantity }
     val correcting: ScanResult? get() = results.firstOrNull { it.id == correctingId }
     val lastResult: ScanResult? get() = results.firstOrNull { it.id == lastResultId }
     val correctingPageItem: PageItem? get() = page?.items?.firstOrNull { it.id == correctingPageItemId }
     val isCorrecting: Boolean get() = correctingId != null || correctingPageItemId != null
+
+    /** True when the last scan has another printing to switch to: the set chip is active. */
+    val lastScanHasVersions: Boolean
+        get() = lastScanVersionTarget() != null && printingIndex.hasChoice(lastScanned)
 }
 
 @HiltViewModel
@@ -115,6 +132,7 @@ class ScannerViewModel @Inject constructor(
     private val feedbackService: FeedbackService,
     private val userPreferences: UserPreferences,
     private val pageScanService: PageScanService,
+    @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ScannerUiState())
@@ -134,6 +152,9 @@ class ScannerViewModel @Inject constructor(
     private var knownSetIds: Set<String> = emptySet()
     private var pageJob: Job? = null
 
+    /** Serialises auto-add writes so a version re-key never overtakes the scan or "+1" it moves. */
+    private val autoAddWrites = Mutex()
+
     private var frameCounter = 0
     private var lastScanAtMs = 0L
     private var isPaused = false
@@ -147,6 +168,8 @@ class ScannerViewModel @Inject constructor(
             // A snapshot is enough: the catalogue does not change mid-session.
             val cards = collectionRepository.observeAllCards().first()
             matcher = CardMatchingService(cards)
+            val index = withContext(defaultDispatcher) { CardPrintings.index(cards) }
+            _uiState.update { it.copy(printingIndex = index) }
             knownSetIds = cards.flatMapTo(HashSet()) { listOf(it.setId, it.sourceSetId) }
                 .mapTo(HashSet()) { it.uppercase(java.util.Locale.ROOT) }
         }
@@ -403,7 +426,9 @@ class ScannerViewModel @Inject constructor(
         updateDebug { it.copy(ocrText = "${ocr.extractedText}\n[language ${detection.language.code} via ${detection.source}]") }
 
         val autoAdd = userPreferences.autoAddToCollection.first()
-        if (autoAdd) collectionRepository.addCopies(match.card, language = detection.language)
+        if (autoAdd) {
+            autoAddWrites.withLock { collectionRepository.addCopies(match.card, language = detection.language) }
+        }
 
         _uiState.update {
             val (results, rowId) = if (autoAdd) {
@@ -417,6 +442,7 @@ class ScannerViewModel @Inject constructor(
                 lastResultId = rowId,
                 lastLanguage = detection.language,
                 results = results,
+                lastAutoAdded = if (autoAdd) AutoAddedScan(match.card, match.card.isAlwaysFoil, detection.language) else null,
             )
         }
 
@@ -480,8 +506,18 @@ class ScannerViewModel @Inject constructor(
             setQuantity(last.id, last.quantity + 1)
         } else if (state.lastScanned != null) {
             // Auto-add mode keeps no session rows; the extra copy goes straight in.
-            val card = state.lastScanned
-            viewModelScope.launch { collectionRepository.addCopies(card, language = state.lastLanguage) }
+            val added = state.lastAutoAdded
+            val card = added?.card ?: state.lastScanned
+            _uiState.update { it.copy(lastAutoAdded = it.lastAutoAdded?.let { a -> a.copy(quantity = a.quantity + 1) }) }
+            viewModelScope.launch {
+                autoAddWrites.withLock {
+                    collectionRepository.addCopies(
+                        card,
+                        isFoil = added?.isFoil ?: card.isAlwaysFoil,
+                        language = added?.language ?: state.lastLanguage,
+                    )
+                }
+            }
         }
     }
 
@@ -505,25 +541,52 @@ class ScannerViewModel @Inject constructor(
     }
 
     fun applyCorrection(card: Card) {
-        _uiState.value.correctingPageItemId?.let { pageItemId ->
-            updatePageItems { items ->
-                items.map {
-                    if (it.id == pageItemId) it.copy(card = card, isFoil = card.isAlwaysFoil || it.isFoil) else it
+        val state = _uiState.value
+        val target = state.correctingPageItemId?.let { VersionTarget.PageItem(it) }
+            ?: state.correctingId?.let { VersionTarget.Row(it) }
+            ?: return
+        applyVersion(target, card)
+        dismissCorrection()
+    }
+
+    // ── Version picker ───────────────────────────────────────────────────────
+
+    /** The set chip under the last scan. */
+    fun openVersionPickerForLast() {
+        val state = _uiState.value
+        if (!state.lastScanHasVersions) return
+        _uiState.update { it.copy(versionTarget = state.lastScanVersionTarget()) }
+    }
+
+    fun openVersionPicker(target: VersionTarget) = _uiState.update { it.copy(versionTarget = target) }
+
+    fun dismissVersionPicker() = _uiState.update { it.copy(versionTarget = null) }
+
+    /** A printing tapped in the picker: replaces the target's card and closes the picker. */
+    fun selectVersion(card: Card) {
+        val target = _uiState.value.versionTarget ?: return
+        applyVersion(target, card)
+        dismissVersionPicker()
+    }
+
+    private fun applyVersion(target: VersionTarget, card: Card) {
+        var move: CopyMove? = null
+        _uiState.update { state -> state.withVersion(target, card).also { move = it.second }.first }
+        move?.let { m ->
+            // Auto-add already owns the old printing; re-key exactly the copies it wrote.
+            viewModelScope.launch {
+                autoAddWrites.withLock {
+                    val moved = collectionRepository.moveCopies(
+                        from = m.from.card, fromFoil = m.from.isFoil,
+                        to = m.to.card, toFoil = m.to.isFoil,
+                        quantity = m.from.quantity, language = m.from.language,
+                    )
+                    if (moved < m.from.quantity) {
+                        Log.database.w("Version change moved $moved of ${m.from.quantity} auto-added copies")
+                    }
                 }
             }
-            dismissCorrection()
-            return
         }
-        val id = _uiState.value.correctingId ?: return
-        val wasLast = id == _uiState.value.lastResultId
-        _uiState.update { it.copy(results = it.results.correcting(id, card), lastScanned = card) }
-        if (wasLast) {
-            // The corrected row may have merged into a twin; point the banner at it.
-            val row = _uiState.value.results.firstOrNull { it.id == id }
-                ?: _uiState.value.results.firstOrNull { it.card.id == card.id && it.language == _uiState.value.lastLanguage }
-            _uiState.update { it.copy(lastResultId = row?.id) }
-        }
-        dismissCorrection()
     }
 
     fun dismissCorrection() = _uiState.update {
@@ -548,7 +611,9 @@ class ScannerViewModel @Inject constructor(
         }
     }
 
-    fun clearSession() = _uiState.update { it.copy(results = emptyList(), lastScanned = null, lastResultId = null) }
+    fun clearSession() = _uiState.update {
+        it.copy(results = emptyList(), lastScanned = null, lastResultId = null, lastAutoAdded = null, versionTarget = null)
+    }
 
     fun toggleTorch() = cameraService.toggleTorch()
 

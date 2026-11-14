@@ -122,6 +122,30 @@ class CollectionRepository @Inject constructor(
             }
         }
 
+    /**
+     * Re-keys [quantity] scanned copies from one printing to another (the scanner's
+     * version picker in auto-add mode). Like [rekey] it merges into an existing stack
+     * rather than violating the unique index, but it moves only the copies the scan
+     * added, never the user's earlier copies of the old printing.
+     */
+    suspend fun moveCopies(
+        from: Card,
+        fromFoil: Boolean,
+        to: Card,
+        toFoil: Boolean,
+        quantity: Int,
+        language: CardLanguage = CardLanguage.EN,
+        condition: CardCondition = CardCondition.NEAR_MINT,
+        now: Long = System.currentTimeMillis(),
+    ): Int = withContext(io) {
+        entryDao.moveCopies(
+            fromCardId = from.id, fromFoil = fromFoil,
+            toCardId = to.id, toFoil = toFoil,
+            condition = condition.value, language = language.value,
+            quantity = quantity, now = now,
+        )
+    }
+
     suspend fun delete(entry: CollectionEntry) = withContext(io) {
         stored(entry)?.let { entryDao.delete(it) }
     }

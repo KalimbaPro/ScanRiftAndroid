@@ -385,6 +385,21 @@ overnumbered, special print, promo, any suffix and then supplemental sets (OGS, 
 successive penalties, so a legend that only exists as a Starter still has a sensible
 default. Same rule as iOS `LegendPrintings.swift`; keep the two in step.
 
+**A card's versions are grouped by name, for every type.** `CardPrintings` groups printings
+on the base identity (name minus trailing `(...)` suffixes, case- and accent-folded), so
+`Kai'Sa - Daughter of the Void (Signature)` is a version of the Rare. `LegendPrintings` is
+the same thing filtered to legends and only delegates. The scanner builds a `PrintingIndex`
+once when its catalogue snapshot loads (on `@DefaultDispatcher`) and carries it in
+`ScannerUiState`; never regroup per frame or per recomposition. The set chip under the last
+scan, each session row's set chip and each binder-page row open `CardVersionPicker` only when
+the card has more than one printing; `CardCorrectionSheet` shows the same printings as
+"Other versions". The rules live in `ScanVersions.kt` as pure functions: a pick keeps
+quantity and language, foil follows `versionFoil` (new card's `isAlwaysFoil` unless the user
+had toggled foil on), and in auto-add mode the copies the scan wrote (`lastAutoAdded`: the
+scan plus every "+1") are re-keyed with `CollectionEntryDao.moveCopies`, which moves only
+those copies and merges into an existing stack. Auto-add writes go through one `Mutex` so a
+re-key never overtakes the scan it moves.
+
 **Export formats are byte-exact.** riftbound.gg parses the CSV it emitted, spaces after
 commas and all, in the header *and* the data rows. Golden tests pin this.
 

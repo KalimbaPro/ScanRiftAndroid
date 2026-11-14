@@ -122,6 +122,11 @@ fun SessionSummarySheet(
                     onQuantityChange = { viewModel.setQuantity(result.id, it) },
                     onRemove = { viewModel.remove(result.id) },
                     onAddToDeck = { deckRequest = DeckSheetRequest(listOf(result), single = true) },
+                    onPickVersion = if (state.printingIndex.hasChoice(result.card)) {
+                        { viewModel.openVersionPicker(VersionTarget.Row(result.id)) }
+                    } else {
+                        null
+                    },
                 )
             }
         }
@@ -210,6 +215,8 @@ fun ScanResultRow(
     onRemove: () -> Unit,
     onAddToDeck: (() -> Unit)? = null,
     onLanguageChange: ((CardLanguage) -> Unit)? = null,
+    /** Opens the version picker; null when the card has a single printing. */
+    onPickVersion: (() -> Unit)? = null,
 ) {
     val dismissState = rememberSwipeToDismissBoxState()
     LaunchedEffect(dismissState.currentValue) {
@@ -249,12 +256,7 @@ fun ScanResultRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        result.card.setLabel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                    )
+                    SetVersionLabel(result.card, onPickVersion)
                     if (result.isFoil) FoilBadge()
                     if (showCorrectHint) {
                         Text(
@@ -303,6 +305,45 @@ private fun LanguageChip(language: CardLanguage, onChange: (CardLanguage) -> Uni
                 )
             }
         }
+    }
+}
+
+/**
+ * The row's set label. With other printings available it becomes a small chip with a
+ * chevron that opens the version picker; otherwise plain text.
+ */
+@Composable
+fun SetVersionLabel(card: Card, onPickVersion: (() -> Unit)?) {
+    if (onPickVersion == null) {
+        Text(
+            card.setLabel,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+        return
+    }
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .clickable(onClick = onPickVersion)
+            .padding(start = 8.dp, end = 4.dp, top = 2.dp, bottom = 2.dp)
+            .semantics(mergeDescendants = true) { contentDescription = "${card.setLabel}. Choose another version" },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "${card.setId} #${card.publicCodePrefix.substringAfter('-')}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            maxLines = 1,
+        )
+        Icon(
+            Icons.Filled.ExpandMore,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.size(14.dp),
+        )
     }
 }
 
@@ -390,6 +431,15 @@ fun CardCorrectionSheet(state: ScannerUiState, viewModel: ScannerViewModel) {
                     textStyle = MaterialTheme.typography.bodyMedium,
                 )
             }
+        }
+
+        val correctingCard = state.correctingPageItem?.card ?: state.correcting?.card
+        if (correctingCard != null && state.printingIndex.hasChoice(correctingCard)) {
+            OtherVersionsRow(
+                current = correctingCard,
+                printings = state.printingIndex.printingsOf(correctingCard),
+                onSelect = viewModel::applyCorrection,
+            )
         }
 
         TextField(
