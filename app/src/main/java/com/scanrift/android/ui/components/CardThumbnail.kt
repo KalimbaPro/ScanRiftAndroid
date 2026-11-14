@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.requiredWidth
@@ -161,22 +162,28 @@ private val BannedRed = Color(0xFFD70015)
  * The BANNED band. Public only for the deck browser's cell, which draws its own image
  * with a different dimming rule; every other surface gets it through [CardThumbnail].
  *
- * A diagonal band, deliberately wider than the tile so its ends run off the clipped
- * corners. Sized from the tile's own width, so it reads the same on a 50dp list
- * thumbnail and a 400dp detail image.
+ * A sash across the top-right corner, so the art and the card's name stay visible. Its
+ * ends run past the tile's clipped edges, which is what reads as a corner ribbon. Sized
+ * from the tile's own width, so it reads the same on a 50dp list thumbnail and a 400dp
+ * detail image.
  */
 @Composable
 fun BoxScope.CardBannedBand(card: Card) {
     if (!card.banned) return
     BoxWithConstraints(Modifier.matchParentSize()) {
-        val bandHeight = (maxWidth * 0.17f).coerceAtLeast(9.dp)
-        val fontSize = with(LocalDensity.current) { (bandHeight * 0.58f).toSp() }
+        val bandHeight = (maxWidth * 0.12f).coerceAtLeast(9.dp)
+        // Distance of the sash's centre from the top and right edges. The visible part is
+        // about 2.8 × inset long, so small thumbnails push it further in to keep the word whole.
+        val inset = maxOf(maxWidth * 0.17f, bandHeight * 1.6f)
+        val bandLength = maxOf(maxWidth * 0.7f, inset * 3.2f)
+        val fontSize = with(LocalDensity.current) { (bandHeight * 0.6f).toSp() }
         Box(
             modifier = Modifier
-                .align(Alignment.Center)
-                .requiredWidth(maxWidth * 1.6f)
+                .align(Alignment.TopStart)
+                .offset(x = maxWidth - inset - bandLength / 2, y = inset - bandHeight / 2)
+                .requiredWidth(bandLength)
                 .height(bandHeight)
-                .graphicsLayer { rotationZ = -30f }
+                .graphicsLayer { rotationZ = 45f }
                 .background(BannedRed.copy(alpha = 0.92f))
                 .semantics { contentDescription = "Banned" },
             contentAlignment = Alignment.Center,
@@ -186,7 +193,7 @@ fun BoxScope.CardBannedBand(card: Card) {
                 color = Color.White,
                 fontSize = fontSize,
                 fontWeight = FontWeight.Black,
-                letterSpacing = fontSize * 0.12f,
+                letterSpacing = fontSize * 0.08f,
                 maxLines = 1,
             )
         }
