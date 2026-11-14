@@ -149,6 +149,20 @@ session sidebar (40% of the width, max 360dp), so an unfolded Fold in portrait g
 refolding drops it live. The binder-page review is photo | list side by side from 600dp
 and stacked below that.
 
+**A sheet that shows one card is an `AdaptiveCardSheet`, never a bare `ModalBottomSheet`.**
+On a wide window a bottom sheet spans the screen, covers what it was opened from and opens
+half-expanded, which crops the card. `AdaptiveCardSheet` (ui/components) is a centred
+`Dialog` (`usePlatformDefaultWidth = false`, capped at `Dimens.CardPopUpMaxWidth`, outside
+tap and back dismiss) from 600dp wide *and* 480dp tall, and the usual bottom sheet below.
+This is one of the few decisions keyed off the **window** rather than the pane — a sheet
+covers the whole window whichever pane opened it — and the height floor keeps a phone in
+landscape on the sheet. `AdaptiveRules.useCardPopUp` is the tested rule. Put the card image
+first and let the details scroll, so the whole card shows without scrolling. Card sheets
+today: `DeckCardDetailSheet`, `CardCorrectionSheet` (also the last-scanned chip's target),
+`CardVersionPicker` (its grid measures the pop-up's width, not the window's),
+and the legend choosers via `GameSheet(showsCard = true)`. Forms — settings, filters,
+import, add-to-list, end-of-game record — stay bottom sheets.
+
 **`NavigableListDetailPaneScaffold` does not react to a fold.** It renders from
 `navigator.scaffoldState`, which the navigator builds once and re-syncs *only* on
 navigation. Folding updates `scaffoldDirective` and therefore `scaffoldValue`, but

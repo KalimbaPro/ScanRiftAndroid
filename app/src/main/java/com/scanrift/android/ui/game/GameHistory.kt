@@ -470,6 +470,7 @@ private fun LegendChooserSheet(
         title = "Choose Legend",
         onDismiss = onDismiss,
         scrollable = false,
+        showsCard = true,
         action = {
             TextButton(onClick = { onSelect(null) }) { Text("Clear", color = MaterialTheme.colorScheme.error) }
         },

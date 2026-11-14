@@ -28,11 +28,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -56,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardPrintings
 import com.scanrift.android.ui.adaptive.AdaptiveRules
+import com.scanrift.android.ui.components.AdaptiveCardSheet
 import com.scanrift.android.ui.components.CardThumbnail
 import com.scanrift.android.ui.theme.Dimens
 
@@ -64,8 +63,8 @@ import com.scanrift.android.ui.theme.Dimens
  * captioned with set, collector code and variant, filterable by set. Tapping one
  * replaces the scan (see [ScannerViewModel.selectVersion]).
  *
- * Columns come from the grid's measured width inside the sheet, never the window
- * ([AdaptiveRules.printingColumns]), so an unfolded Fold gets a wider grid live.
+ * Columns come from the grid's measured width inside the sheet or pop-up, never the
+ * window ([AdaptiveRules.printingColumns]), so an unfolded Fold gets a wider grid live.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,10 +78,8 @@ fun CardVersionPicker(
     var query by rememberSaveable(current.id) { mutableStateOf("") }
     val shown = remember(printings, query) { CardPrintings.filterPrintings(printings, query) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) {
+    // Shows cards, so it is a centred pop-up on a wide window like every card sheet.
+    AdaptiveCardSheet(onDismiss = onDismiss, skipPartiallyExpanded = true) {
         Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) { Text("Cancel") }
             Column(Modifier.align(Alignment.Center).padding(horizontal = 88.dp), horizontalAlignment = Alignment.CenterHorizontally) {
