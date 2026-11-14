@@ -64,6 +64,12 @@ object Constants {
         const val NAME_BAND_MAX_Y = 0.65f
         const val NAME_BAND_MAX_MID_X = 0.7f
         const val SET_CODE_BAND_MAX_Y = 0.25f
+
+        /** Binder page stills are scaled to at most this many pixels on the long edge. */
+        const val PAGE_MAX_DIMENSION = 4096
+
+        /** Each 3×3 tile is upscaled to at least this long edge before its OCR pass. */
+        const val PAGE_TILE_MIN_DIMENSION = 1600
     }
 
     object MotionDetection {

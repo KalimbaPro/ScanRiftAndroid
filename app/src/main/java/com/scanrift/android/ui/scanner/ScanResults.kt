@@ -34,6 +34,14 @@ fun List<ScanResult>.addingScanReturningId(card: Card, language: CardLanguage): 
     return results to results[index].id
 }
 
+/** Adds [quantity] copies with an explicit foil flag — the binder-page path. */
+fun List<ScanResult>.adding(card: Card, isFoil: Boolean, language: CardLanguage, quantity: Int = 1): List<ScanResult> {
+    val foil = isFoil || card.isAlwaysFoil
+    val index = indexOfFirst { it.sameStack(card, foil, language) }
+    if (index < 0) return this + ScanResult(card, quantity = quantity, isFoil = foil, language = language)
+    return toMutableList().apply { this[index] = this[index].copy(quantity = this[index].quantity + quantity) }
+}
+
 fun List<ScanResult>.withQuantity(id: String, quantity: Int): List<ScanResult> =
     if (quantity <= 0) filterNot { it.id == id } else map { if (it.id == id) it.copy(quantity = quantity) else it }
 

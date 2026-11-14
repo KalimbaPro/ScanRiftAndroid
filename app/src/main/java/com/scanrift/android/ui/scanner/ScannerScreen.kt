@@ -12,6 +12,11 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -42,6 +48,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Layers
@@ -85,6 +92,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.domain.model.ScanLanguage
 import com.scanrift.android.service.scanning.CameraState
+import com.scanrift.android.service.scanning.MultiCardScanner
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.theme.Dimens
 import com.scanrift.android.ui.util.heavyImpact
@@ -100,12 +108,13 @@ private val UpperQuarter = BiasAlignment(0f, -0.5f)
 /**
  * The scanner.
  *
- * Adaptive rule here is deliberately stricter than elsewhere: the session sidebar only
- * appears at 840dp, not 600. At 700dp — an unfolded Fold in portrait — a 360dp sidebar
- * would leave 340dp of camera, which is less than the 300x420 guide plus margins. So
- * the inner display keeps the full-bleed scanner in portrait and gains the sidebar
- * only in landscape. The larger guide rect is a separate check, so portrait still gets
- * the benefit of the bigger screen.
+ * From 600dp of available width the camera gets a session sidebar beside it, so an
+ * unfolded Fold in portrait (~700dp) shows camera + session and refolding returns to
+ * the full-bleed scanner live. The sidebar narrows to 40% of the width (max 360dp) so
+ * the camera keeps room for the guide. The larger guide rect is a separate check.
+ *
+ * Two modes: **Single** streams 720p frames and scans one card at a time; **Page**
+ * photographs (or imports) a whole binder page and opens [PageReviewScreen].
  */
 @Composable
 fun ScannerScreen(viewModel: ScannerViewModel = hiltViewModel()) {
@@ -113,19 +122,29 @@ fun ScannerScreen(viewModel: ScannerViewModel = hiltViewModel()) {
     val decks by viewModel.decks.collectAsStateWithLifecycle()
     var showSummary by rememberSaveable { mutableStateOf(false) }
 
-    val sheetOpen = showSummary || state.correctingId != null
+    val sheetOpen = showSummary || state.isCorrecting
     LaunchedEffect(sheetOpen) {
         if (sheetOpen) viewModel.pauseScanning() else viewModel.resumeScanning()
     }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(viewModel::importPage)
+    }
+    val pickPhoto = {
+        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+    BackHandler(enabled = state.page != null) { viewModel.dismissPage() }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    if (state.page != null) {
+        PageReviewScreen(state, viewModel, onAdded = { showSummary = true })
+    } else BoxWithConstraints(Modifier.fillMaxSize()) {
         val showSidebar = AdaptiveRules.useScannerSidebar(maxWidth)
+        val sidebarWidth = AdaptiveRules.scannerSidebarWidth(maxWidth)
         val largeGuide = AdaptiveRules.useLargeScanGuide(maxWidth, maxHeight)
 
         if (showSidebar) {
             Row(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f)) {
-                    CameraLayer(viewModel, state, largeGuide, onOpenSummary = { showSummary = true }) {
+                    CameraLayer(viewModel, state, largeGuide, onOpenSummary = { showSummary = true }, onPickPhoto = pickPhoto) {
                         LastScannedChip(state, viewModel)
                         ScanPillRow(state, viewModel)
                     }
@@ -135,13 +154,13 @@ fun ScannerScreen(viewModel: ScannerViewModel = hiltViewModel()) {
                     state = state,
                     viewModel = viewModel,
                     modifier = Modifier
-                        .width(Dimens.ScannerSidebarWidth)
+                        .width(sidebarWidth)
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.surface),
                 )
             }
         } else {
-            CameraLayer(viewModel, state, largeGuide, onOpenSummary = { showSummary = true }) {
+            CameraLayer(viewModel, state, largeGuide, onOpenSummary = { showSummary = true }, onPickPhoto = pickPhoto) {
                 LastScannedChip(state, viewModel)
                 ScanPillRow(state, viewModel)
                 if (state.scannedCount > 0) {
@@ -160,7 +179,7 @@ fun ScannerScreen(viewModel: ScannerViewModel = hiltViewModel()) {
     if (showSummary) {
         SessionSummarySheet(state, decks, viewModel, onDismiss = { showSummary = false })
     }
-    if (state.correctingId != null) {
+    if (state.isCorrecting) {
         CardCorrectionSheet(state, viewModel)
     }
 }
@@ -171,8 +190,10 @@ private fun CameraLayer(
     state: ScannerUiState,
     largeGuide: Boolean,
     onOpenSummary: () -> Unit,
+    onPickPhoto: () -> Unit,
     bottomContent: @Composable ColumnScope.() -> Unit,
 ) {
+    val pageMode = state.scanMode == ScanMode.PAGE
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val previewView = remember { PreviewView(context).apply { scaleType = PreviewView.ScaleType.FILL_CENTER } }
@@ -183,8 +204,10 @@ private fun CameraLayer(
     var focusPoint by remember { mutableStateOf<Offset?>(null) }
     var focusTap by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(cameraAttempt) {
-        viewModel.startCamera(context, lifecycleOwner, previewView)
+    // Restarted on a mode change: page mode binds a full-resolution capture instead
+    // of the frame analyser.
+    LaunchedEffect(cameraAttempt, pageMode) {
+        viewModel.startCamera(context, lifecycleOwner, previewView, pageMode)
     }
 
     DisposableEffect(Unit) {
@@ -211,11 +234,15 @@ private fun CameraLayer(
         )
         focusPoint?.let { FocusIndicator(it, focusTap) }
 
-        CardDetectionOverlay(
-            state = if (cameraError != null) ScannerOverlayState.ERROR else state.overlayState,
-            guideWidth = if (largeGuide) Dimens.ScanGuideRegularWidth else Dimens.ScanGuideCompactWidth,
-            guideHeight = if (largeGuide) Dimens.ScanGuideRegularHeight else Dimens.ScanGuideCompactHeight,
-        )
+        if (pageMode) {
+            PageGuideOverlay(busy = state.isCapturing)
+        } else {
+            CardDetectionOverlay(
+                state = if (cameraError != null) ScannerOverlayState.ERROR else state.overlayState,
+                guideWidth = if (largeGuide) Dimens.ScanGuideRegularWidth else Dimens.ScanGuideCompactWidth,
+                guideHeight = if (largeGuide) Dimens.ScanGuideRegularHeight else Dimens.ScanGuideCompactHeight,
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -239,10 +266,11 @@ private fun CameraLayer(
                     }
                 }
             }
-            if (state.debugEnabled) DebugOverlay(state.debug)
+            ScanModeSwitch(state.scanMode, viewModel::setScanMode, Modifier.align(Alignment.CenterHorizontally))
+            if (state.debugEnabled && !pageMode) DebugOverlay(state.debug)
         }
 
-        StateOverlay(
+        if (!pageMode) StateOverlay(
             overlayState = state.overlayState,
             matchedName = state.lastScanned?.name.orEmpty(),
             cameraError = cameraError,
@@ -250,14 +278,30 @@ private fun CameraLayer(
             modifier = Modifier.align(UpperQuarter),
         )
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            content = bottomContent,
-        )
+        if (pageMode) {
+            if (cameraError != null) {
+                StateOverlay(state.overlayState, "", cameraError, onRetry = { cameraAttempt++ }, modifier = Modifier.align(UpperQuarter))
+            }
+            PageShutterRow(
+                busy = state.isCapturing,
+                enabled = cameraError == null,
+                onCapture = viewModel::capturePage,
+                onPickPhoto = onPickPhoto,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(bottom = 24.dp),
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                content = bottomContent,
+            )
+        }
     }
 }
 
@@ -557,4 +601,94 @@ private fun ScanPill(
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .then(if (description != null) Modifier.semantics { contentDescription = description } else Modifier),
     )
+}
+
+@Composable
+private fun ScanModeSwitch(mode: ScanMode, onChange: (ScanMode) -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.clip(CircleShape).background(OverlayScrim).padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        ScanMode.entries.forEach { option ->
+            val selected = option == mode
+            Text(
+                text = option.label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (selected) Color.Black else Color.White,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(if (selected) Color.White else Color.Transparent)
+                    .clickable { onChange(option) }
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .semantics { contentDescription = "${option.label} scan mode${if (selected) ", selected" else ""}" },
+            )
+        }
+    }
+}
+
+/** A 3×3 frame for a binder page: three cards wide, three tall, card-shaped pockets. */
+@Composable
+private fun PageGuideOverlay(busy: Boolean) {
+    val color = if (busy) Color(0xFFFFD60A) else Color.White.copy(alpha = 0.7f)
+    Canvas(Modifier.fillMaxSize()) {
+        val pageAspect = MultiCardScanner.CARD_ASPECT // 3 × 63 wide over 3 × 88 tall
+        var w = size.width * 0.92f
+        var h = w / pageAspect
+        if (h > size.height * 0.72f) {
+            h = size.height * 0.72f
+            w = h * pageAspect
+        }
+        val left = (size.width - w) / 2f
+        val top = (size.height - h) / 2f
+        val scrim = Color.Black.copy(alpha = 0.35f)
+        drawRect(scrim, size = androidx.compose.ui.geometry.Size(size.width, top))
+        drawRect(scrim, topLeft = Offset(0f, top + h), size = androidx.compose.ui.geometry.Size(size.width, size.height - top - h))
+        val stroke = 1.5.dp.toPx()
+        for (i in 0..3) {
+            drawLine(color, Offset(left + w * i / 3f, top), Offset(left + w * i / 3f, top + h), stroke)
+            drawLine(color, Offset(left, top + h * i / 3f), Offset(left + w, top + h * i / 3f), stroke)
+        }
+    }
+}
+
+@Composable
+private fun PageShutterRow(
+    busy: Boolean,
+    enabled: Boolean,
+    onCapture: () -> Unit,
+    onPickPhoto: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 32.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        IconButton(
+            onClick = onPickPhoto,
+            modifier = Modifier.size(52.dp).clip(CircleShape).background(OverlayScrim),
+        ) {
+            Icon(Icons.Filled.PhotoLibrary, contentDescription = "Scan a page from your photos", tint = Color.White)
+        }
+        Box(
+            modifier = Modifier
+                .size(76.dp)
+                .border(4.dp, Color.White, CircleShape)
+                .padding(7.dp)
+                .clip(CircleShape)
+                .background(if (enabled && !busy) Color.White else Color.White.copy(alpha = 0.4f))
+                .clickable(enabled = enabled && !busy, onClick = onCapture)
+                .semantics { contentDescription = "Photograph the page" },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (busy) CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
+        }
+        Text(
+            "3×3",
+            style = MaterialTheme.typography.labelLarge,
+            color = Color.White,
+            modifier = Modifier.size(52.dp).wrapContentSize(Alignment.Center),
+        )
+    }
 }

@@ -1,5 +1,6 @@
 package com.scanrift.android.service.scanning
 
+import android.graphics.Bitmap
 import android.graphics.Rect
 import androidx.camera.core.ImageProxy
 import com.scanrift.android.core.log.Log
@@ -88,6 +89,21 @@ class OcrService @Inject constructor() {
                 ?.takeIf { it.isNotBlank() }
         }
         return latin.copy(scriptText = scripts.joinToString("\n").takeIf { it.isNotEmpty() })
+    }
+
+    /**
+     * Line-level OCR of a still (binder page or tile). With [scripts], the Chinese and
+     * Korean recognizers run too and their lines are appended — the caller merges
+     * duplicates by position.
+     */
+    suspend fun recognizeLines(bitmap: Bitmap, scripts: Boolean = false): List<TextLine> {
+        val image = InputImage.fromBitmap(bitmap, 0)
+        val clients = if (scripts) scriptRecognizers() else listOf(recognizer)
+        return clients.flatMap { client ->
+            runCatching { recognize(client, image).toOcrResult(bitmap.width, bitmap.height).lines }
+                .onFailure { if (client !== recognizer) Log.ocr.w(it, "Script recognizer unavailable") else throw it }
+                .getOrDefault(emptyList())
+        }
     }
 
     private suspend fun recognize(client: TextRecognizer, image: InputImage): Text =

@@ -341,6 +341,26 @@ fun CardCorrectionSheet(state: ScannerUiState, viewModel: ScannerViewModel) {
             leading = { TextButton(onClick = viewModel::dismissCorrection) { Text("Cancel") } },
         )
 
+        state.correctingPageItem?.let { item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (item.card == null) "Read from the page (no match):" else "Current:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(item.card?.name ?: item.code, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                }
+                Text("${item.language.flag} ${item.language.code}", style = MaterialTheme.typography.labelMedium)
+            }
+        }
+
         state.correcting?.let { current ->
             Row(
                 modifier = Modifier
