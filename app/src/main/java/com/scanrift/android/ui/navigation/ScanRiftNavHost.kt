@@ -38,12 +38,17 @@ fun ScanRiftNavHost(
                 CollectionHubScreen(
                     onOpenAllCollection = { navController.navigate(CollectionBrowseRoute()) },
                     onOpenList = { listId -> navController.navigate(CollectionBrowseRoute(listId)) },
+                    onOpenCard = { query, cardId ->
+                        navController.navigate(CollectionBrowseRoute(query = query, cardId = cardId))
+                    },
                 )
             }
             composable<CollectionBrowseRoute> { entry ->
                 val route = entry.toRoute<CollectionBrowseRoute>()
                 CollectionBrowsePane(
                     listId = route.listId,
+                    initialQuery = route.query,
+                    initialCardId = route.cardId,
                     onBack = { navController.popBackStack() },
                 )
             }

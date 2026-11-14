@@ -8,6 +8,7 @@ import com.scanrift.android.data.local.entity.CollectionEntryEntity
 import com.scanrift.android.data.local.entity.DeckEntity
 import com.scanrift.android.data.local.entity.DeckEntryEntity
 import com.scanrift.android.data.local.entity.GameRecordEntity
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.EntryKey
 import javax.inject.Inject
 
@@ -17,7 +18,8 @@ import javax.inject.Inject
  * Restore is a merge, not a replace — the same semantics iOS uses, so the two
  * platforms agree about what a shared file means:
  *
- * - **Entries** are keyed on `(cardId, isFoil, condition)`. A newer `dateAdded` wins;
+ * - **Entries** are keyed on `(cardId, isFoil, condition, language)`; a file without
+ *   `language` (older builds, older iOS) means English. A newer `dateAdded` wins;
  *   an older one is a silent no-op (and is *not* counted as skipped, matching iOS).
  *   An unknown `cardId` is skipped and counted.
  * - **Decks** are keyed on `id`. A newer `lastModifiedDate` wins, and when it does the
@@ -57,7 +59,7 @@ class SnapshotMerger @Inject constructor(
         val index = HashMap<EntryKey, CollectionEntryEntity>()
         dao.getAll().forEach { entry ->
             val cardId = entry.cardId ?: return@forEach
-            index[EntryKey(cardId, entry.isFoil, entry.condition)] = entry
+            index[EntryKey(cardId, entry.isFoil, entry.condition, entry.language)] = entry
         }
 
         for (dto in snapshot.entries) {
@@ -66,7 +68,10 @@ class SnapshotMerger @Inject constructor(
                 continue
             }
 
-            val key = EntryKey(dto.cardId, dto.isFoil, dto.condition)
+            // Normalised, so an unknown future language lands on English rather than
+            // creating a stack no picker can reach.
+            val language = CardLanguage.fromValue(dto.language).value
+            val key = EntryKey(dto.cardId, dto.isFoil, dto.condition, language)
             val existing = index[key]
             if (existing != null) {
                 // Older data loses silently; iOS does not count that as skipped.
@@ -89,6 +94,7 @@ class SnapshotMerger @Inject constructor(
                     condition = dto.condition,
                     notes = dto.notes,
                     folder = dto.folder,
+                    language = language,
                 )
                 val id = dao.insert(inserted)
                 index[key] = inserted.copy(id = id)

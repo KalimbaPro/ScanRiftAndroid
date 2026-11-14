@@ -17,6 +17,10 @@ object SetNormalizer {
         "OGS" to "Proving Grounds",
         "SFD" to "Spiritforged",
         "UNL" to "Unleashed",
+        "RAD" to "Radiance",
+        // Secret Garden is a promo bundle but keeps its own set: its printed code is
+        // `SGN-001/003`, and folding it into PROMO would stop that code scanning.
+        "SGN" to "Secret Garden",
     )
 
     const val PROMO_SET_ID = "PROMO"

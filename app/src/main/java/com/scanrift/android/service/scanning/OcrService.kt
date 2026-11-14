@@ -1,10 +1,15 @@
 package com.scanrift.android.service.scanning
 
+import android.graphics.Bitmap
 import android.graphics.Rect
 import androidx.camera.core.ImageProxy
+import com.scanrift.android.core.log.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.TextRecognizer
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,15 +20,28 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 /**
  * On-device text recognition.
  *
- * Uses the **bundled** ML Kit model, not the Play Services one: the model ships inside
- * the APK (~4MB), so scanning works offline, on first launch, on every device from API
- * 21 up — including devices with no Play Services. For a scanner app that is the whole
- * product, and worth the download size.
+ * The Latin recognizer uses the **bundled** ML Kit model, not the Play Services one:
+ * the model ships inside the APK (~4MB), so scanning works offline, on first launch, on
+ * every device — including devices with no Play Services. For a scanner app that is the
+ * whole product, and worth the download size. It always runs, because the collector
+ * code that identifies the card is Latin on every print.
+ *
+ * The Chinese and Korean recognizers are the **unbundled** Play Services variants and
+ * run only when the caller asks for a script pass — in practice a matched frame whose
+ * name band has no Latin name, i.e. a zh/ko print. A device without Play Services fails
+ * that pass, which is caught: language detection then falls back to the printed marker.
  */
 @Singleton
 class OcrService @Inject constructor() {
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    private var chinese: TextRecognizer? = null
+    private var korean: TextRecognizer? = null
+
+    private fun scriptRecognizers(): List<TextRecognizer> = listOf(
+        chinese ?: TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build()).also { chinese = it },
+        korean ?: TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build()).also { korean = it },
+    )
 
     /**
      * Recognises text in one camera frame and splits it into the card-name and
@@ -33,13 +51,17 @@ class OcrService @Inject constructor() {
      * `imageQueueDepth` frames are outstanding.
      */
     @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
-    suspend fun extractText(imageProxy: ImageProxy): OcrResult {
+    suspend fun extractText(
+        imageProxy: ImageProxy,
+        needsScriptPass: (OcrResult) -> Boolean = { false },
+    ): OcrResult {
         return try {
             val mediaImage = imageProxy.image ?: return OcrResult.EMPTY
             val rotation = imageProxy.imageInfo.rotationDegrees
             val input = InputImage.fromMediaImage(mediaImage, rotation)
             val (width, height) = OcrGeometry.rotatedSize(mediaImage.width, mediaImage.height, rotation)
-            process(input, width, height)
+            // The script pass must happen before the finally below closes the frame.
+            process(input, width, height, needsScriptPass)
         } catch (e: IllegalStateException) {
             OcrResult.EMPTY
         } finally {
@@ -47,23 +69,62 @@ class OcrService @Inject constructor() {
         }
     }
 
-    suspend fun extractText(image: InputImage): OcrResult {
+    suspend fun extractText(image: InputImage, needsScriptPass: (OcrResult) -> Boolean = { false }): OcrResult {
         val (width, height) = OcrGeometry.rotatedSize(image.width, image.height, image.rotationDegrees)
-        return process(image, width, height)
+        return process(image, width, height, needsScriptPass)
     }
 
-    private suspend fun process(image: InputImage, width: Int, height: Int): OcrResult =
+    private suspend fun process(
+        image: InputImage,
+        width: Int,
+        height: Int,
+        needsScriptPass: (OcrResult) -> Boolean,
+    ): OcrResult {
+        val latin = recognize(recognizer, image).toOcrResult(width, height)
+        if (!needsScriptPass(latin)) return latin
+        val scripts = scriptRecognizers().mapNotNull { client ->
+            runCatching { recognize(client, image).text }
+                .onFailure { Log.ocr.w(it, "Script recognizer unavailable") }
+                .getOrNull()
+                ?.takeIf { it.isNotBlank() }
+        }
+        return latin.copy(scriptText = scripts.joinToString("\n").takeIf { it.isNotEmpty() })
+    }
+
+    /**
+     * Line-level OCR of a still (binder page or tile). With [scripts], the Chinese and
+     * Korean recognizers run too and their lines are appended — the caller merges
+     * duplicates by position.
+     */
+    suspend fun recognizeLines(bitmap: Bitmap, scripts: Boolean = false): List<TextLine> {
+        val image = InputImage.fromBitmap(bitmap, 0)
+        val clients = if (scripts) scriptRecognizers() else listOf(recognizer)
+        return clients.flatMap { client ->
+            runCatching { recognize(client, image).toOcrResult(bitmap.width, bitmap.height).lines }
+                .onFailure { if (client !== recognizer) Log.ocr.w(it, "Script recognizer unavailable") else throw it }
+                .getOrDefault(emptyList())
+        }
+    }
+
+    private suspend fun recognize(client: TextRecognizer, image: InputImage): Text =
         suspendCancellableCoroutine { continuation ->
-            recognizer.process(image)
-                .addOnSuccessListener { text -> continuation.resume(text.toOcrResult(width, height)) }
+            client.process(image)
+                .addOnSuccessListener { text -> continuation.resume(text) }
                 .addOnFailureListener { error -> continuation.resumeWithException(error) }
                 .addOnCanceledListener { continuation.cancel() }
         }
 
-    fun close() = recognizer.close()
+    fun close() {
+        recognizer.close()
+        chinese?.close()
+        korean?.close()
+        chinese = null
+        korean = null
+    }
 
     internal fun Text.toOcrResult(width: Int, height: Int): OcrResult {
         val allLines = mutableListOf<String>()
+        val boxedLines = mutableListOf<TextLine>()
         val nameParts = mutableListOf<String>()
         val setCodeParts = mutableListOf<String>()
         var confidenceSum = 0f
@@ -77,6 +138,7 @@ class OcrService @Inject constructor() {
 
                 val box: Rect? = line.boundingBox
                 if (box != null) {
+                    boxedLines += TextLine(value, OcrGeometry.normalize(box, width, height))
                     if (OcrGeometry.isNameBand(box, width, height)) nameParts += value
                     if (OcrGeometry.isSetCodeBand(box, height)) setCodeParts += value
                 }
@@ -100,6 +162,7 @@ class OcrService @Inject constructor() {
             cardNameRegion = nameParts.joinToString(" ").trim().takeIf { it.isNotEmpty() },
             setCodeRegion = setCodeParts.joinToString(" ").trim().takeIf { it.isNotEmpty() },
             confidence = confidence,
+            lines = boxedLines,
         )
     }
 }

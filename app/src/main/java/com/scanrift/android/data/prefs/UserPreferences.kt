@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.scanrift.android.core.Constants
+import com.scanrift.android.domain.model.CompetitiveRegion
+import com.scanrift.android.domain.model.ScanLanguage
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,14 +36,15 @@ class UserPreferences @Inject constructor(
         val autoAddToCollection = booleanPreferencesKey(Constants.PreferenceKeys.AUTO_ADD_TO_COLLECTION)
         val debugMode = booleanPreferencesKey(Constants.PreferenceKeys.DEBUG_MODE)
         val luchoParameter = booleanPreferencesKey(Constants.PreferenceKeys.LUCHO_PARAMETER)
-        val showUnownedInColor = booleanPreferencesKey(Constants.PreferenceKeys.SHOW_UNOWNED_IN_COLOR)
         val dynamicColor = booleanPreferencesKey(Constants.PreferenceKeys.DYNAMIC_COLOR)
         val lastDatabaseSync = longPreferencesKey(Constants.PreferenceKeys.LAST_DATABASE_SYNC)
-        val lastUpdateCheck = longPreferencesKey(Constants.PreferenceKeys.LAST_UPDATE_CHECK)
+        val catalogueTag = stringPreferencesKey(Constants.PreferenceKeys.CATALOGUE_TAG)
         val lastBackup = longPreferencesKey(Constants.PreferenceKeys.LAST_BACKUP)
         val backupUri = stringPreferencesKey(Constants.PreferenceKeys.BACKUP_URI)
         val cloudSnapshotAutoSync = booleanPreferencesKey(Constants.PreferenceKeys.CLOUD_SNAPSHOT_AUTO_SYNC)
         val pointTrackerRoster = stringPreferencesKey(Constants.PreferenceKeys.POINT_TRACKER_ROSTER)
+        val competitiveRegion = stringPreferencesKey(Constants.PreferenceKeys.COMPETITIVE_REGION)
+        val scanLanguage = stringPreferencesKey(Constants.PreferenceKeys.SCAN_LANGUAGE)
     }
 
     val hapticFeedback: Flow<Boolean> = boolean(Keys.hapticFeedback, default = true)
@@ -52,9 +55,6 @@ class UserPreferences @Inject constructor(
     /** Hidden flag that unlocks the artist filter, mirroring iOS. */
     val luchoParameter: Flow<Boolean> = boolean(Keys.luchoParameter, default = false)
 
-    /** When off, unowned cards render greyscale. The 50% fade applies either way. */
-    val showUnownedInColor: Flow<Boolean> = boolean(Keys.showUnownedInColor, default = false)
-
     /**
      * Material You, opt-in and off by default: the app's chrome sits against six fixed
      * domain hues, and a wallpaper-derived primary routinely collides with them.
@@ -62,21 +62,36 @@ class UserPreferences @Inject constructor(
     val dynamicColor: Flow<Boolean> = boolean(Keys.dynamicColor, default = false)
 
     val lastDatabaseSync: Flow<Long?> = nullableLong(Keys.lastDatabaseSync)
-    val lastUpdateCheck: Flow<Long?> = nullableLong(Keys.lastUpdateCheck)
+
+    /**
+     * The `/version` tag of the data the catalogue holds. Null until the first seed or
+     * full refresh completes; a mismatch with the API's tag triggers a full refresh.
+     */
+    val catalogueTag: Flow<String?> = context.dataStore.data.map { it[Keys.catalogueTag] }
     val lastBackup: Flow<Long?> = nullableLong(Keys.lastBackup)
     val backupUri: Flow<String?> = context.dataStore.data.map { it[Keys.backupUri] }
     val cloudSnapshotAutoSync: Flow<Boolean> = boolean(Keys.cloudSnapshotAutoSync, default = true)
     val pointTrackerRoster: Flow<String?> = context.dataStore.data.map { it[Keys.pointTrackerRoster] }
+
+    /** Which ban list applies. Stored as the raw value (`global`, `kr`, `tc`). */
+    val competitiveRegion: Flow<CompetitiveRegion> =
+        context.dataStore.data.map { CompetitiveRegion.fromValue(it[Keys.competitiveRegion]) }
+
+    /** Scanner language: `auto` detects per card, anything else forces it. */
+    val scanLanguage: Flow<ScanLanguage> =
+        context.dataStore.data.map { ScanLanguage.fromValue(it[Keys.scanLanguage]) }
+
+    suspend fun setCompetitiveRegion(value: CompetitiveRegion) = put(Keys.competitiveRegion, value.value)
+    suspend fun setScanLanguage(value: ScanLanguage) = put(Keys.scanLanguage, value.value)
 
     suspend fun setHapticFeedback(value: Boolean) = put(Keys.hapticFeedback, value)
     suspend fun setSoundFeedback(value: Boolean) = put(Keys.soundFeedback, value)
     suspend fun setAutoAddToCollection(value: Boolean) = put(Keys.autoAddToCollection, value)
     suspend fun setDebugMode(value: Boolean) = put(Keys.debugMode, value)
     suspend fun setLuchoParameter(value: Boolean) = put(Keys.luchoParameter, value)
-    suspend fun setShowUnownedInColor(value: Boolean) = put(Keys.showUnownedInColor, value)
     suspend fun setDynamicColor(value: Boolean) = put(Keys.dynamicColor, value)
     suspend fun setLastDatabaseSync(value: Long) = put(Keys.lastDatabaseSync, value)
-    suspend fun setLastUpdateCheck(value: Long) = put(Keys.lastUpdateCheck, value)
+    suspend fun setCatalogueTag(value: String) = put(Keys.catalogueTag, value)
     suspend fun setLastBackup(value: Long) = put(Keys.lastBackup, value)
     suspend fun setBackupUri(value: String?) = context.dataStore.edit { prefs ->
         if (value == null) prefs.remove(Keys.backupUri) else prefs[Keys.backupUri] = value

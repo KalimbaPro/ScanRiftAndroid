@@ -30,4 +30,17 @@ class SetNormalizerTest {
         assertThat(result.id).isEqualTo("VEN")
         assertThat(result.label).isEqualTo("Vendetta")
     }
+
+    @Test
+    fun `radiance and secret garden get pinned labels`() {
+        assertThat(SetNormalizer.normalize("RAD", "x").label).isEqualTo("Radiance")
+        assertThat(SetNormalizer.normalize("SGN", "x").label).isEqualTo("Secret Garden")
+    }
+
+    @Test
+    fun `secret garden is not merged into promos so its printed code still scans`() {
+        val result = SetNormalizer.normalize("SGN", "Secret Garden")
+        assertThat(result.id).isEqualTo("SGN")
+        assertThat(SetNormalizer.isPromoSet("SGN")).isFalse()
+    }
 }

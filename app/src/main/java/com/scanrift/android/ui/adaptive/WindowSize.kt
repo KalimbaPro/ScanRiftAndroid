@@ -83,12 +83,23 @@ object AdaptiveRules {
     fun useSplitDeckBuilder(paneWidth: Dp): Boolean = paneWidth >= Dimens.DeckBuilderSplitMinWidth
 
     /**
-     * Scanner gains its 360dp session sidebar only at 840dp. At 700dp the sidebar
-     * would leave 340dp of camera, less than the 300x420 guide rect plus margins — so
-     * an unfolded Fold in portrait keeps the compact scanner and gets the sidebar only
-     * in landscape.
+     * Scanner gains its session sidebar from 600dp, so an unfolded Fold in portrait
+     * (~700dp) gets camera + session like a tablet, and folding drops back to the
+     * full-bleed scanner live. A fixed 360dp sidebar at 700dp would leave 340dp of
+     * camera, less than the guide plus margins, so the sidebar narrows instead: see
+     * [scannerSidebarWidth].
      */
     fun useScannerSidebar(windowWidth: Dp): Boolean = windowWidth >= Dimens.ScannerSidebarMinWidth
+
+    /** 40% of the width up to 360dp: 280dp at 700dp leaves 420dp of camera. */
+    fun scannerSidebarWidth(windowWidth: Dp): Dp = minOf(Dimens.ScannerSidebarWidth, windowWidth * 0.4f)
+
+    /**
+     * Binder-page review puts the photo and the found-card list side by side. Keyed off
+     * the width actually available to the scanner — an unfolded Fold in portrait
+     * (~700dp) gets the split, the folded cover screen gets photo above list.
+     */
+    fun usePageReviewSplit(width: Dp): Boolean = width >= Dimens.TwoPaneMinWidth
 
     /** The larger scan guide is independent of the sidebar. */
     fun useLargeScanGuide(width: Dp, height: Dp): Boolean =

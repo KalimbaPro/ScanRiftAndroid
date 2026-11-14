@@ -157,6 +157,7 @@ private fun DeckTile(deck: Deck, missingCount: Int, onClick: () -> Unit, onDelet
     // Live validation rather than the weaker "40 cards and both slots" heuristic the
     // old build used, which called plainly illegal decks valid.
     val isValid = DeckValidator.validate(deck).isEmpty()
+    val isIllegal = DeckValidator.isIllegal(deck)
 
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -194,10 +195,19 @@ private fun DeckTile(deck: Deck, missingCount: Int, onClick: () -> Unit, onDelet
                     Icon(Icons.Filled.Layers, contentDescription = null, tint = tint, modifier = Modifier.size(40.dp))
                 }
             }
+            if (isIllegal) IllegalBadge(Modifier.align(Alignment.TopStart).padding(6.dp))
             Icon(
                 imageVector = if (isValid) Icons.Filled.CheckCircle else Icons.Filled.Warning,
-                contentDescription = if (isValid) "Legal deck" else "Has issues",
-                tint = if (isValid) ValidGreen else WarningOrange,
+                contentDescription = when {
+                    isValid -> "Legal deck"
+                    isIllegal -> "Illegal deck: contains banned cards"
+                    else -> "Has issues"
+                },
+                tint = when {
+                    isValid -> ValidGreen
+                    isIllegal -> IllegalRed
+                    else -> WarningOrange
+                },
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(6.dp)

@@ -37,7 +37,9 @@ which is the **reference implementation** — when the two disagree, iOS is righ
 this file says otherwise.
 
 - **Application id**: `com.scanrift.android` (debug builds get a `.debug` suffix)
-- **API**: `https://api.riftcodex.com`, with `res/raw/cards.json` as an offline seed
+- **API**: the own API (`Constants.Api.BASE_URL`, RiftCodex-compatible paths plus
+  `/legality`), with `res/raw/cards.json` as an offline seed. The host is a placeholder
+  (`riftbound-api.kalimbapro.workers.dev`) until the Cloudflare account exists.
 - **compileSdk 36 / targetSdk 36 / minSdk 26**
 
 ## Toolchain is pinned to what Android Studio accepts
@@ -97,6 +99,31 @@ foreign-key cascades. The previous version of this app cleared the catalogue on 
 sync and took the user's collection with it. Sync is `@Upsert`-only, and the child FKs
 are `ON DELETE SET NULL` so the failure mode cannot recur.
 
+**The catalogue updates when the API's `/version` tag changes, and only then.**
+`GET /version` returns a `tag` that changes exactly when cards, sets or any region's
+legality change. On every launch `DatabaseBootstrapper` reads it (5 s budget,
+`Cache-Control: no-cache` so OkHttp's disk cache cannot hand back a stale tag) and
+`CatalogueTagSync` decides:
+
+- same as the stored `catalogueTag` preference → nothing is fetched or written;
+- different, or none stored → full refresh: `/sets`, every `/cards` page, upsert every
+  card (no `updated_on` skip — a legality or localisation edit can leave it alone), the
+  dedup and orphan passes, then `/legality` for the current region;
+- the tag is stored only after every step succeeded. Any failure, including the version
+  check, is logged and leaves the old tag, so the next launch retries. The tag stored
+  is the one read *before* the refresh, so an API change mid-refresh errs towards
+  refreshing again.
+
+The bundled seed carries its tag as an extra envelope field (`"tag"` next to `items`),
+stored on a cold start, so a fresh install only hits the network for cards when the live
+catalogue has moved on since the APK was built. Refresh the seed by copying
+`RiftboundAPI/dist/seed/cards.json` over `res/raw/cards.json`. The Settings button forces
+a full refresh; changing the competitive region re-applies legality only.
+
+Do not bring back a TTL or a per-set count comparison. The `synced_sets` table is a
+leftover of the count comparison: nothing reads or writes it, and it stays only because
+dropping it would need a Room migration.
+
 **Backup timestamps must never carry fractional seconds.** Swift decodes
 `collection-snapshot.json` with `.iso8601`, which rejects them, and one bad timestamp
 makes iOS throw while decoding the *entire* file — the restore then fails with no
@@ -116,6 +143,11 @@ the navigation container and the pane count. Everything inside a pane reads
 `calculatePaneScaffoldDirectiveWithTwoPanesOnMediumWidth` — the default directive only
 splits at 840dp, and an unfolded Fold in portrait is ~700dp, so the feature would never
 appear on the target device.
+
+The scanner follows the same rule: from 600dp of *available* width it shows camera +
+session sidebar (40% of the width, max 360dp), so an unfolded Fold in portrait gets it and
+refolding drops it live. The binder-page review is photo | list side by side from 600dp
+and stacked below that.
 
 **`NavigableListDetailPaneScaffold` does not react to a fold.** It renders from
 `navigator.scaffoldState`, which the navigator builds once and re-syncs *only* on
@@ -230,10 +262,83 @@ stay on screen behind the pre-filled summary, so the record still has the last g
 breakdown; Save or Skip then resets the whole match. The timer is drawn twice in the
 centre bar, each copy at its reader's left: the top copy is turned 180°.
 
+**Unowned cards render in full colour**, no fade, exactly as iOS; the quantity badge marks ownership. The old
+greyscale treatment and its "show unowned in colour" toggle are gone.
+
+**The home search bar is global.** `CollectionHubScreen`'s search matches list names and
+the *whole* catalogue (`CollectionQuery.searchCatalogue`), owned or not; tapping a card
+navigates to `CollectionBrowseRoute(query, cardId)`, which shows all cards for that query
+and opens the detail (with its Add FAB).
+
 **A `DisplayCard.id` is not a stable identity.** It encodes the owned variant, so it
 changes the moment a card is added to the collection. The collection navigator is keyed
 on `card.id` for that reason — keying on the row id dropped the detail pane the instant
 you pressed its own Add button.
+
+**The own API keeps card ids stable forever, and the app depends on it.** Owned copies,
+decks and lists point at `cards.id`. The API keeps every RiftCodex id and gives cards
+RiftCodex lacks (all of Radiance, Secret Garden) `sha1(riftbound_id).hex[:24]`, frozen in
+its id map. Never re-key cards locally, and never "fix" an id by name. Its extra card fields
+(`banned`, `banned_formats`, `errata`, `errata_date`, `localizations`) are all optional;
+absent means legal / no errata / no localisation. The bundled seed comes from the own API
+and carries them too.
+
+**The legality refresh never deletes.** Every full catalogue refresh and every change of the
+"Competitive region" setting pulls `GET /legality?region=` and `CardDao.applyLegality`
+rewrites the legality columns of the whole catalogue in one transaction: clear everything,
+then UPDATE the listed cards (matched by `id`, falling back to `riftbound_id`). Not listed
+means legal with no errata. It must run *after* the card sync, because an upserted card
+carries the API's default-region `banned`. Bundled/fake sources return null and leave the
+columns alone.
+
+**Regions are wire format: `global`, `kr`, `tc`.** The API resolves the rule: a region
+behind the global release schedule uses the global ban list as it stood at the end of the
+season of the latest set released there (today KR and TC have only Origins, so nothing is
+banned there). The app only passes the region; never re-derive bans client-side.
+`DeckValidator`'s `BannedCards` violation (first in the list) reads the region-resolved
+`card.banned`, and the BANNED band is drawn by `CardThumbnail` — the deck browser cell,
+which draws its own image, reuses `CardBannedBand`.
+
+**Card language is wire format and part of an owned copy's identity.** `CardLanguage`
+stores `"en" "fr" "zh" "ko"`; the entry key everywhere (Room unique index, `EntryKey`,
+import, snapshot merge, scan session) is `(cardId, isFoil, condition, language)`. It is a
+property of the *copy*: zh/ko prints share codes with English. The snapshot always writes
+`"language"` per entry and reads its absence as `"en"` (`version` stays 1); an unknown
+value is normalised to `en` rather than stranding a stack. CSV imports are English and no
+export gains a language column — those formats are byte-exact. Changing a copy's language
+or condition merges into an existing stack (`CollectionRepository.rekey`).
+
+Schema v2 came from `Migrations.MIGRATION_1_2`. `MigrationTest` builds the real v1 database
+from `app/schemas/…/1.json` and lets Room validate the migrated schema on open (Robolectric
+reads *debug* app assets, so `MigrationTestHelper` cannot see the schemas). Add a case
+there for every future migration, and keep every `DEFAULT` clause identical to the entity's
+`@ColumnInfo(defaultValue)` — Room compares them.
+
+**The scan language pill is a setting, not a label.** Under the last-scanned banner the
+pill row reads `[Normal|Foil] [SET #n] [flag CODE] [+1]`. The language chip *is*
+`scanLanguage` (`auto` | `en` | `fr` | `zh` | `ko`, persisted): a fixed choice overrides
+detection for every later scan and re-labels the card just scanned. Auto runs
+`LanguageDetector` in this order: collector-line marker after the number (`EN`, `FR`,
+`SC`/`CS`/`TC`→zh, `KR`→ko), Hangul then Han, French-vs-English stop words, English. The
+Latin recognizer always runs (the code is Latin on every print); the unbundled Play
+Services Chinese/Korean recognizers run only on a *matched* frame whose name band has no
+Latin name, in Auto. Do not run them per frame — three recognizers per frame stalls the
+scanner.
+
+**Binder page geometry lives in `MultiCardScanner`, and it is pure.** Every collector-code
+match is one card (two identical cards = two copies); codes need a separator and a known
+set prefix, so rules text never becomes a card. Card width is the anchors' horizontal grid
+pitch (else vertical pitch × aspect, else 2.5 × the code line). Boxes are normalised *per
+axis*, so card height is `width × imageAspect ÷ (63/88)` — pass the photo's aspect or every
+assignment band is wrong on a portrait shot. Each line belongs to the nearest anchor below
+it within one card-width band. Fewer than nine anchors triggers the overlapping 3×3 tile
+pass, merged by text + position. Android has no rectangle detector (iOS uses
+`VNDetectRectanglesRequest`), so the nine-anchor rule is the only trigger here. Page mode
+binds `ImageCapture` *instead of* the analyser — never all three use cases, which LEGACY
+cameras refuse.
+
+`SetNormalizer` pins `RAD` "Radiance" and `SGN` "Secret Garden". **SGN must never join
+the promo merge**: its printed code `SGN-001/003` is what scans.
 
 **Export formats are byte-exact.** riftbound.gg parses the CSV it emitted, spaces after
 commas and all, in the header *and* the data rows. Golden tests pin this.

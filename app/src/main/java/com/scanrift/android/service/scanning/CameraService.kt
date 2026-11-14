@@ -1,10 +1,13 @@
 package com.scanrift.android.service.scanning
 
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
@@ -65,12 +68,19 @@ class CameraService @Inject constructor() {
     private var camera: Camera? = null
     private var analysisExecutor: ExecutorService? = null
     private var imageAnalysis: ImageAnalysis? = null
+    private var imageCapture: ImageCapture? = null
 
+    /**
+     * @param pageMode binds a full-resolution [ImageCapture] instead of the 720p
+     *   analyser: a binder page is photographed, not streamed — nine collector lines are
+     *   ~25px tall at 720p, too small to read.
+     */
     suspend fun start(
         context: Context,
         lifecycleOwner: LifecycleOwner,
         previewView: PreviewView,
         onFrame: (ImageProxy) -> Unit,
+        pageMode: Boolean = false,
     ) {
         _state.value = CameraState.Starting
         try {
@@ -108,14 +118,20 @@ class CameraService @Inject constructor() {
                 .build()
                 .apply { setAnalyzer(executor, onFrame) }
 
-            imageAnalysis = analysis
+            val capture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+                .apply { previewView.display?.rotation?.let(::setTargetRotation) }
+                .build()
+
+            imageAnalysis = if (pageMode) null else analysis
+            imageCapture = if (pageMode) capture else null
 
             cameraProvider.unbindAll()
             camera = cameraProvider.bindToLifecycle(
                 lifecycleOwner,
                 CameraSelector.DEFAULT_BACK_CAMERA,
                 preview,
-                analysis,
+                if (pageMode) capture else analysis,
             ).also { bound ->
                 _hasFlashUnit.value = bound.cameraInfo.hasFlashUnit()
                 if (_torchEnabled.value) bound.cameraControl.enableTorch(true)
@@ -136,6 +152,35 @@ class CameraService @Inject constructor() {
      */
     fun updateTargetRotation(rotation: Int) {
         imageAnalysis?.targetRotation = rotation
+        imageCapture?.targetRotation = rotation
+    }
+
+    /**
+     * Takes one full-resolution still in page mode, upright and capped at
+     * [Constants.Scanning.PAGE_MAX_DIMENSION] on its long edge to bound memory.
+     */
+    suspend fun capturePhoto(): Bitmap {
+        val capture = imageCapture ?: error("The camera is not in page mode")
+        val executor = analysisExecutor ?: error("The camera is not running")
+        return suspendCancellableCoroutine { continuation ->
+            capture.takePicture(
+                executor,
+                object : ImageCapture.OnImageCapturedCallback() {
+                    override fun onCaptureSuccess(image: ImageProxy) {
+                        val result = runCatching {
+                            image.use { proxy ->
+                                PageBitmaps.upright(proxy.toBitmap(), proxy.imageInfo.rotationDegrees)
+                            }
+                        }
+                        result.fold(continuation::resume, continuation::resumeWithException)
+                    }
+
+                    override fun onError(exception: ImageCaptureException) {
+                        continuation.resumeWithException(exception)
+                    }
+                },
+            )
+        }
     }
 
     fun toggleTorch() {
@@ -160,6 +205,7 @@ class CameraService @Inject constructor() {
         provider?.unbindAll()
         camera = null
         imageAnalysis = null
+        imageCapture = null
         _torchEnabled.value = false
         _state.value = CameraState.Idle
     }

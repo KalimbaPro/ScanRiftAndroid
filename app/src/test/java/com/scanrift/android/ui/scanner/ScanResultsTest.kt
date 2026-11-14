@@ -2,6 +2,7 @@ package com.scanrift.android.ui.scanner
 
 import com.google.common.truth.Truth.assertThat
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardLanguage
 import org.junit.Test
 
 class ScanResultsTest {
@@ -120,5 +121,49 @@ class ScanResultsTest {
     @Test fun `a correction to the same card leaves the row alone`() {
         val results = listOf(ScanResult(common, quantity = 2))
         assertThat(results.correcting(results.single().id, common)).isEqualTo(results)
+    }
+
+    // ── Language ─────────────────────────────────────────────────────────────
+
+    @Test fun `the same card in two languages is two rows`() {
+        val results = emptyList<ScanResult>()
+            .addingScan(common, CardLanguage.EN)
+            .addingScan(common, CardLanguage.FR)
+            .addingScan(common, CardLanguage.FR)
+        assertThat(results.map { it.language to it.quantity })
+            .containsExactly(CardLanguage.EN to 1, CardLanguage.FR to 2).inOrder()
+    }
+
+    @Test fun `adding a scan reports the row it landed in`() {
+        val (first, firstId) = emptyList<ScanResult>().addingScanReturningId(common, CardLanguage.ZH)
+        val (second, secondId) = first.addingScanReturningId(common, CardLanguage.ZH)
+        assertThat(secondId).isEqualTo(firstId)
+        assertThat(second.single().quantity).isEqualTo(2)
+    }
+
+    @Test fun `changing a row's language moves the whole stack and merges into a twin`() {
+        val start = emptyList<ScanResult>()
+            .addingScan(common, CardLanguage.EN).addingScan(common, CardLanguage.EN)
+            .addingScan(common, CardLanguage.KO)
+        val enId = start.first { it.language == CardLanguage.EN }.id
+
+        val merged = start.withLanguage(enId, CardLanguage.KO)
+
+        assertThat(merged.single().language).isEqualTo(CardLanguage.KO)
+        assertThat(merged.single().quantity).isEqualTo(3)
+    }
+
+    @Test fun `changing to a language with no twin relabels in place`() {
+        val start = emptyList<ScanResult>().addingScan(common)
+        val relabelled = start.withLanguage(start.single().id, CardLanguage.FR)
+        assertThat(relabelled.single().language).isEqualTo(CardLanguage.FR)
+        assertThat(relabelled.single().id).isEqualTo(start.single().id)
+    }
+
+    @Test fun `the foil toggle keeps the row's language`() {
+        val start = emptyList<ScanResult>().addingScan(common, CardLanguage.FR).addingScan(common, CardLanguage.FR)
+        val toggled = start.togglingFoil(start.single().id)
+        assertThat(toggled.map { it.isFoil to it.language })
+            .containsExactly(false to CardLanguage.FR, true to CardLanguage.FR).inOrder()
     }
 }

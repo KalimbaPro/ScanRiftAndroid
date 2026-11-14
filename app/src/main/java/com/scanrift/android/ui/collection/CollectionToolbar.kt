@@ -28,13 +28,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.FilterAlt
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,6 +58,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.Domain
 import com.scanrift.android.domain.model.Rarity
 
@@ -83,7 +82,6 @@ fun CollectionTopBar(
     onSortChange: (CollectionSortOption) -> Unit,
     onToggleDirection: () -> Unit,
     onViewModeChange: (CollectionViewMode) -> Unit,
-    onShowUnownedInColorChange: (Boolean) -> Unit,
     selection: SelectionActions,
 ) {
     val controls = state.controls
@@ -124,7 +122,7 @@ fun CollectionTopBar(
                     Icon(ownershipIcon(controls.ownership), contentDescription = "Ownership")
                 }
             }
-            SortViewMenu(state, onSortChange, onToggleDirection, onViewModeChange, onShowUnownedInColorChange)
+            SortViewMenu(state, onSortChange, onToggleDirection, onViewModeChange)
         },
     )
 }
@@ -188,7 +186,6 @@ private fun SortViewMenu(
     onSortChange: (CollectionSortOption) -> Unit,
     onToggleDirection: () -> Unit,
     onViewModeChange: (CollectionViewMode) -> Unit,
-    onShowUnownedInColorChange: (Boolean) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     val controls = state.controls
@@ -208,15 +205,6 @@ private fun SortViewMenu(
                     onClick = { onViewModeChange(mode) },
                 )
             }
-            HorizontalDivider()
-            DropdownMenuItem(
-                text = { Text("Show colors for unowned") },
-                leadingIcon = { Icon(Icons.Filled.Palette, contentDescription = null) },
-                trailingIcon = {
-                    Checkbox(checked = state.prefs.showUnownedInColor, onCheckedChange = null)
-                },
-                onClick = { onShowUnownedInColorChange(!state.prefs.showUnownedInColor) },
-            )
         }
     }
 }
@@ -358,6 +346,11 @@ fun ActiveFiltersBar(filters: CollectionFilters, onChange: (CollectionFilters) -
             RemovableChip(it) { onChange(filters.copy(rarities = filters.rarities - it)) }
         }
         filters.sets.sorted().forEach { RemovableChip(it) { onChange(filters.copy(sets = filters.sets - it)) } }
+        filters.languages.map(CardLanguage::fromValue).sortedBy { it.ordinal }.forEach { language ->
+            RemovableChip("${language.flag} ${language.code}") {
+                onChange(filters.copy(languages = filters.languages - language.value))
+            }
+        }
         if (filters.hasEnergyRange) {
             RemovableChip("Energy: ${filters.energyMin ?: 0}–${filters.energyMax ?: 99}") {
                 onChange(filters.copy(energyMin = null, energyMax = null))

@@ -1,5 +1,6 @@
 package com.scanrift.android.data.local.mapper
 
+import com.scanrift.android.data.local.LocalizationsCodec
 import com.scanrift.android.data.local.entity.CardEntity
 import com.scanrift.android.data.local.entity.CardListEntity
 import com.scanrift.android.data.local.entity.CardListWithCards
@@ -12,6 +13,7 @@ import com.scanrift.android.data.local.entity.DeckWithEntries
 import com.scanrift.android.data.local.entity.GameRecordEntity
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardCondition
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CardList
 import com.scanrift.android.domain.model.CollectionEntry
 import com.scanrift.android.domain.model.Deck
@@ -56,6 +58,11 @@ fun CardEntity.toDomain(): Card = Card(
     updatedOn = updatedOn,
     orientation = orientation,
     tags = tags,
+    banned = banned,
+    bannedFormats = bannedFormats,
+    errata = errata,
+    errataDate = errataDate,
+    localizations = LocalizationsCodec.decode(localizations),
 )
 
 fun Card.toEntity(): CardEntity = CardEntity(
@@ -86,6 +93,11 @@ fun Card.toEntity(): CardEntity = CardEntity(
     updatedOn = updatedOn,
     orientation = orientation,
     tags = tags,
+    banned = banned,
+    bannedFormats = bannedFormats,
+    errata = errata,
+    errataDate = errataDate,
+    localizations = LocalizationsCodec.encodeDomain(localizations),
 )
 
 fun CollectionEntryEntity.toDomain(card: Card? = null): CollectionEntry = CollectionEntry(
@@ -98,6 +110,7 @@ fun CollectionEntryEntity.toDomain(card: Card? = null): CollectionEntry = Collec
     condition = CardCondition.fromValue(condition),
     notes = notes,
     folder = folder,
+    language = CardLanguage.fromValue(language),
 )
 
 fun CollectionEntryWithCard.toDomain(): CollectionEntry = entry.toDomain(card?.toDomain())
@@ -111,6 +124,7 @@ fun CollectionEntry.toEntity(): CollectionEntryEntity = CollectionEntryEntity(
     condition = condition.value,
     notes = notes,
     folder = folder,
+    language = language.value,
 )
 
 fun CardListEntity.toDomain(cards: List<Card> = emptyList()): CardList = CardList(

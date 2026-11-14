@@ -51,7 +51,7 @@ object Dimens {
     val TwoPaneMinWidth = 600.dp
     val CardDetailTwoColumnMinWidth = 700.dp
     val DeckBuilderSplitMinWidth = 600.dp
-    val ScannerSidebarMinWidth = 840.dp
+    val ScannerSidebarMinWidth = 600.dp
     val LargeScanGuideMinDimension = 600.dp
 
     // Interaction timings, in milliseconds.

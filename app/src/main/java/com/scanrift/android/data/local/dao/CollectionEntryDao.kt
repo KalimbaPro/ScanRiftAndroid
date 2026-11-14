@@ -41,25 +41,33 @@ interface CollectionEntryDao {
     @Query("SELECT * FROM collection_entries WHERE cardId = :cardId")
     suspend fun getForCard(cardId: String): List<CollectionEntryEntity>
 
-    /** Lookup by the identity triple that every upsert path keys on. */
+    /** Lookup by the identity `(cardId, isFoil, condition, language)` every upsert path keys on. */
     @Query(
         """
         SELECT * FROM collection_entries
-        WHERE cardId = :cardId AND isFoil = :isFoil AND condition = :condition
+        WHERE cardId = :cardId AND isFoil = :isFoil AND condition = :condition AND language = :language
         LIMIT 1
         """,
     )
-    suspend fun findEntry(cardId: String, isFoil: Boolean, condition: String): CollectionEntryEntity?
+    suspend fun findEntry(cardId: String, isFoil: Boolean, condition: String, language: String): CollectionEntryEntity?
 
     @Transaction
-    suspend fun adjustQuantity(cardId: String, isFoil: Boolean, condition: String, delta: Int, now: Long) {
-        val existing = findEntry(cardId, isFoil, condition)
+    suspend fun adjustQuantity(
+        cardId: String,
+        isFoil: Boolean,
+        condition: String,
+        language: String,
+        delta: Int,
+        now: Long,
+    ) {
+        val existing = findEntry(cardId, isFoil, condition, language)
         val quantity = (existing?.quantity ?: 0) + delta
         when {
             existing == null -> if (quantity > 0) {
                 insert(
                     CollectionEntryEntity(
-                        cardId = cardId, quantity = quantity, isFoil = isFoil, dateAdded = now, condition = condition,
+                        cardId = cardId, quantity = quantity, isFoil = isFoil, dateAdded = now,
+                        condition = condition, language = language,
                     ),
                 )
             }

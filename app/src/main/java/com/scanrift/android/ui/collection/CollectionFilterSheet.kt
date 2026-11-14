@@ -30,7 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.scanrift.android.R
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CardSupertype
 import com.scanrift.android.domain.model.CardType
 import com.scanrift.android.domain.model.Domain
@@ -94,6 +96,19 @@ fun CollectionFilterSheet(
                     },
                     onClick = { onFiltersChange(filters.copy(foilOnly = !filters.foilOnly)) },
                 )
+            }
+            if (facets.languages.isNotEmpty()) {
+                item(key = "header-Language") { SectionLabel("Language", Modifier.padding(horizontal = 20.dp)) }
+                items(facets.languages, key = { "Language-${it.value}" }) { facet ->
+                    val language = CardLanguage.fromValue(facet.value)
+                    FilterRow(
+                        label = language.displayName,
+                        count = facet.count,
+                        selected = facet.value in filters.languages,
+                        leading = { Text(language.flag, fontSize = 18.sp) },
+                        onClick = { onFiltersChange(filters.copy(languages = filters.languages.toggle(facet.value))) },
+                    )
+                }
             }
             toggleSection("Set", facets.sets, filters.sets, { null }, tint = false) {
                 onFiltersChange(filters.copy(sets = filters.sets.toggle(it)))

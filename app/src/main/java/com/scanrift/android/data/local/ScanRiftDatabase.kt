@@ -9,7 +9,6 @@ import com.scanrift.android.data.local.dao.CollectionEntryDao
 import com.scanrift.android.data.local.dao.DeckDao
 import com.scanrift.android.data.local.dao.GameRecordDao
 import com.scanrift.android.data.local.dao.MaintenanceDao
-import com.scanrift.android.data.local.dao.SyncedSetDao
 import com.scanrift.android.data.local.entity.CardEntity
 import com.scanrift.android.data.local.entity.CardListCrossRef
 import com.scanrift.android.data.local.entity.CardListEntity
@@ -20,8 +19,10 @@ import com.scanrift.android.data.local.entity.GameRecordEntity
 import com.scanrift.android.data.local.entity.SyncedSetEntity
 
 /**
- * Schema v1.
+ * Schema v2 (v1 → v2 in [Migrations.MIGRATION_1_2]: card legality, localisations, and the
+ * language of each owned copy).
  *
+ * History of v1:
  * The app has never shipped, so all seven tables — including `game_records`, which the
  * old build had no equivalent of — go into a fresh v1 rather than arriving via a
  * migration. `exportSchema` is on from the start and `app/schemas/**/1.json` is
@@ -39,9 +40,11 @@ import com.scanrift.android.data.local.entity.SyncedSetEntity
         DeckEntity::class,
         DeckEntryEntity::class,
         GameRecordEntity::class,
+        // Unused since the /version tag replaced the per-set count check. Kept so
+        // the schema does not change: dropping it would need a migration.
         SyncedSetEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -52,7 +55,6 @@ abstract class ScanRiftDatabase : RoomDatabase() {
     abstract fun deckDao(): DeckDao
     abstract fun gameRecordDao(): GameRecordDao
     abstract fun maintenanceDao(): MaintenanceDao
-    abstract fun syncedSetDao(): SyncedSetDao
 
     companion object {
         const val NAME = "scanrift.db"

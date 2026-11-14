@@ -7,6 +7,7 @@ import com.scanrift.android.data.repository.CardListRepository
 import com.scanrift.android.data.repository.CollectionRepository
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardCondition
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CardList
 import com.scanrift.android.domain.model.CollectionEntry
 import com.scanrift.android.di.IoDispatcher
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -35,7 +37,6 @@ data class CollectionControls(
 )
 
 data class CollectionPrefs(
-    val showUnownedInColor: Boolean = false,
     val luchoParameter: Boolean = false,
 )
 
@@ -49,6 +50,8 @@ data class CollectionBrowseState(
     val listContext: CardList? = null,
     val hasEntries: Boolean = false,
     val isLoading: Boolean = true,
+    /** True when the shown rows span more than one language: the grid and list get flag headers. */
+    val showsLanguageSections: Boolean = false,
 ) {
     val ownedCount: Int get() = cards.count { it.isOwned }
     val customLists: List<CardList> get() = lists.filterNot { it.isSystem }
@@ -73,11 +76,7 @@ class CollectionBrowseViewModel @Inject constructor(
     private val listId = MutableStateFlow<String?>(null)
     private val controls = MutableStateFlow(CollectionControls())
 
-    private val prefs = combine(
-        userPreferences.showUnownedInColor,
-        userPreferences.luchoParameter,
-        ::CollectionPrefs,
-    )
+    private val prefs = userPreferences.luchoParameter.map(::CollectionPrefs)
 
     val state: StateFlow<CollectionBrowseState> = combine(
         collectionRepository.observeAllCards(),
@@ -92,11 +91,16 @@ class CollectionBrowseViewModel @Inject constructor(
         val facetSource = if (ui.ownership == OwnershipFilter.OWNED) scoped.filter { it.id in entriesByCard } else scoped
         val rows = CollectionQuery.displayRows(scoped, entriesByCard, id != null, ui.ownership)
         val filtered = CollectionQuery.filter(rows, ui.searchQuery, ui.ownership, ui.filters, userPrefs.luchoParameter)
+        val sorted = CollectionQuery.sort(filtered, ui.sortOption, ui.sortAscending)
+        val scopedIds = scoped.mapTo(HashSet()) { it.id }
         CollectionBrowseState(
             controls = ui,
             prefs = userPrefs,
-            cards = CollectionQuery.sort(filtered, ui.sortOption, ui.sortAscending),
-            facets = CollectionQuery.facets(facetSource),
+            // Language sections are a stable regroup of the sorted rows, so the pager's
+            // index order and the on-screen order stay the same list.
+            cards = CollectionQuery.groupByLanguage(sorted),
+            showsLanguageSections = CollectionQuery.spansLanguages(sorted),
+            facets = CollectionQuery.facets(facetSource, entries.filter { it.cardId in scopedIds }),
             entriesByCard = entriesByCard,
             lists = lists,
             listContext = listContext,
@@ -114,9 +118,6 @@ class CollectionBrowseViewModel @Inject constructor(
     fun updateFilters(value: CollectionFilters) = controls.update { it.copy(filters = value) }
     fun clearFilters() = updateFilters(CollectionFilters())
 
-    fun setShowUnownedInColor(value: Boolean) {
-        viewModelScope.launch { userPreferences.setShowUnownedInColor(value) }
-    }
 
     fun startSelection(rowId: String) =
         controls.update { it.copy(isSelecting = true, selectedIds = it.selectedIds + rowId) }
@@ -164,6 +165,10 @@ class CollectionBrowseViewModel @Inject constructor(
 
     fun setCondition(entry: CollectionEntry, condition: CardCondition) {
         viewModelScope.launch { collectionRepository.setCondition(entry, condition) }
+    }
+
+    fun setLanguage(entry: CollectionEntry, language: CardLanguage) {
+        viewModelScope.launch { collectionRepository.setLanguage(entry, language) }
     }
 
     fun toggleWishlist(card: Card): Boolean {

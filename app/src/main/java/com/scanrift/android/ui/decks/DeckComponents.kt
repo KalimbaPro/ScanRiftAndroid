@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -33,6 +34,25 @@ import com.scanrift.android.ui.theme.domainColor
 internal val ValidGreen = Color(0xFF34C759)
 internal val WarningOrange = Color(0xFFFF9500)
 internal val MissingRed = Color(0xFFFF3B30)
+internal val IllegalRed = Color(0xFFD70015)
+
+/**
+ * The red "Illegal" capsule for a deck holding a card banned in the user's region.
+ * Distinct from the orange "has issues" state: an unfinished deck is a to-do, a banned
+ * card means the deck cannot be registered at all.
+ */
+@Composable
+internal fun IllegalBadge(modifier: Modifier = Modifier) {
+    Text(
+        text = "Illegal",
+        color = Color.White,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = modifier
+            .background(IllegalRed, RoundedCornerShape(6.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
 internal val TagOrange = Color(0xFFFF9500)
 
 internal const val SECTION_TOGGLE_MS = 200

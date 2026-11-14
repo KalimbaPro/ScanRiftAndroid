@@ -48,6 +48,12 @@ data class CollectionSnapshot(
         val condition: String,
         val notes: String? = null,
         val folder: String? = null,
+        /**
+         * Raw [com.scanrift.android.domain.model.CardLanguage.value]. Always written
+         * (`encodeDefaults`); absent in files from older builds and decoded as `"en"`,
+         * which is what every copy was before languages existed. Part of the merge key.
+         */
+        val language: String = "en",
     )
 
     @Serializable

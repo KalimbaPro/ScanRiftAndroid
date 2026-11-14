@@ -11,11 +11,7 @@ import java.util.Locale
  *
  * @param setId normalised set id — promos collapse to [SetNormalizer.PROMO_SET_ID].
  * @param sourceSetId the raw `set_id` the API returned, before normalisation.
- *   Not present on iOS, and it fixes a live bug there: `syncDelta` counts local cards
- *   by the normalised id but compares against the raw id from `/sets`, so the count for
- *   OPP/JDG/PR is always zero and all three promo sets refetch on every single sync.
- * @param updatedOn epoch millis from `metadata.updated_on`; drives the delta sync's
- *   "unchanged, skip the write" check.
+ * @param updatedOn epoch millis from `metadata.updated_on`.
  */
 data class Card(
     val id: String,
@@ -45,7 +41,24 @@ data class Card(
     val updatedOn: Long? = null,
     val orientation: String = CardOrientation.PORTRAIT,
     val tags: List<String> = emptyList(),
+    /** Banned in Standard for the user's competitive region (resolved by `/legality`). */
+    val banned: Boolean = false,
+    /** Formats the card is banned in for that region, e.g. `standard`, `2v2`. */
+    val bannedFormats: List<String> = emptyList(),
+    /** Official errata: the full new text, or null when the card has none. */
+    val errata: String? = null,
+    /** ISO date (`2026-10-09`) the errata was published. */
+    val errataDate: String? = null,
+    /** Localised name / image keyed by [CardLanguage.value] (`zh`, `ko`). */
+    val localizations: Map<String, CardLocalization> = emptyMap(),
 ) {
+    /**
+     * The image for a copy printed in [language]: the localised art when the API has
+     * one, the English image otherwise.
+     */
+    fun imageUrl(language: CardLanguage): String? =
+        localizations[language.value]?.imageUrl?.takeIf { it.isNotBlank() } ?: imageUrl
+
     /** Rare, Epic and Showcase printings only exist as foils. */
     val isAlwaysFoil: Boolean
         get() = rarity in Rarity.alwaysFoil
@@ -78,6 +91,15 @@ data class Card(
             val parts = riftboundIdParts
             return parts.size >= 2 && parts[1].lowercase(Locale.ROOT).startsWith("sp")
         }
+
+    /**
+     * True for judge promos (`jdg-…`). Every image the upstream data has for them is the
+     * regular print without the judge seal, so no surface ever loads one: they draw
+     * [com.scanrift.android.ui.components.JudgePromoPlaceholder] instead. Keyed on the id
+     * rather than a null `imageUrl` because older installs still hold the wrong URL.
+     */
+    val isJudgePromo: Boolean
+        get() = riftboundId.lowercase(Locale.ROOT).startsWith("jdg-")
 
     /**
      * True for alternate-art printings, which carry a trailing letter in the
@@ -135,4 +157,11 @@ val CardNumberComparator: Comparator<Card> = compareBy(
     { it.setOrderRank },
     { it.collectorNumber },
     { it.isAlternateArt },
+)
+
+/** One localisation of a card, as served by the API under `localizations.<lang>`. */
+data class CardLocalization(
+    val name: String? = null,
+    val imageUrl: String? = null,
+    val text: String? = null,
 )

@@ -24,10 +24,12 @@ class CardMatchingService(private val cards: List<Card>) {
      * Set code, collector number, optional suffix. Ordered most- to least-specific.
      *
      * The en dash and em dash alternatives in the first pattern matter: OCR frequently
-     * renders the hyphen in `OGN-021` as one of those.
+     * renders the hyphen in `OGN-021` as one of those. The bullets are the newer
+     * collector line, `RAD • 010/167 • EN`, which separates set and number with `•`
+     * (often read as `·` or `∙`).
      */
     private val patterns = listOf(
-        Regex("""([A-Z]{2,4})\s*[-–—]\s*(\d{1,3})([a-zA-Z*]?)""", RegexOption.IGNORE_CASE),
+        Regex("""([A-Z]{2,4})\s*[-–—•·∙]\s*(\d{1,3})([a-zA-Z*]?)""", RegexOption.IGNORE_CASE),
         Regex("""([A-Z]{2,4})(\d{3})([a-zA-Z*]?)""", RegexOption.IGNORE_CASE),
         Regex("""([A-Z]{2,4})\s+(\d{1,3})([a-zA-Z*]?)""", RegexOption.IGNORE_CASE),
     )

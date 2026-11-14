@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -60,12 +61,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.Deck
 import com.scanrift.android.domain.model.DeckSection
 import com.scanrift.android.ui.components.CardThumbnail
@@ -114,6 +118,7 @@ fun SessionSummarySheet(
                     showCorrectHint = true,
                     onCorrect = { viewModel.startCorrection(result) },
                     onToggleFoil = { viewModel.toggleFoil(result.id) },
+                    onLanguageChange = { viewModel.setLanguage(result.id, it) },
                     onQuantityChange = { viewModel.setQuantity(result.id, it) },
                     onRemove = { viewModel.remove(result.id) },
                     onAddToDeck = { deckRequest = DeckSheetRequest(listOf(result), single = true) },
@@ -204,6 +209,7 @@ fun ScanResultRow(
     onQuantityChange: (Int) -> Unit,
     onRemove: () -> Unit,
     onAddToDeck: (() -> Unit)? = null,
+    onLanguageChange: ((CardLanguage) -> Unit)? = null,
 ) {
     val dismissState = rememberSwipeToDismissBoxState()
     LaunchedEffect(dismissState.currentValue) {
@@ -234,7 +240,7 @@ fun ScanResultRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ScanThumbnail(result.card, result.isFoil)
+            ScanThumbnail(result.card, result.isFoil, result.language)
             Column(Modifier.weight(1f)) {
                 Text(
                     result.card.name,
@@ -260,6 +266,7 @@ fun ScanResultRow(
                     }
                 }
             }
+            onLanguageChange?.let { LanguageChip(result.language, it) }
             FoilToggle(result, onToggleFoil)
             onAddToDeck?.let {
                 IconButton(onClick = it) {
@@ -275,12 +282,37 @@ fun ScanResultRow(
     }
 }
 
+/** The row's flag; tapping it re-labels the whole row (merging into a twin if one exists). */
 @Composable
-fun ScanThumbnail(card: Card, isFoil: Boolean) {
+private fun LanguageChip(language: CardLanguage, onChange: (CardLanguage) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(
+            onClick = { open = true },
+            contentPadding = PaddingValues(horizontal = 6.dp),
+            modifier = Modifier.semantics { contentDescription = "Language: ${language.displayName}" },
+        ) {
+            Text("${language.flag} ${language.code}", style = MaterialTheme.typography.labelMedium)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            CardLanguage.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text("${option.flag}  ${option.displayName}") },
+                    trailingIcon = if (option == language) ({ Icon(Icons.Filled.Check, contentDescription = "Selected") }) else null,
+                    onClick = { open = false; if (option != language) onChange(option) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ScanThumbnail(card: Card, isFoil: Boolean, language: CardLanguage? = null) {
     CardThumbnail(
         card = card,
         quantity = 1,
         isFoil = isFoil,
+        language = language,
         showQuantityBadge = false,
         cornerRadius = 4.dp,
         modifier = Modifier.size(width = 40.dp, height = 56.dp),
@@ -308,6 +340,26 @@ fun CardCorrectionSheet(state: ScannerUiState, viewModel: ScannerViewModel) {
             title = "Correct Card",
             leading = { TextButton(onClick = viewModel::dismissCorrection) { Text("Cancel") } },
         )
+
+        state.correctingPageItem?.let { item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (item.card == null) "Read from the page (no match):" else "Current:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(item.card?.name ?: item.code, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                }
+                Text("${item.language.flag} ${item.language.code}", style = MaterialTheme.typography.labelMedium)
+            }
+        }
 
         state.correcting?.let { current ->
             Row(

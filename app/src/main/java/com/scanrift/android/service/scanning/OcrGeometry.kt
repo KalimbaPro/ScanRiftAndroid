@@ -29,6 +29,13 @@ object OcrGeometry {
     fun rotatedSize(width: Int, height: Int, rotationDegrees: Int): Pair<Int, Int> =
         if (((rotationDegrees % 360) + 360) % 360 % 180 != 0) height to width else width to height
 
+    /** Pixel rect → [NormalizedBox] (0..1, top-left origin), for page geometry. */
+    fun normalize(box: Rect, imageWidth: Int, imageHeight: Int): NormalizedBox {
+        val w = imageWidth.coerceAtLeast(1).toFloat()
+        val h = imageHeight.coerceAtLeast(1).toFloat()
+        return NormalizedBox(box.left / w, box.top / h, box.right / w, box.bottom / h)
+    }
+
     /** Vision's `boundingBox.origin.y`: normalised distance from image bottom to box bottom. */
     fun visionOriginY(box: Rect, imageHeight: Int): Float {
         if (imageHeight <= 0) return 0f

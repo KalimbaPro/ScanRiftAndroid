@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardCondition
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CollectionEntry
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.theme.RarityShowcase
@@ -39,6 +40,7 @@ class CardPagerActions(
     val onAdjustQuantity: (Card, CollectionEntry?, Int) -> Unit,
     val onSetQuantity: (Card, CollectionEntry?, Int) -> Unit,
     val onConditionChange: (CollectionEntry, CardCondition) -> Unit,
+    val onLanguageChange: (CollectionEntry, CardLanguage) -> Unit,
     val onToggleWishlist: (Card) -> Boolean,
     val onAddToList: (Card) -> Unit,
 )
@@ -47,13 +49,20 @@ class CardPagerActions(
 @Composable
 fun CardPager(
     pages: List<Card>,
+    pageEntryIds: List<Long?>,
     startIndex: Int,
     state: CollectionBrowseState,
     actions: CardPagerActions,
 ) {
     val pagerState = rememberPagerState(initialPage = startIndex) { pages.size }
     val current = pages[pagerState.currentPage.coerceIn(pages.indices)]
-    val currentEntry = CollectionQuery.preferredEntry(state.entriesByCard[current.id])
+    // The copy a page was opened from, while it still exists; otherwise the usual pick.
+    fun entryFor(index: Int): CollectionEntry? {
+        val entries = state.entriesByCard[pages[index].id]
+        val wanted = pageEntryIds.getOrNull(index)
+        return entries?.firstOrNull { it.id == wanted } ?: CollectionQuery.preferredEntry(entries)
+    }
+    val currentEntry = entryFor(pagerState.currentPage.coerceIn(pages.indices))
     val inWishlist = state.wishlist?.cards?.any { it.id == current.id } == true
     val feedback = LocalHapticFeedback.current
 
@@ -96,8 +105,9 @@ fun CardPager(
                     val card = pages[index]
                     CardDetailPage(
                         card = card,
-                        entry = CollectionQuery.preferredEntry(state.entriesByCard[card.id]),
+                        entry = entryFor(index),
                         onConditionChange = actions.onConditionChange,
+                        onLanguageChange = actions.onLanguageChange,
                         bottomInset = FabClearance,
                     )
                 }

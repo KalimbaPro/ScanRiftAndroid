@@ -5,170 +5,71 @@ import com.scanrift.android.core.log.Log
 import com.scanrift.android.data.local.ScanRiftDatabase
 import com.scanrift.android.data.local.dao.CardDao
 import com.scanrift.android.data.local.dao.MaintenanceDao
-import com.scanrift.android.data.local.dao.SyncedSetDao
-import com.scanrift.android.data.local.entity.SyncedSetEntity
 import com.scanrift.android.data.remote.datasource.RiftboundDataSource
-import com.scanrift.android.data.remote.dto.CardDto
 import com.scanrift.android.di.IoDispatcher
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.coroutineContext
 
 /**
  * Catalogue sync.
  *
- * Ported from iOS `CardDatabaseService.swift`, with one correctness fix and one
- * structural one:
+ * Every write is upsert-only. The old Android build cleared the whole table first,
+ * which cascaded into the user's collection; nothing here ever deletes a catalogue row
+ * except the de-duplication pass, which repoints references onto the survivor first.
  *
- * - iOS builds its local per-set counts from the *normalised* set id but compares them
- *   against the *raw* id from `/sets`. For OPP, JDG and PR the count is therefore
- *   always zero, `cardCount > local` is always true, and all three promo sets refetch
- *   on every single sync forever. Counting by `sourceSetId` fixes it.
- * - Every write is upsert-only inside a transaction. The old Android build cleared the
- *   whole table first, which cascaded into the user's collection.
+ * *Whether* to sync is not decided here: [CatalogueTagSync] compares the API's
+ * `/version` tag with the stored one and calls [refreshCatalogue] only on a change.
  */
 class CardDatabaseService @Inject constructor(
     private val db: ScanRiftDatabase,
     private val cardDao: CardDao,
     private val maintenanceDao: MaintenanceDao,
-    private val syncedSetDao: SyncedSetDao,
     private val source: RiftboundDataSource,
     @param:IoDispatcher private val io: CoroutineDispatcher,
 ) {
 
-    /** Full seed. Used for a cold start from the bundled catalogue. */
+    /**
+     * Fetches every card the source serves and upserts all of them, then runs the
+     * de-duplication and orphan passes. Used for the bundled seed and, through
+     * [refreshCatalogue], for every network refresh.
+     *
+     * Nothing is skipped on an unchanged `updated_on`: a tag change can come from a
+     * legality or localisation edit that leaves `updated_on` alone, and ~1700 upserts
+     * in one transaction cost well under a second.
+     */
     suspend fun fetchAndStoreCards(onProgress: ((Int, Int) -> Unit)? = null): Int =
         withContext(io) {
             val dtos = CardDedup.dedupedByRiftboundId(source.fetchAllCards(onProgress))
+            ensureActive()
             db.withTransaction { cardDao.upsertAllChunked(dtos.map { it.toEntity() }) }
-            deduplicateLocalCards()
-            maintenanceDao.deleteOrphans()
-            Log.database.i("Seeded %d cards", dtos.size)
+            val removed = deduplicateLocalCards()
+            val orphans = maintenanceDao.deleteOrphans()
+            Log.database.i("Stored %d cards (dedup %d, orphans %d)", dtos.size, removed, orphans)
             dtos.size
         }
 
     /**
-     * Incremental sync.
+     * Full catalogue refresh: `/sets`, every `/cards` page, then `/legality` for
+     * [region]. Throws if any step fails, so the caller keeps the old tag and retries
+     * on the next launch.
      *
-     * `/sets` is the freshness signal: a set is refetched only when the API reports
-     * more cards than we hold. Within a refetched set, a card whose `updated_on`
-     * matches the local value is skipped without a write.
+     * Legality runs last, never before: an upserted card carries the API's
+     * default-region `banned`, which the region-resolved value must overwrite.
      */
-    suspend fun syncDelta(onProgress: ((Int, Int) -> Unit)? = null): SyncReport =
+    suspend fun refreshCatalogue(region: String, onProgress: ((Int, Int) -> Unit)? = null): Int =
         withContext(io) {
-            val apiSets = source.fetchSets()
-
-            // One projection rather than 1500 full rows with their JSON columns.
-            val identities = cardDao.getAllIdentities()
-            val updatedOnById = identities.associate { it.id to it.updatedOn }
-            val localCountBySourceSet = cardDao.countBySourceSet().associate { it.sourceSetId to it.count }
-            val lastSeenCountBySet = syncedSetDao.getAll().associate { it.setId to it.apiCardCount }
-
-            var report = SyncReport()
-            onProgress?.invoke(0, apiSets.size)
-
-            apiSets.forEachIndexed { index, set ->
-                coroutineContext.ensureActive()
-                report = report.copy(setsChecked = report.setsChecked + 1)
-
-                if (shouldRefetch(set.setId, set.cardCount, lastSeenCountBySet, localCountBySourceSet)) {
-                    val dtos = CardDedup.dedupedByRiftboundId(source.fetchCardsInSet(set.setId))
-                    // One transaction per set, so a mid-sync failure leaves whole sets
-                    // consistent rather than half-written.
-                    val setReport = db.withTransaction { applyDtos(dtos, updatedOnById) }
-                    report = report + setReport.copy(setsRefetched = 1)
-                    // Record what the API said, so the next sync compares like with like.
-                    syncedSetDao.upsert(
-                        SyncedSetEntity(
-                            setId = set.setId,
-                            apiCardCount = set.cardCount,
-                            lastSyncedAt = System.currentTimeMillis(),
-                        ),
-                    )
-                }
-
-                onProgress?.invoke(index + 1, apiSets.size)
+            // Nothing is stored from /sets; it is fetched as part of the snapshot and
+            // used to catch a short /cards pagination in the log.
+            val expected = source.fetchSets().sumOf { it.cardCount }
+            val count = fetchAndStoreCards(onProgress)
+            if (expected > 0 && count < expected) {
+                Log.database.w("/sets lists %d cards but %d survived de-duplication", expected, count)
             }
-
-            // Runs unconditionally: a set whose local count is inflated by duplicates
-            // never trips the refetch check above, so this is the only place those
-            // stale rows are ever cleaned up.
-            val removed = deduplicateLocalCards()
-            val orphans = maintenanceDao.deleteOrphans()
-
-            report.copy(duplicatesRemoved = removed, orphansRemoved = orphans).also {
-                Log.database.i(
-                    "Delta sync: +%d ~%d =%d across %d/%d sets (dedup %d, orphans %d)",
-                    it.added, it.updated, it.unchanged, it.setsRefetched, it.setsChecked,
-                    it.duplicatesRemoved, it.orphansRemoved,
-                )
-            }
+            refreshLegality(region)
+            count
         }
-
-    /**
-     * Decides whether a set needs refetching.
-     *
-     * The obvious test — `set.cardCount > localCount` — is wrong, and iOS has the bug
-     * today. The two numbers count different things: `cardCount` is the number of raw
-     * records the API serves, while the local count is what survives de-duplication.
-     * Vendetta serves 358 records that collapse to 227 real cards, so `358 > 227`
-     * holds forever and the entire set refetches on every sync. The promo sets do the
-     * same at smaller scale.
-     *
-     * Comparing against the `cardCount` we saw last time fixes that, and also catches a
-     * set *shrinking*, which a `>` test never could. The local-count fallback only
-     * applies before we have ever recorded the set.
-     */
-    private fun shouldRefetch(
-        setId: String,
-        apiCardCount: Int,
-        lastSeenCountBySet: Map<String, Int>,
-        localCountBySourceSet: Map<String, Int>,
-    ): Boolean {
-        val lastSeen = lastSeenCountBySet[setId]
-        if (lastSeen != null) return apiCardCount != lastSeen
-        // Never fetched this set before: fall back to "do we have anything at all".
-        return apiCardCount > (localCountBySourceSet[setId] ?: 0)
-    }
-
-    /**
-     * Upserts a batch, skipping rows the API says are unchanged.
-     *
-     * The skip needs both timestamps present and equal — a null on either side means
-     * "unknown", which must be treated as changed rather than silently skipped.
-     */
-    private suspend fun applyDtos(
-        dtos: List<CardDto>,
-        updatedOnById: Map<String, Long?>,
-    ): SyncReport {
-        var added = 0
-        var updated = 0
-        var unchanged = 0
-        val toWrite = ArrayList<CardDto>(dtos.size)
-
-        for (dto in dtos) {
-            if (!updatedOnById.containsKey(dto.id)) {
-                added++
-                toWrite += dto
-                continue
-            }
-            val localUpdatedOn = updatedOnById[dto.id]
-            val apiUpdatedOn = dto.updatedOnMillis
-            if (apiUpdatedOn != null && localUpdatedOn != null && apiUpdatedOn == localUpdatedOn) {
-                unchanged++
-                continue
-            }
-            updated++
-            toWrite += dto
-        }
-
-        if (toWrite.isNotEmpty()) {
-            cardDao.upsertAllChunked(toWrite.map { it.toEntity() })
-        }
-        return SyncReport(added = added, updated = updated, unchanged = unchanged)
-    }
 
     /**
      * De-duplication layer 2: collapse local rows sharing a `riftboundId`.
@@ -204,6 +105,24 @@ class CardDatabaseService @Inject constructor(
 
         if (removed > 0) Log.database.i("Removed %d duplicate card row(s)", removed)
         removed
+    }
+
+    /**
+     * Pulls `/legality` for [region] and rewrites the legality columns of the whole
+     * catalogue in one transaction. Never deletes a card.
+     *
+     * Must run **after** a card sync: an upserted card carries the API's default-region
+     * `banned`, which this then overwrites with the region-resolved value.
+     *
+     * @return how many cards are banned or have errata, or null when the source has no
+     *   legality endpoint (the bundled seed).
+     */
+    suspend fun refreshLegality(region: String): Int? = withContext(io) {
+        val response = source.fetchLegality(region) ?: return@withContext null
+        val legality = LegalityResolver.resolve(response.items, cardDao.getAllIdentities())
+        cardDao.applyLegality(legality)
+        Log.database.i("Legality (%s): %d listed, %d applied", region, response.items.size, legality.size)
+        legality.size
     }
 
     suspend fun cardCount(): Int = withContext(io) { cardDao.count() }

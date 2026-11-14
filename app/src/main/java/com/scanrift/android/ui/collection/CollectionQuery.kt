@@ -1,6 +1,7 @@
 package com.scanrift.android.ui.collection
 
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CardNumberComparator
 import com.scanrift.android.domain.model.CardSupertype
 import com.scanrift.android.domain.model.CollectionEntry
@@ -35,9 +36,14 @@ enum class OwnershipFilter(val label: String) {
 data class DisplayCard(val card: Card, val entry: CollectionEntry?) {
     val isOwned: Boolean get() = entry != null
     val quantity: Int get() = entry?.quantity ?: 0
+
+    /** The owned copy's language; an unowned row sits with English, the default print. */
+    val language: CardLanguage get() = entry?.language ?: CardLanguage.EN
+
     val id: String
-        get() = entry?.let { "${card.id}-${if (it.isFoil) "foil" else "normal"}-${it.condition.value}-${it.id}" }
-            ?: card.id
+        get() = entry?.let {
+            "${card.id}-${if (it.isFoil) "foil" else "normal"}-${it.condition.value}-${it.language.value}-${it.id}"
+        } ?: card.id
 }
 
 data class CollectionFilters(
@@ -47,6 +53,8 @@ data class CollectionFilters(
     val rarities: Set<String> = emptySet(),
     val sets: Set<String> = emptySet(),
     val artists: Set<String> = emptySet(),
+    /** Raw [CardLanguage.value]s of owned copies to keep. Unowned rows never match. */
+    val languages: Set<String> = emptySet(),
     val foilOnly: Boolean = false,
     val energyMin: Int? = null,
     val energyMax: Int? = null,
@@ -58,7 +66,8 @@ data class CollectionFilters(
 
     val isEmpty: Boolean
         get() = domains.isEmpty() && types.isEmpty() && supertypes.isEmpty() && rarities.isEmpty() &&
-            sets.isEmpty() && artists.isEmpty() && !foilOnly && !hasEnergyRange && !hasPowerRange
+            sets.isEmpty() && artists.isEmpty() && languages.isEmpty() && !foilOnly && !hasEnergyRange &&
+            !hasPowerRange
 }
 
 data class Facet(val value: String, val count: Int)
@@ -70,6 +79,8 @@ data class FilterFacets(
     val rarities: List<Facet> = emptyList(),
     val sets: List<Facet> = emptyList(),
     val artists: List<Facet> = emptyList(),
+    /** Languages of the owned copies in scope, by raw value; empty unless there are two or more. */
+    val languages: List<Facet> = emptyList(),
     val energy: IntRange? = null,
     val power: IntRange? = null,
 )
@@ -124,7 +135,17 @@ object CollectionQuery {
         return rows.sortedWith(if (ascending) comparator else comparator.reversed())
     }
 
-    fun facets(cards: List<Card>): FilterFacets {
+    /**
+     * Groups rows by language (en, fr, zh, ko), keeping the sort order within each
+     * group. Returns the rows unchanged when they hold one language or none, which is
+     * the common case and needs no section headers.
+     */
+    fun groupByLanguage(rows: List<DisplayCard>): List<DisplayCard> =
+        if (spansLanguages(rows)) rows.sortedBy { it.language.ordinal } else rows
+
+    fun spansLanguages(rows: List<DisplayCard>): Boolean = rows.map { it.language }.distinct().size > 1
+
+    fun facets(cards: List<Card>, entries: List<CollectionEntry> = emptyList()): FilterFacets {
         fun count(values: List<String>) = values.groupingBy { it }.eachCount()
         val domainCounts = count(cards.flatMap { it.domains.distinct() })
         val typeCounts = count(cards.map { it.type })
@@ -142,9 +163,16 @@ object CollectionQuery {
             rarities = Rarity.displayOrder.mapNotNull { r -> rarityCounts[r]?.let { Facet(r, it) } },
             sets = setCounts.toSortedMap().map { (value, n) -> Facet(value, n) },
             artists = artistCounts.toSortedMap().map { (value, n) -> Facet(value, n) },
+            languages = languageFacets(entries),
             energy = spread(cards.mapNotNull { it.energy }),
             power = spread(cards.mapNotNull { it.power }),
         )
+    }
+
+    private fun languageFacets(entries: List<CollectionEntry>): List<Facet> {
+        val counts = entries.groupingBy { it.language }.eachCount()
+        if (counts.size < 2) return emptyList()
+        return CardLanguage.entries.mapNotNull { language -> counts[language]?.let { Facet(language.value, it) } }
     }
 
     private fun spread(values: List<Int>): IntRange? {
@@ -152,6 +180,28 @@ object CollectionQuery {
         val max = values.max()
         return if (min == max) null else min..max
     }
+
+    /**
+     * The home page's global search: the **whole catalogue**, owned or not. Names that
+     * start with the query rank first, then other name hits, then hits elsewhere (set,
+     * code, text, tags). Needs two characters, so one keystroke does not list 1500 cards.
+     */
+    fun searchCatalogue(cards: List<Card>, query: String, limit: Int = GLOBAL_SEARCH_LIMIT): List<Card> {
+        val needle = query.trim()
+        if (needle.length < GLOBAL_SEARCH_MIN_LENGTH) return emptyList()
+        return cards
+            .filter { matchesSearch(it, needle, searchArtist = false) }
+            .sortedWith(
+                compareBy<Card>(
+                    { !it.name.startsWith(needle, ignoreCase = true) },
+                    { !it.name.contains(needle, ignoreCase = true) },
+                ).thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }.then(CardNumberComparator),
+            )
+            .take(limit)
+    }
+
+    const val GLOBAL_SEARCH_MIN_LENGTH = 2
+    const val GLOBAL_SEARCH_LIMIT = 60
 
     private fun matchesSearch(card: Card, needle: String, searchArtist: Boolean): Boolean {
         if (needle.isEmpty()) return true
@@ -174,6 +224,7 @@ object CollectionQuery {
         if (filters.supertypes.isNotEmpty() && card.supertype !in filters.supertypes) return false
         if (filters.foilOnly && row.entry?.isFoil != true) return false
         if (filters.artists.isNotEmpty() && card.artist !in filters.artists) return false
+        if (filters.languages.isNotEmpty() && row.entry?.language?.value !in filters.languages) return false
         if (filters.domains.isNotEmpty() && card.domains.none { it in filters.domains }) return false
         if (filters.hasEnergyRange && !card.energy.within(filters.energyMin, filters.energyMax)) return false
         if (filters.hasPowerRange && !card.power.within(filters.powerMin, filters.powerMax)) return false

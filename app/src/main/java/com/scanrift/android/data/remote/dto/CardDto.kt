@@ -1,6 +1,7 @@
 package com.scanrift.android.data.remote.dto
 
 import com.scanrift.android.core.time.Iso8601
+import com.scanrift.android.data.local.LocalizationsCodec
 import com.scanrift.android.data.local.entity.CardEntity
 import com.scanrift.android.domain.model.CardOrientation
 import com.scanrift.android.domain.model.SetNormalizer
@@ -15,6 +16,23 @@ data class PaginatedCardsResponse(
     val page: Int = 1,
     val size: Int = 0,
     val pages: Int = 1,
+    /**
+     * Only the bundled seed carries this: the API's `/version` tag of the data it was
+     * built from, stored as the catalogue tag on a cold start so the first launch can
+     * tell whether the live catalogue has moved on since. Absent on live responses.
+     */
+    val tag: String? = null,
+)
+
+/**
+ * `GET /version`. The `tag` changes exactly when cards, sets or any region's legality
+ * change, so comparing it with the stored catalogue tag is the whole freshness check.
+ */
+@Serializable
+data class VersionDto(
+    val tag: String,
+    @SerialName("generated_at") val generatedAt: String? = null,
+    @SerialName("card_count") val cardCount: Int = 0,
 )
 
 @Serializable
@@ -32,6 +50,14 @@ data class CardDto(
     val tags: List<String> = emptyList(),
     val orientation: String = CardOrientation.PORTRAIT,
     val metadata: CardMetadataDto = CardMetadataDto(),
+
+    // Own-API additions. All optional: RiftCodex, the bundled seed and older API
+    // builds omit them, and absence means "not banned, no errata, no localisation".
+    val banned: Boolean = false,
+    @SerialName("banned_formats") val bannedFormats: List<String>? = null,
+    val errata: String? = null,
+    @SerialName("errata_date") val errataDate: String? = null,
+    val localizations: Map<String, CardLocalizationDto>? = null,
 ) {
     /**
      * `public_code` is absent from **every** card the live API currently returns, so
@@ -62,9 +88,8 @@ data class CardDto(
         get() = metadata.cleanName?.takeIf { it.isNotBlank() } ?: name
 
     fun toEntity(): CardEntity {
-        // Normalisation uses the raw set id, which is also kept as sourceSetId so
-        // delta sync can compare local counts against /sets without the promo sets
-        // reporting zero forever.
+        // Normalisation uses the raw set id, which is also kept as sourceSetId so the
+        // promo sets stay distinguishable after they are folded into "PROMO".
         val normalized = SetNormalizer.normalize(set.setId, set.label)
         return CardEntity(
             id = id,
@@ -94,9 +119,45 @@ data class CardDto(
             updatedOn = updatedOnMillis,
             orientation = orientation,
             tags = tags,
+            banned = banned,
+            bannedFormats = bannedFormats.orEmpty(),
+            errata = errata?.takeIf { it.isNotBlank() },
+            errataDate = errataDate?.takeIf { it.isNotBlank() },
+            localizations = LocalizationsCodec.encode(localizations),
         )
     }
 }
+
+/** `localizations.<lang>` on a card. Unknown keys (`text` today, more later) are tolerated. */
+@Serializable
+data class CardLocalizationDto(
+    val name: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
+    val text: String? = null,
+)
+
+/**
+ * `GET /legality?region=` — every card that is banned **or** has errata in that region.
+ *
+ * A card that is not listed is `banned = false, errata = null`; the refresh applies that
+ * as a column UPDATE over the whole catalogue, never a delete.
+ */
+@Serializable
+data class LegalityResponseDto(
+    val region: String = "global",
+    @SerialName("updated_at") val updatedAt: String? = null,
+    val items: List<LegalityItemDto> = emptyList(),
+)
+
+@Serializable
+data class LegalityItemDto(
+    val id: String? = null,
+    @SerialName("riftbound_id") val riftboundId: String? = null,
+    val banned: Boolean = false,
+    @SerialName("banned_formats") val bannedFormats: List<String>? = null,
+    val errata: String? = null,
+    @SerialName("errata_date") val errataDate: String? = null,
+)
 
 @Serializable
 data class CardAttributesDto(

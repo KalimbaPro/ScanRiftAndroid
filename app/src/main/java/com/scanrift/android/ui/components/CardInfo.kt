@@ -3,6 +3,7 @@ package com.scanrift.android.ui.components
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -122,6 +123,44 @@ fun CardTextSection(card: Card) {
         RichCardText(text, modifier = Modifier.fillMaxWidth())
     }
 }
+
+/**
+ * Official errata, shown under the card text. The printed card is wrong; this is the
+ * text that applies. Styled like [CardTextSection] with an accent edge so it reads as
+ * a correction to the block above it rather than a second description.
+ */
+@Composable
+fun ErrataSection(card: Card) {
+    val errata = card.errata?.takeIf { it.isNotBlank() } ?: return
+    val accent = Color(0xFFFF9500)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(accent.copy(alpha = 0.10f))
+            .border(1.dp, accent.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Errata", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            card.errataDate?.let { date ->
+                Text(
+                    formatErrataDate(date),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        RichCardText(errata, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** `2026-10-09` → the user's medium date; anything unparseable is shown as sent. */
+private fun formatErrataDate(date: String): String = runCatching {
+    val parsed = java.time.LocalDate.parse(date)
+    java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM).format(parsed)
+}.getOrDefault(date)
 
 @DrawableRes
 fun domainIcon(domain: String): Int? = when (domain) {

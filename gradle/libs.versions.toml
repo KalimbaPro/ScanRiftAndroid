@@ -37,6 +37,11 @@ kotlinxSerialization = "1.11.0"
 
 # Other
 mlkitTextRecognition = "16.0.1"
+# Chinese/Korean recognizers are the *unbundled* Play Services variants: their models
+# download through Play Services instead of adding ~20MB to the APK. They only run on
+# a matched frame whose name band has no Latin text, so a device without them just
+# falls back to marker / stop-word detection.
+mlkitTextRecognitionCjk = "16.0.2"
 # 3.6.x pulls Compose Multiplatform 1.12, which drags the whole androidx
 # Compose stack to 1.12.0 and back over the AGP 9.1 line. 3.5.0 targets 1.11.1.
 coil = "3.5.0"
@@ -110,6 +115,8 @@ camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = 
 
 # ML Kit (bundled model: offline OCR on every device, no Play Services dependency)
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
+mlkit-text-recognition-chinese = { group = "com.google.android.gms", name = "play-services-mlkit-text-recognition-chinese", version.ref = "mlkitTextRecognitionCjk" }
+mlkit-text-recognition-korean = { group = "com.google.android.gms", name = "play-services-mlkit-text-recognition-korean", version.ref = "mlkitTextRecognitionCjk" }
 
 # Image loading
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }

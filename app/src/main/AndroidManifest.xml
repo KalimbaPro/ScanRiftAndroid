@@ -33,6 +33,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Ask Play Services to fetch the unbundled Chinese and Korean OCR models at
+             install time, so language detection works on the first scan. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr_chinese,ocr_korean" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

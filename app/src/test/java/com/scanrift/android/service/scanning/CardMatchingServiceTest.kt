@@ -191,4 +191,18 @@ class CardMatchingServiceTest {
         val service = CardMatchingService(listOf(card(name = "Fire Dragon", cleanName = "Fire Dragon")))
         assertThat(service.searchCards("  fire  ")).hasSize(1)
     }
+
+    // ── Bulleted collector line (Vendetta onward, Radiance) ─────────────────
+
+    @Test fun `a bulleted collector line with a language marker matches`() {
+        val rad = card(name = "Riven", publicCode = "RAD-010/167", collectorNumber = 10, setId = "RAD")
+        val service = CardMatchingService(listOf(rad))
+        assertThat(service.findByCardCode("RAD • 010/167 • EN")?.card).isEqualTo(rad)
+        assertThat(service.findByCardCode("RAD · 010/167 · SC")?.card).isEqualTo(rad)
+    }
+
+    @Test fun `secret garden codes match as their own set`() {
+        val lillia = card(name = "Lillia", publicCode = "SGN-001/003", collectorNumber = 1, setId = "SGN")
+        assertThat(CardMatchingService(listOf(lillia)).findByCardCode("SGN-001/003 P")?.card).isEqualTo(lillia)
+    }
 }

@@ -13,14 +13,20 @@ package com.scanrift.android.core
 object Constants {
 
     object Api {
-        const val BASE_URL = "https://api.riftcodex.com"
+        /**
+         * The own API (RiftCodex-compatible paths plus `/legality`, Radiance, bans,
+         * errata and zh/ko localisations). Placeholder host until the Cloudflare account
+         * exists; iOS's `Constants.API.baseURL` must hold the same value.
+         */
+        const val BASE_URL = "https://riftbound-api.kalimbapro.workers.dev"
         const val DEFAULT_PAGE_SIZE = 100
 
         /**
-         * Minimum interval between background freshness checks. Prevents hammering
-         * `/sets` on every app launch — one check per hour is plenty for a card game.
+         * Budget for the `GET /version` check that runs on every launch. Far below the
+         * general OkHttp timeouts: the answer is 90 bytes, and a launch on a dead
+         * network should give up quickly and keep the local catalogue.
          */
-        const val UPDATE_CHECK_TTL_MS = 60L * 60L * 1000L
+        const val VERSION_CHECK_TIMEOUT_MS = 5_000L
 
         /** OkHttp timeouts. The old Android build configured none at all. */
         const val CONNECT_TIMEOUT_SECONDS = 15L
@@ -59,6 +65,12 @@ object Constants {
         const val NAME_BAND_MAX_Y = 0.65f
         const val NAME_BAND_MAX_MID_X = 0.7f
         const val SET_CODE_BAND_MAX_Y = 0.25f
+
+        /** Binder page stills are scaled to at most this many pixels on the long edge. */
+        const val PAGE_MAX_DIMENSION = 4096
+
+        /** Each 3×3 tile is upscaled to at least this long edge before its OCR pass. */
+        const val PAGE_TILE_MIN_DIMENSION = 1600
     }
 
     object MotionDetection {
@@ -122,14 +134,22 @@ object Constants {
         const val AUTO_ADD_TO_COLLECTION = "autoAddToCollection"
         const val DEBUG_MODE = "debugMode"
         const val LUCHO_PARAMETER = "luchoParameter"
-        const val SHOW_UNOWNED_IN_COLOR = "showUnownedInColor"
         const val DYNAMIC_COLOR = "dynamicColor"
         const val LAST_DATABASE_SYNC = "lastDatabaseSync"
-        const val LAST_UPDATE_CHECK = "lastUpdateCheck"
+
+        /** The API's `/version` tag the local catalogue was last fully synced to. */
+        const val CATALOGUE_TAG = "catalogueTag"
+
         const val LAST_BACKUP = "lastBackup"
         const val BACKUP_URI = "backupUri"
         const val CLOUD_SNAPSHOT_AUTO_SYNC = "cloudSnapshotAutoSync"
         const val POINT_TRACKER_ROSTER = "pointTracker.roster.v1"
+
+        /** Raw [com.scanrift.android.domain.model.CompetitiveRegion.value]: `global` | `kr` | `tc`. */
+        const val COMPETITIVE_REGION = "competitiveRegion"
+
+        /** Raw [com.scanrift.android.domain.model.ScanLanguage.value]: `auto` | `en` | `fr` | `zh` | `ko`. */
+        const val SCAN_LANGUAGE = "scanLanguage"
     }
 
     object ImageCache {

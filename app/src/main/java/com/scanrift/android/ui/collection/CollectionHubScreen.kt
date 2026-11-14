@@ -2,6 +2,7 @@ package com.scanrift.android.ui.collection
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,12 +61,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.domain.model.CardList
 import com.scanrift.android.ui.adaptive.ProvideContentWidth
+import com.scanrift.android.ui.components.CardThumbnail
 import com.scanrift.android.ui.components.CreateListSheet
 import com.scanrift.android.ui.theme.Dimens
 import com.scanrift.android.ui.theme.parseHexColor
 
 /**
- * Tiles for "All Collection" plus every list.
+ * Tiles for "All Collection" plus every list, under the app's main search bar.
+ *
+ * The search bar is **global**: it matches list names *and* the whole card catalogue,
+ * owned or not. Tapping a card opens it in the collection browser — detail pane, Add
+ * button and all — with the query carried over.
  *
  * The grid uses an adaptive cell, so more columns simply fall out on a wider pane —
  * no branch needed, which is why this screen has no adaptive code of its own.
@@ -74,15 +81,19 @@ import com.scanrift.android.ui.theme.parseHexColor
 fun CollectionHubScreen(
     onOpenAllCollection: () -> Unit,
     onOpenList: (String) -> Unit,
+    onOpenCard: (query: String, cardId: String) -> Unit,
     viewModel: CollectionHubViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hits by viewModel.searchResults.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var search by rememberSaveable { mutableStateOf("") }
     var creating by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<CardList?>(null) }
     var deleting by remember { mutableStateOf<CardList?>(null) }
     val visibleLists = state.lists.filter { search.isBlank() || it.name.contains(search.trim(), ignoreCase = true) }
+    LaunchedEffect(search) { viewModel.setQuery(search) }
+    val searching = search.trim().length >= CollectionQuery.GLOBAL_SEARCH_MIN_LENGTH
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -110,7 +121,7 @@ fun CollectionHubScreen(
                     OutlinedTextField(
                         value = search,
                         onValueChange = { search = it },
-                        placeholder = { Text("Search lists") },
+                        placeholder = { Text("Search all cards and lists") },
                         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                         trailingIcon = {
                             if (search.isNotEmpty()) {
@@ -123,7 +134,24 @@ fun CollectionHubScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                item(key = "all") {
+                if (searching) {
+                    item(key = "cards-header", span = { GridItemSpan(maxLineSpan) }) {
+                        Text(
+                            if (hits.isEmpty()) "No cards match \"${search.trim()}\"" else "Cards",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    items(hits, key = { "card-${it.card.id}" }) { hit ->
+                        CardHitTile(hit, onClick = { onOpenCard(search.trim(), hit.card.id) })
+                    }
+                    if (visibleLists.isNotEmpty()) {
+                        item(key = "lists-header", span = { GridItemSpan(maxLineSpan) }) {
+                            Text("Lists", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+                if (!searching) item(key = "all") {
                     HubTile(
                         title = "All Collection",
                         subtitle = "${state.totalCards} cards (${state.uniqueCards} unique)",
@@ -184,6 +212,34 @@ fun CollectionHubScreen(
                 }
             },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
+        )
+    }
+}
+
+/** A catalogue hit: the card (full colour, owned or not) with its owned count. */
+@Composable
+private fun CardHitTile(hit: CatalogueHit, onClick: () -> Unit) {
+    Column(Modifier.clickable(onClick = onClick)) {
+        CardThumbnail(
+            card = hit.card,
+            quantity = hit.owned,
+            isFoil = hit.owned > 0 && hit.card.isAlwaysFoil,
+            modifier = Modifier.fillMaxWidth().aspectRatio(Dimens.CARD_ASPECT_RATIO),
+        )
+        Text(
+            text = hit.card.name,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 6.dp).padding(horizontal = 4.dp),
+        )
+        Text(
+            text = if (hit.owned > 0) "${hit.card.setLabel} · ×${hit.owned}" else "${hit.card.setLabel} · Not owned",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
     }
 }

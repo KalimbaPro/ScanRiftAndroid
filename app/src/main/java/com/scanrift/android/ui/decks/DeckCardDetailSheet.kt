@@ -50,6 +50,7 @@ import com.scanrift.android.domain.model.DeckSection
 import com.scanrift.android.service.deck.DeckValidator
 import com.scanrift.android.ui.components.CardInfo
 import com.scanrift.android.ui.components.CardTextSection
+import com.scanrift.android.ui.components.ErrataSection
 import com.scanrift.android.ui.components.TiltingCardImage
 import com.scanrift.android.ui.components.TappableQuantityStepper
 import com.scanrift.android.ui.util.mediumImpact
@@ -169,6 +170,7 @@ fun DeckCardDetailSheet(
 
             CardInfo(card)
             CardTextSection(card)
+            ErrataSection(card)
         }
     }
 }
