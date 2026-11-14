@@ -150,6 +150,12 @@ object Constants {
 
         /** Raw [com.scanrift.android.domain.model.ScanLanguage.value]: `auto` | `en` | `fr` | `zh` | `ko`. */
         const val SCAN_LANGUAGE = "scanLanguage"
+
+        /**
+         * Android-only: the collection list pane's share of the two-pane width, a
+         * proportion in (0, 1). Absent until the user first drags the divider.
+         */
+        const val COLLECTION_LIST_PANE_PROPORTION = "collectionListPaneProportion"
     }
 
     object ImageCache {

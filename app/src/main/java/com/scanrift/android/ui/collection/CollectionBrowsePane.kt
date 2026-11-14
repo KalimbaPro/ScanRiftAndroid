@@ -64,11 +64,13 @@ import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -198,101 +200,122 @@ fun CollectionBrowsePane(
     //
     // The cost is the predictive-back preview that the Navigable wrapper installs.
     // Back itself is unaffected; the `BackHandler` above already drives the navigator.
-    ListDetailPaneScaffold(
-        directive = navigator.scaffoldDirective,
-        value = navigator.scaffoldValue,
-        // This screen has no Scaffold of its own, so nothing else consumes the status
-        // bar, navigation bar or display cutout — without this the toolbar sits under
-        // the clock and the grid runs behind the gesture bar.
-        modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
-        listPane = {
-            AnimatedPane {
-                ProvideContentWidth {
-                    Column(Modifier.fillMaxSize()) {
-                        CollectionTopBar(
-                            state = state,
-                            onBack = onBack,
-                            onOpenFilters = { showFilters = true },
-                            onOwnershipChange = viewModel::setOwnership,
-                            onSortChange = viewModel::setSortOption,
-                            onToggleDirection = viewModel::toggleSortDirection,
-                            onViewModeChange = viewModel::setViewMode,
-                            selection = SelectionActions(
-                                onExit = viewModel::exitSelection,
-                                onExportRiftboundGg = { export(SelectionExportFormat.RIFTBOUND_GG) },
-                                onExportCsv = { export(SelectionExportFormat.CSV) },
-                                onExportJson = { export(SelectionExportFormat.JSON) },
-                                onAddToCollection = viewModel::addSelectionToCollection,
-                                onAddToList = { addToListCards = state.selectedRows.map { it.card }.distinctBy { it.id } },
-                                onToggleSelectAll = viewModel::toggleSelectAll,
-                            ),
-                        )
-                        CollectionSearchField(controls.searchQuery, viewModel::setSearchQuery)
-                        if (!controls.filters.isEmpty) {
-                            ActiveFiltersBar(controls.filters, viewModel::updateFilters, viewModel::clearFilters)
-                        }
-                        if (controls.searchQuery.isNotEmpty()) {
-                            SearchOptionsBar(
-                                controls = controls,
+    //
+    // The divider is draggable through the library's own pane expansion (see
+    // `CollectionPaneSplit`). Its anchors come from the width measured here, inside the
+    // insets — the same width the scaffold lays out in — and are empty whenever the
+    // scaffold value is single-pane, so folding drops the split and unfolding restores
+    // the saved one.
+    //
+    // This screen has no Scaffold of its own, so nothing else consumes the status
+    // bar, navigation bar or display cutout — without this the toolbar sits under
+    // the clock and the grid runs behind the gesture bar.
+    val storedListShare by viewModel.listPaneProportion.collectAsStateWithLifecycle()
+    BoxWithConstraints(Modifier.windowInsetsPadding(WindowInsets.safeDrawing)) {
+        val split = rememberCollectionPaneSplit(
+            totalWidth = maxWidth,
+            widthPx = constraints.maxWidth,
+            spacer = navigator.scaffoldDirective.horizontalPartitionSpacerSize,
+            twoPanes = !singlePane,
+            listOnLeft = LocalLayoutDirection.current == LayoutDirection.Ltr,
+            storedListShare = storedListShare,
+            onPersist = viewModel::setListPaneProportion,
+        )
+        ListDetailPaneScaffold(
+            directive = navigator.scaffoldDirective,
+            value = navigator.scaffoldValue,
+            modifier = Modifier.fillMaxSize(),
+            paneExpansionState = split.state,
+            paneExpansionDragHandle = if (split.isResizable) ({ CollectionPaneDragHandle(split) }) else null,
+            listPane = {
+                AnimatedPane {
+                    ProvideContentWidth {
+                        Column(Modifier.fillMaxSize()) {
+                            CollectionTopBar(
+                                state = state,
+                                onBack = onBack,
+                                onOpenFilters = { showFilters = true },
+                                onOwnershipChange = viewModel::setOwnership,
                                 onSortChange = viewModel::setSortOption,
                                 onToggleDirection = viewModel::toggleSortDirection,
-                                onOwnershipChange = viewModel::setOwnership,
-                                onOpenFilters = { showFilters = true },
-                            )
-                        }
-                        val highlighted = if (detailKey == null || controls.isSelecting) null else pagerCardId ?: detailKey
-                        when {
-                            state.isListScopeEmpty -> EmptyListContent(state.listContext?.isWishlist == true)
-                            state.isCollectionEmpty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                EmptyState(
-                                    icon = Icons.Filled.Style,
-                                    title = "No Cards Yet",
-                                    message = "Go to the Scan tab to start scanning your Riftbound cards.",
-                                )
-                            }
-                            controls.viewMode == CollectionViewMode.GRID ->
-                                CollectionGrid(state, gridState, highlighted, rowActions)
-                            else -> CollectionList(state, listState, rowActions)
-                        }
-                    }
-                }
-            }
-        },
-        detailPane = {
-            AnimatedPane {
-                ProvideContentWidth {
-                    val fallback = remember(detailKey, state.isLoading) {
-                        state.cards.indexOfFirst { it.card.id == detailKey }
-                            .takeIf { it >= 0 }
-                            ?.let { PagerSnapshot(state.cards, it) }
-                    }
-                    val snapshot = pagerSnapshot?.takeIf { it.cards.getOrNull(it.startIndex)?.id == detailKey } ?: fallback
-                    when {
-                        detailKey == null -> EmptyDetail("Select a card")
-                        snapshot == null -> EmptyDetail("That card is no longer in this view")
-                        else -> key(snapshot) {
-                            CardPager(
-                                pages = snapshot.cards,
-                                pageEntryIds = snapshot.entryIds,
-                                startIndex = snapshot.startIndex,
-                                state = state,
-                                actions = CardPagerActions(
-                                    onBack = if (singlePane) ({ scope.launch { navigator.navigateBack() } }) else null,
-                                    onCurrentCardChange = { pagerCardId = it.id },
-                                    onAdjustQuantity = viewModel::adjustQuantity,
-                                    onSetQuantity = viewModel::setQuantity,
-                                    onConditionChange = viewModel::setCondition,
-                                    onLanguageChange = viewModel::setLanguage,
-                                    onToggleWishlist = viewModel::toggleWishlist,
-                                    onAddToList = { addToListCards = listOf(it) },
+                                onViewModeChange = viewModel::setViewMode,
+                                selection = SelectionActions(
+                                    onExit = viewModel::exitSelection,
+                                    onExportRiftboundGg = { export(SelectionExportFormat.RIFTBOUND_GG) },
+                                    onExportCsv = { export(SelectionExportFormat.CSV) },
+                                    onExportJson = { export(SelectionExportFormat.JSON) },
+                                    onAddToCollection = viewModel::addSelectionToCollection,
+                                    onAddToList = { addToListCards = state.selectedRows.map { it.card }.distinctBy { it.id } },
+                                    onToggleSelectAll = viewModel::toggleSelectAll,
                                 ),
                             )
+                            CollectionSearchField(controls.searchQuery, viewModel::setSearchQuery)
+                            if (!controls.filters.isEmpty) {
+                                ActiveFiltersBar(controls.filters, viewModel::updateFilters, viewModel::clearFilters)
+                            }
+                            if (controls.searchQuery.isNotEmpty()) {
+                                SearchOptionsBar(
+                                    controls = controls,
+                                    onSortChange = viewModel::setSortOption,
+                                    onToggleDirection = viewModel::toggleSortDirection,
+                                    onOwnershipChange = viewModel::setOwnership,
+                                    onOpenFilters = { showFilters = true },
+                                )
+                            }
+                            val highlighted = if (detailKey == null || controls.isSelecting) null else pagerCardId ?: detailKey
+                            when {
+                                state.isListScopeEmpty -> EmptyListContent(state.listContext?.isWishlist == true)
+                                state.isCollectionEmpty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    EmptyState(
+                                        icon = Icons.Filled.Style,
+                                        title = "No Cards Yet",
+                                        message = "Go to the Scan tab to start scanning your Riftbound cards.",
+                                    )
+                                }
+                                controls.viewMode == CollectionViewMode.GRID ->
+                                    CollectionGrid(state, gridState, highlighted, rowActions)
+                                else -> CollectionList(state, listState, rowActions)
+                            }
                         }
                     }
                 }
-            }
-        },
-    )
+            },
+            detailPane = {
+                AnimatedPane {
+                    ProvideContentWidth {
+                        val fallback = remember(detailKey, state.isLoading) {
+                            state.cards.indexOfFirst { it.card.id == detailKey }
+                                .takeIf { it >= 0 }
+                                ?.let { PagerSnapshot(state.cards, it) }
+                        }
+                        val snapshot = pagerSnapshot?.takeIf { it.cards.getOrNull(it.startIndex)?.id == detailKey } ?: fallback
+                        when {
+                            detailKey == null -> EmptyDetail("Select a card")
+                            snapshot == null -> EmptyDetail("That card is no longer in this view")
+                            else -> key(snapshot) {
+                                CardPager(
+                                    pages = snapshot.cards,
+                                    pageEntryIds = snapshot.entryIds,
+                                    startIndex = snapshot.startIndex,
+                                    state = state,
+                                    actions = CardPagerActions(
+                                        onBack = if (singlePane) ({ scope.launch { navigator.navigateBack() } }) else null,
+                                        onCurrentCardChange = { pagerCardId = it.id },
+                                        onAdjustQuantity = viewModel::adjustQuantity,
+                                        onSetQuantity = viewModel::setQuantity,
+                                        onConditionChange = viewModel::setCondition,
+                                        onLanguageChange = viewModel::setLanguage,
+                                        onToggleWishlist = viewModel::toggleWishlist,
+                                        onAddToList = { addToListCards = listOf(it) },
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+        )
+    }
 
     if (showFilters) {
         CollectionFilterSheet(

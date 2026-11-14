@@ -11,6 +11,7 @@ import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CardList
 import com.scanrift.android.domain.model.CollectionEntry
 import com.scanrift.android.di.IoDispatcher
+import com.scanrift.android.ui.adaptive.PaneSplit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
@@ -108,6 +109,20 @@ class CollectionBrowseViewModel @Inject constructor(
             isLoading = false,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CollectionBrowseState())
+
+    /**
+     * The list pane's saved share of the two-pane width, already sanitised and
+     * defaulted. Null only until DataStore's first read lands, so the screen can tell
+     * "not loaded yet" apart from "never set".
+     */
+    val listPaneProportion: StateFlow<Float?> = userPreferences.collectionListPaneProportion
+        .map { PaneSplit.storedOrDefault(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun setListPaneProportion(value: Float) {
+        val sanitized = PaneSplit.sanitize(value) ?: return
+        viewModelScope.launch { userPreferences.setCollectionListPaneProportion(sanitized) }
+    }
 
     fun setListContext(id: String?) { listId.value = id }
     fun setSearchQuery(value: String) = controls.update { it.copy(searchQuery = value) }
