@@ -75,7 +75,12 @@ object MultiCardScanner {
      * @param imageAspect the photo's width ÷ height. Boxes are normalised per axis, so a
      *   card's normalised height is `width × imageAspect ÷ CARD_ASPECT`.
      */
-    fun scan(lines: List<TextLine>, knownSetIds: Set<String> = emptySet(), imageAspect: Float = 1f): PageScan {
+    fun scan(rawLines: List<TextLine>, knownSetIds: Set<String> = emptySet(), imageAspect: Float = 1f): PageScan {
+        // The same collector-line repairs as live matching (`0GN`, `1l6`, `066 a`, …).
+        val lines = rawLines.map { line ->
+            val repaired = CollectorText.normalize(line.text)
+            if (repaired == line.text) line else line.copy(text = repaired)
+        }
         val anchors = findAnchors(lines, knownSetIds)
         if (anchors.isEmpty()) return PageScan(emptyList(), 0f)
 

@@ -25,7 +25,6 @@ import com.scanrift.android.service.feedback.FeedbackService
 import com.scanrift.android.service.scanning.CameraService
 import com.scanrift.android.service.scanning.CameraState
 import com.scanrift.android.service.scanning.CardMatchingService
-import com.scanrift.android.service.scanning.LanguageDetector
 import com.scanrift.android.service.scanning.NormalizedBox
 import com.scanrift.android.service.scanning.ScanIdentifier
 import com.scanrift.android.service.scanning.BitmapFrameArt
@@ -72,6 +71,8 @@ data class PageItem(
     val card: Card?,
     val language: CardLanguage,
     val isFoil: Boolean = card?.isAlwaysFoil == true,
+    /** Read without its variant suffix and not settled by art (see [ScanResult.ambiguous]). */
+    val ambiguous: Boolean = false,
 )
 
 data class PageReview(
@@ -254,20 +255,21 @@ class ScannerViewModel @Inject constructor(
         pageJob = viewModelScope.launch {
             val preference = _uiState.value.scanLanguage
             val result = runCatching {
-                pageScanService.scan(image, knownSetIds, detectScripts = preference == ScanLanguage.AUTO)
+                val matcher = checkNotNull(matcher) { "Catalogue not loaded yet" }
+                pageScanService.scan(image, knownSetIds, ScanIdentifier(matcher), preference, catalogueArt)
             }
-            val matcher = matcher
             _uiState.update { state ->
                 val review = state.page?.takeIf { it.image === image } ?: return@update state
                 result.fold(
-                    onSuccess = { page ->
-                        val items = page.cards.mapIndexed { index, found ->
+                    onSuccess = { cards ->
+                        val items = cards.mapIndexed { index, (found, outcome) ->
                             PageItem(
                                 id = "page-$index-${found.code}",
                                 bounds = found.bounds,
                                 code = found.code,
-                                card = matcher?.findByCardCode(found.code)?.card,
-                                language = LanguageDetector.resolve(preference, found.text).language,
+                                card = outcome.match?.card,
+                                language = outcome.language.language,
+                                ambiguous = outcome.ambiguous,
                             )
                         }
                         state.copy(page = review.copy(items = items, isProcessing = false))
@@ -323,7 +325,7 @@ class ScannerViewModel @Inject constructor(
         _uiState.update { state ->
             // One row per card, newest first; folding in reverse keeps the page's reading order at the top.
             val results = matched.asReversed().fold(state.results) { acc, item ->
-                acc.adding(item.card!!, item.isFoil, item.language)
+                acc.adding(item.card!!, item.isFoil, item.language, ambiguous = item.ambiguous)
             }
             state.copy(results = results, page = null, correctingPageItemId = null)
         }

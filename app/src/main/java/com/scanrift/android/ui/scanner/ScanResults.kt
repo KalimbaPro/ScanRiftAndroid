@@ -44,8 +44,14 @@ fun List<ScanResult>.addingScanReturningId(
 }
 
 /** Adds [quantity] copies as a new top row with an explicit foil flag — the binder-page path. */
-fun List<ScanResult>.adding(card: Card, isFoil: Boolean, language: CardLanguage, quantity: Int = 1): List<ScanResult> =
-    listOf(ScanResult(card, quantity = quantity, isFoil = isFoil || card.isAlwaysFoil, language = language)) + this
+fun List<ScanResult>.adding(
+    card: Card,
+    isFoil: Boolean,
+    language: CardLanguage,
+    quantity: Int = 1,
+    ambiguous: Boolean = false,
+): List<ScanResult> =
+    listOf(ScanResult(card, quantity, isFoil || card.isAlwaysFoil, language, ambiguous = ambiguous)) + this
 
 fun List<ScanResult>.withQuantity(id: String, quantity: Int): List<ScanResult> =
     if (quantity <= 0) filterNot { it.id == id } else map { if (it.id == id) it.copy(quantity = quantity) else it }

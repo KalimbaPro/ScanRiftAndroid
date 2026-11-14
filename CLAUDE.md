@@ -396,7 +396,9 @@ a Korean card into some Han); then French only on accents + stop words outnumber
 2:1. Never merge the two CJK passes back into one text: that is exactly what made every
 Chinese card read as Korean. The CJK passes run unless the Latin pass already settles it
 (marker or English name) — "no Latin name" is not that test, OCR finds Latin noise on CJK
-cards. Binder pages still use the older `LanguageDetector.resolve`.
+cards. Binder pages go through the same rules: `PageIdentifier` treats each found card as a
+`FocusDecision.Focused` view of the page (its own code first, the CJK lines inside its
+outline, the art tie-break on its region of the photo).
 
 **Collector codes are read tolerantly, and a suffix-less code is a guess.**
 `CollectorText.normalize` repairs `0GN`, `1l6`, `066 a`, `066o`, `227×`, a slash read as

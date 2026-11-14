@@ -125,6 +125,17 @@ class OcrService @Inject constructor() {
         }
     }
 
+    /** A still through the Chinese and the Korean recognizer, each pass kept apart: (zh, ko). */
+    suspend fun recognizeScriptPasses(bitmap: Bitmap): Pair<List<TextLine>, List<TextLine>> {
+        val image = InputImage.fromBitmap(bitmap, 0)
+        val (zh, ko) = scriptRecognizers().map { client ->
+            runCatching { recognize(client, image).toOcrResult(bitmap.width, bitmap.height).lines }
+                .onFailure { Log.ocr.w(it, "Script recognizer unavailable") }
+                .getOrDefault(emptyList())
+        }
+        return zh to ko
+    }
+
     private suspend fun recognize(client: TextRecognizer, image: InputImage): Text =
         suspendCancellableCoroutine { continuation ->
             client.process(image)

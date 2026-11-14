@@ -74,7 +74,7 @@ fun ScannerUiState.withPageItemCard(id: String, card: Card): ScannerUiState {
 
 /** Binder-page items with item [id] re-pointed at [card], foil following [versionFoil]. */
 fun List<PageItem>.withItemCard(id: String, card: Card): List<PageItem> =
-    map { if (it.id == id) it.copy(card = card, isFoil = versionFoil(it.card, it.isFoil, card)) else it }
+    map { if (it.id == id) it.copy(card = card, isFoil = versionFoil(it.card, it.isFoil, card), ambiguous = false) else it }
 
 /**
  * Re-points the auto-added last scan at [card]. Returns the new state and the database
