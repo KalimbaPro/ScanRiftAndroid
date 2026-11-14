@@ -79,6 +79,10 @@ Compose version moves unexpectedly, check Coil first.
   previous build's files. CI sets `VERSION_CODE` to 100 + the workflow's run number, so
   each build is uploadable to Play without a manual bump; bump `versionName` by hand when
   a release should get a new name (and a new GitHub release).
+- **…and goes to Play's internal track** once the `PLAY_SERVICE_ACCOUNT_JSON` secret is
+  set (the step is skipped without it). Releases are created as `draft` until the
+  repository variable `PLAY_RELEASE_STATUS` is set to `completed`, which Play only allows
+  after the app's first review.
 
 ## Architecture
 

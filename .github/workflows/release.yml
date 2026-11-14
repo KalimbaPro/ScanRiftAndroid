@@ -6,8 +6,8 @@ name: Release
 #
 # The very first AAB has to be uploaded manually through the Play Console — the
 # Publishing API cannot create a new app, only push to one that already exists.
-# Once the listing exists, add a service-account secret and uncomment the upload
-# step below.
+# After that, the last step uploads every main build to the internal track once the
+# PLAY_SERVICE_ACCOUNT_JSON secret is set.
 
 on:
   push:
@@ -25,6 +25,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      # A step's `if` cannot read secrets; expose only whether the Play key exists.
+      PLAY_UPLOAD_CONFIGURED: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -83,10 +86,17 @@ jobs:
           gh release upload "$tag" "$dir"/* --clobber
           echo "Published ${VERSION_NAME} (${VERSION_CODE}) on $tag" >> "$GITHUB_STEP_SUMMARY"
 
-      # - name: Upload to Play internal track
-      #   uses: r0adkll/upload-google-play@v1
-      #   with:
-      #     serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-      #     packageName: com.scanrift.android
-      #     releaseFiles: app/build/outputs/bundle/release/app-release.aab
-      #     track: internal
+      # Sends every main build to Play's internal testing track. Skipped until the
+      # PLAY_SERVICE_ACCOUNT_JSON secret exists. Play accepts only *draft* releases until
+      # the app has passed its first review: set the repository variable
+      # PLAY_RELEASE_STATUS to `completed` after that, so builds reach testers directly.
+      - name: Upload to Play internal track
+        if: github.ref == 'refs/heads/main' && env.PLAY_UPLOAD_CONFIGURED == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.scanrift.android
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          releaseName: ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }})
+          track: internal
+          status: ${{ vars.PLAY_RELEASE_STATUS || 'draft' }}
