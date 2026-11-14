@@ -189,12 +189,14 @@ glue is `ui/collection/CollectionPaneSplit.kt`; the arithmetic is `ui/adaptive/P
    list ≥ `Dimens.ListPaneMinWidth` and the detail ≥ `Dimens.DetailPaneMinWidth`, and
    `SplitDragClamp` clamps the live drag through `consumeDragDelta`. That hook sees only
    deltas, so the clamp mirrors the position itself, re-synced from the settled anchor on
-   every press; keep it the **outermost** pointer modifier on the handle. Under ~626dp
-   both floors do not fit, and then the collection is **single-pane**:
+   every press; keep it the **outermost** pointer modifier on the handle. Under ~586dp
+   (260 + 300 + the 24dp spacer) both floors do not fit, and then the collection is **single-pane**:
    `PaneSplit.directiveFor` caps the directive at one partition for the width measured
    inside the insets. The Medium-width directive alone split a 7" tablet in portrait
    (600dp window, ~520dp after the rail) into a list so narrow its title wrapped a
-   syllable per line, with no handle to widen it.
+   syllable per line, with no handle to widen it. Do not raise the floors past what an
+   unfolded Fold held upright clears (~621dp beside the rail): that is the device the
+   split exists for, and 280/320 once silently made it single-pane.
 2. *Persistence.* The split is the list pane's share of the scaffold width (a
    proportion), saved as the `collectionListPaneProportion` float in `UserPreferences`.
    It is a preference, not a position: restore maps it to the nearest anchor at the
