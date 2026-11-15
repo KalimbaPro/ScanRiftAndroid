@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,6 +29,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,6 +43,8 @@ import com.scanrift.android.domain.model.Rarity
 import com.scanrift.android.ui.components.domainIcon
 import com.scanrift.android.ui.components.SectionLabel
 import com.scanrift.android.ui.components.SheetHeader
+import com.scanrift.android.ui.components.StatusBannedRed
+import com.scanrift.android.ui.components.StatusErrataOrange
 import com.scanrift.android.ui.theme.Dimens
 import com.scanrift.android.ui.theme.RarityShowcase
 import kotlin.math.roundToInt
@@ -96,6 +101,32 @@ fun CollectionFilterSheet(
                     },
                     onClick = { onFiltersChange(filters.copy(foilOnly = !filters.foilOnly)) },
                 )
+            }
+            if (facets.statuses.isNotEmpty()) {
+                item(key = "header-Status") { SectionLabel("Status", Modifier.padding(horizontal = 20.dp)) }
+                items(facets.statuses, key = { "Status-${it.status.name}" }) { facet ->
+                    FilterRow(
+                        label = facet.status.label,
+                        count = facet.count,
+                        selected = facet.status in filters.statuses,
+                        leading = {
+                            Icon(
+                                facet.status.icon,
+                                contentDescription = null,
+                                tint = facet.status.color,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        },
+                        onClick = {
+                            val statuses = filters.statuses
+                            onFiltersChange(
+                                filters.copy(
+                                    statuses = if (facet.status in statuses) statuses - facet.status else statuses + facet.status,
+                                ),
+                            )
+                        },
+                    )
+                }
             }
             if (facets.languages.isNotEmpty()) {
                 item(key = "header-Language") { SectionLabel("Language", Modifier.padding(horizontal = 20.dp)) }
@@ -239,6 +270,19 @@ private fun RangeRow(bounds: IntRange, min: Int?, max: Int?, onChange: (Int?, In
         }
     }
 }
+
+private val CardStatusFilter.icon
+    get() = when (this) {
+        CardStatusFilter.BANNED -> Icons.Filled.Block
+        CardStatusFilter.ERRATA -> Icons.Filled.EditNote
+    }
+
+/** Same red and orange as the card detail's status pills. */
+internal val CardStatusFilter.color: Color
+    get() = when (this) {
+        CardStatusFilter.BANNED -> StatusBannedRed
+        CardStatusFilter.ERRATA -> StatusErrataOrange
+    }
 
 @DrawableRes
 private fun typeIcon(type: String): Int? = when (type) {

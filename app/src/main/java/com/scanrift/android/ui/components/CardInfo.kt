@@ -91,8 +91,8 @@ fun CardInfo(card: Card, modifier: Modifier = Modifier) {
     }
 }
 
-private val StatusBannedRed = Color(0xFFD70015)
-private val StatusErrataOrange = Color(0xFFFF9500)
+internal val StatusBannedRed = Color(0xFFD70015)
+internal val StatusErrataOrange = Color(0xFFFF9500)
 
 /**
  * "Banned" and "Errata" pills right under the image, so a card's status reads at a

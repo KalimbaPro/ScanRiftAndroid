@@ -60,6 +60,8 @@ data class CollectionFilters(
     val energyMax: Int? = null,
     val powerMin: Int? = null,
     val powerMax: Int? = null,
+    /** Card statuses to keep; a card matches if it has any of them. */
+    val statuses: Set<CardStatusFilter> = emptySet(),
 ) {
     val hasEnergyRange: Boolean get() = energyMin != null || energyMax != null
     val hasPowerRange: Boolean get() = powerMin != null || powerMax != null
@@ -67,8 +69,25 @@ data class CollectionFilters(
     val isEmpty: Boolean
         get() = domains.isEmpty() && types.isEmpty() && supertypes.isEmpty() && rarities.isEmpty() &&
             sets.isEmpty() && artists.isEmpty() && languages.isEmpty() && !foilOnly && !hasEnergyRange &&
-            !hasPowerRange
+            !hasPowerRange && statuses.isEmpty()
 }
+
+/**
+ * Rules statuses a card can be filtered on. [BANNED] reads [Card.banned], which is
+ * already resolved for the user's competitive region.
+ */
+enum class CardStatusFilter(val label: String) {
+    BANNED("Banned"),
+    ERRATA("Errata"),
+    ;
+
+    fun matches(card: Card): Boolean = when (this) {
+        BANNED -> card.banned
+        ERRATA -> !card.errata.isNullOrBlank()
+    }
+}
+
+data class StatusFacet(val status: CardStatusFilter, val count: Int)
 
 data class Facet(val value: String, val count: Int)
 
@@ -81,6 +100,8 @@ data class FilterFacets(
     val artists: List<Facet> = emptyList(),
     /** Languages of the owned copies in scope, by raw value; empty unless there are two or more. */
     val languages: List<Facet> = emptyList(),
+    /** Statuses held by at least one card in scope, in declaration order. */
+    val statuses: List<StatusFacet> = emptyList(),
     val energy: IntRange? = null,
     val power: IntRange? = null,
 )
@@ -164,6 +185,9 @@ object CollectionQuery {
             sets = setCounts.toSortedMap().map { (value, n) -> Facet(value, n) },
             artists = artistCounts.toSortedMap().map { (value, n) -> Facet(value, n) },
             languages = languageFacets(entries),
+            statuses = CardStatusFilter.entries.mapNotNull { status ->
+                cards.count(status::matches).takeIf { it > 0 }?.let { StatusFacet(status, it) }
+            },
             energy = spread(cards.mapNotNull { it.energy }),
             power = spread(cards.mapNotNull { it.power }),
         )
@@ -228,6 +252,7 @@ object CollectionQuery {
         if (filters.domains.isNotEmpty() && card.domains.none { it in filters.domains }) return false
         if (filters.hasEnergyRange && !card.energy.within(filters.energyMin, filters.energyMax)) return false
         if (filters.hasPowerRange && !card.power.within(filters.powerMin, filters.powerMax)) return false
+        if (filters.statuses.isNotEmpty() && filters.statuses.none { it.matches(card) }) return false
         return true
     }
 
