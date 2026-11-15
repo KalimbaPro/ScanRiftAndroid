@@ -86,7 +86,8 @@ jobs:
           gh release upload "$tag" "$dir"/* --clobber
           echo "Published ${VERSION_NAME} (${VERSION_CODE}) on $tag" >> "$GITHUB_STEP_SUMMARY"
 
-      # Sends every main build to Play's internal testing track. Skipped until the
+      # Sends every main build to a Play testing track (repository variable PLAY_TRACK:
+      # internal, alpha = closed testing, beta = open testing; default internal). Skipped until the
       # PLAY_SERVICE_ACCOUNT_JSON secret exists. Play accepts only *draft* releases until
       # the app has passed its first review: set the repository variable
       # PLAY_RELEASE_STATUS to `completed` after that, so builds reach testers directly.
@@ -98,5 +99,5 @@ jobs:
           packageName: com.scanrift.android
           releaseFiles: app/build/outputs/bundle/release/app-release.aab
           releaseName: ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }})
-          track: internal
+          track: ${{ vars.PLAY_TRACK || 'internal' }}
           status: ${{ vars.PLAY_RELEASE_STATUS || 'draft' }}
