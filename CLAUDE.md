@@ -569,7 +569,17 @@ catalogue's de-duplication can swap the rows the demo points at.
 Things the emulator needs that a phone does not:
 
 - **Scores are never persisted**, so the tracker always restores at 0–0. Tap points in
-  (press a seat's right half, then a dot) before capturing.
+  (press a seat's right half, then a dot) before capturing — or, for the four-player
+  shot, run `scripts/screenshot-demo.sh <serial> --four-players`: it seeds
+  `DemoData.fourPlayerSeats` with scores, logs and XP, and the debug-only `DemoScores`
+  (bound through the `Optional<RestoredScoresPolicy>` seam in `PointTrackerViewModel`)
+  keeps them on restore for the rest of that process. Release builds bind nothing there.
+- **A debug build from another checkout can carry a higher versionCode**, and the
+  script's `install -r` then fails with `INSTALL_FAILED_VERSION_DOWNGRADE`;
+  `adb uninstall com.scanrift.android.debug` first (the seed replaces the data anyway).
+- **The Fold's rotation lock is per display state**: `settings get system user_rotation`
+  can say 1 while the inner display sits at ROTATION_0. Use
+  `cmd window user-rotation -d 0 lock 1` and check `dumpsys window displays`.
 - **The binder-page shot** comes from a photo, not the camera: compose a 3×3 page from
   nine card images, `adb push` it to `/sdcard/Pictures/`, run
   `adb shell content call --uri content://media/external/file --method scan_volume --arg external_primary`,

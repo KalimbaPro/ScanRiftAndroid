@@ -20,6 +20,7 @@ import com.scanrift.android.di.IoDispatcher
 import com.scanrift.android.domain.model.CardCondition
 import com.scanrift.android.domain.model.DeckSection
 import com.scanrift.android.domain.model.ScanLanguage
+import com.scanrift.android.domain.model.ScoreCategory
 import com.scanrift.android.ui.game.PlayerState
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -45,12 +46,14 @@ class DemoSeeder @Inject constructor(
     private val cardListDao: CardListDao,
     private val listRepository: CardListRepository,
     private val userPreferences: UserPreferences,
+    private val demoScores: DemoScores,
     @param:IoDispatcher private val io: CoroutineDispatcher,
 ) {
 
     data class Summary(val stacks: Int, val copies: Int, val decks: Int, val games: Int)
 
-    suspend fun seed(now: Long = System.currentTimeMillis()): Summary = withContext(io) {
+    /** [fourPlayers] swaps the two-seat roster for [DemoData.fourPlayerSeats], scores and all. */
+    suspend fun seed(now: Long = System.currentTimeMillis(), fourPlayers: Boolean = false): Summary = withContext(io) {
         val cards = resolveCards()
         fun card(rid: String): CardEntity = cards.getValue(rid)
         val deckIds = DemoData.decks.associate { it.name to UUID.nameUUIDFromBytes(it.name.toByteArray()).toString() }
@@ -121,14 +124,21 @@ class DemoSeeder @Inject constructor(
             cardListDao.addCardsToList(DemoData.wishlist.map { CardListCrossRef(wishlist, card(it).id) })
         }
 
-        val roster = DemoData.seats.map { seat ->
+        val seats = if (fourPlayers) DemoData.fourPlayerSeats else DemoData.seats
+        val roster = seats.map { seat ->
             PlayerState(
                 name = seat.name,
+                conquer = seat.count(ScoreCategory.CONQUER),
+                hold = seat.count(ScoreCategory.HOLD),
+                ability = seat.count(ScoreCategory.OTHER),
+                xp = seat.xp,
+                scoreLog = seat.scoreLog,
                 legendCardId = card(seat.legend).id,
                 deckId = seat.deck?.let(deckIds::getValue),
             )
         }
         userPreferences.setPointTrackerRoster(Json.encodeToString(roster))
+        demoScores.keepScores = fourPlayers
         // The demo binder page is all English. Forcing English also skips the Chinese and
         // Korean OCR pass, whose Play Services TFLite module dies with SIGILL on the
         // arm64 emulator — with Auto, importing a page photo kills the app there.
@@ -154,7 +164,7 @@ class DemoSeeder @Inject constructor(
                 addAll(deck.battlefields)
             }
             DemoData.games.forEach { add(it.legend); add(it.opponentLegend) }
-            DemoData.seats.forEach { add(it.legend) }
+            (DemoData.seats + DemoData.fourPlayerSeats).forEach { add(it.legend) }
             addAll(DemoData.wishlist)
         }
         val resolved = wanted.associateWith { rid ->

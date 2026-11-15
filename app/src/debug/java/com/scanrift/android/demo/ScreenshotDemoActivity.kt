@@ -33,6 +33,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  * adb shell am start -n com.scanrift.android.debug/com.scanrift.android.demo.ScreenshotDemoActivity
  * ```
  *
+ * Add `--ez fourPlayers true` to seed the four-player game in progress instead of the
+ * two empty seats.
+ *
  * Lives in the debug source set and is declared only in the debug manifest, so release
  * builds contain neither the activity nor the seeder.
  *
@@ -70,7 +73,8 @@ class ScreenshotDemoActivity : ComponentActivity() {
         withTimeoutOrNull(BOOTSTRAP_TIMEOUT_MS) { bootstrapper.state.first { !it.isLoading } }
 
         status = "Seeding demo data…"
-        val outcome = runCatching { seeder.seed() }
+        val fourPlayers = intent.getBooleanExtra(EXTRA_FOUR_PLAYERS, false)
+        val outcome = runCatching { seeder.seed(fourPlayers = fourPlayers) }
         outcome.onFailure { Log.database.e(it, "Demo seeding failed") }
         status = outcome.fold(
             onSuccess = { "Seeded ${it.stacks} stacks, ${it.decks} decks, ${it.games} games" },
@@ -86,6 +90,7 @@ class ScreenshotDemoActivity : ComponentActivity() {
     }
 
     private companion object {
+        const val EXTRA_FOUR_PLAYERS = "fourPlayers"
         const val BOOTSTRAP_START_TIMEOUT_MS = 5_000L
         const val BOOTSTRAP_TIMEOUT_MS = 120_000L
     }

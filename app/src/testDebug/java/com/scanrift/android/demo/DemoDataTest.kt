@@ -2,10 +2,13 @@ package com.scanrift.android.demo
 
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import com.scanrift.android.core.Constants
 import com.scanrift.android.domain.model.CardLanguage
+import com.scanrift.android.domain.model.CardType
 import com.scanrift.android.domain.model.Deck
 import com.scanrift.android.domain.model.DeckEntry
 import com.scanrift.android.domain.model.DeckSection
+import com.scanrift.android.domain.model.ScoreCategory
 import com.scanrift.android.service.deck.DeckValidationError
 import com.scanrift.android.service.deck.DeckValidator
 import com.scanrift.android.service.scanning.SeedCatalogue
@@ -39,7 +42,7 @@ class DemoDataTest {
         val ids = DemoData.collection.map { it.riftboundId } +
             DemoData.decks.flatMap { d -> listOf(d.legend, d.champion) + d.main.map { it.first } + d.runes.map { it.first } + d.battlefields } +
             DemoData.games.flatMap { listOf(it.legend, it.opponentLegend) } +
-            DemoData.seats.map { it.legend } +
+            (DemoData.seats + DemoData.fourPlayerSeats).map { it.legend } +
             DemoData.wishlist
         ids.distinct().forEach { SeedCatalogue.card(it) } // single() throws on a miss
     }
@@ -79,5 +82,29 @@ class DemoDataTest {
         assertThat(zhonya.errata).isNotNull()
         assertThat(DemoData.collection.map { it.riftboundId }).contains("ogn-077-298")
         assertThat(DemoData.collection.map { it.language }.toSet()).containsExactlyElementsIn(CardLanguage.entries)
+    }
+
+    @Test
+    fun `the four-player game has four distinct legends, real decks and a game in progress`() {
+        val seats = DemoData.fourPlayerSeats
+        assertThat(seats).hasSize(Constants.PointTracker.MAX_PLAYERS)
+        assertThat(seats.map { it.name }).containsNoDuplicates()
+
+        val legends = seats.map { SeedCatalogue.card(it.legend) }
+        legends.forEach { assertWithMessage(it.name).that(it.type).isEqualTo(CardType.LEGEND) }
+        assertThat(legends.map { it.cleanName }).containsNoDuplicates()
+        assertThat(seats.map { it.legend }).contains("sgn-001-003") // Secret Garden Lillia
+
+        val deckNames = DemoData.decks.map { it.name }
+        seats.mapNotNull { it.deck }.forEach { assertThat(deckNames).contains(it) }
+
+        val scores = seats.map { it.scoreLog.size }
+        assertThat(scores).containsNoDuplicates()
+        scores.forEach { assertThat(it).isIn(1 until Constants.PointTracker.VICTORY_POINTS) }
+        seats.forEach { seat ->
+            assertWithMessage("${seat.name} mixes categories").that(seat.scoreLog.toSet().size).isAtLeast(2)
+            assertThat(ScoreCategory.entries.sumOf(seat::count)).isEqualTo(seat.scoreLog.size)
+            assertThat(seat.xp).isIn(1..Constants.PointTracker.XP_MAX)
+        }
     }
 }

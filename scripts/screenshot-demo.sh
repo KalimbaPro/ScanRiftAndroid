@@ -4,13 +4,21 @@
 #   2. installs the debug build and grants the camera permission;
 #   3. replaces the app's data with the demo set (debug-only ScreenshotDemoActivity).
 #
-# Usage: scripts/screenshot-demo.sh [adb-serial]
+# Usage: scripts/screenshot-demo.sh [adb-serial] [--four-players]
+#   --four-players seeds the tracker with a four-player game in progress (scores kept)
+#   instead of the two empty seats.
 # Build first: ./gradlew assembleDebug. See CLAUDE.md, "Store screenshots".
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ADB=(adb)
-if [[ $# -ge 1 ]]; then ADB=(adb -s "$1"); fi
+FOUR_PLAYERS=false
+for arg in "$@"; do
+  case "$arg" in
+    --four-players) FOUR_PLAYERS=true ;;
+    *) ADB=(adb -s "$arg") ;;
+  esac
+done
 
 APP=com.scanrift.android.debug
 APK=app/build/outputs/apk/debug/app-debug.apk
@@ -29,5 +37,6 @@ demo status -e bluetooth hide -e location hide -e alarm hide -e volume hide
 "${ADB[@]}" install -r -g "$APK" >/dev/null
 "${ADB[@]}" shell pm grant "$APP" android.permission.CAMERA
 "${ADB[@]}" shell am force-stop "$APP"
-"${ADB[@]}" shell am start -W -n "$APP/com.scanrift.android.demo.ScreenshotDemoActivity" >/dev/null
+"${ADB[@]}" shell am start -W -n "$APP/com.scanrift.android.demo.ScreenshotDemoActivity" \
+  --ez fourPlayers "$FOUR_PLAYERS" >/dev/null
 echo "Seeding; the app opens on the Collection tab when it is done."
