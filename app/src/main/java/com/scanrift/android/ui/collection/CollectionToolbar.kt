@@ -52,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
@@ -342,6 +343,11 @@ fun ActiveFiltersBar(filters: CollectionFilters, onChange: (CollectionFilters) -
             RemovableChip(it) { onChange(filters.copy(supertypes = filters.supertypes - it)) }
         }
         if (filters.foilOnly) RemovableChip("Foil Only") { onChange(filters.copy(foilOnly = false)) }
+        CardStatusFilter.entries.filter { it in filters.statuses }.forEach { status ->
+            RemovableChip(status.label, accent = status.color) {
+                onChange(filters.copy(statuses = filters.statuses - status))
+            }
+        }
         filters.rarities.sortedBy { Rarity.sortRank(it) }.forEach {
             RemovableChip(it) { onChange(filters.copy(rarities = filters.rarities - it)) }
         }
@@ -372,8 +378,7 @@ fun ActiveFiltersBar(filters: CollectionFilters, onChange: (CollectionFilters) -
 }
 
 @Composable
-private fun RemovableChip(label: String, onRemove: () -> Unit) {
-    val accent = MaterialTheme.colorScheme.primary
+private fun RemovableChip(label: String, accent: Color = MaterialTheme.colorScheme.primary, onRemove: () -> Unit) {
     Row(
         modifier = Modifier
             .clip(CircleShape)

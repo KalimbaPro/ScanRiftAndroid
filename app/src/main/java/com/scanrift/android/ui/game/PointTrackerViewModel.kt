@@ -17,6 +17,7 @@ import com.scanrift.android.domain.model.LegendPrintings
 import com.scanrift.android.domain.model.ScoreCategory
 import com.scanrift.android.data.local.mapper.toEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.Optional
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -154,6 +155,7 @@ class PointTrackerViewModel @Inject constructor(
     private val gameRecordDao: GameRecordDao,
     collectionRepository: CollectionRepository,
     deckRepository: DeckRepository,
+    private val restoredScoresPolicy: Optional<RestoredScoresPolicy>,
 ) : ViewModel() {
 
     private val players = MutableStateFlow(defaultRoster())
@@ -366,8 +368,10 @@ class PointTrackerViewModel @Inject constructor(
         runCatching { JSON.decodeFromString<List<PlayerState>>(stored) }
             .onSuccess { roster ->
                 if (roster.isEmpty()) return@onSuccess
-                // Names and assignments survive; scores never do.
-                players.value = roster.map {
+                // Names and assignments survive; scores never do — except for the
+                // debug screenshot demo, which seeds a game in progress.
+                val keepScores = restoredScoresPolicy.map { it.keepsRestoredScores() }.orElse(false)
+                players.value = if (keepScores) roster else roster.map {
                     it.copy(conquer = 0, hold = 0, ability = 0, xp = 0, scoreLog = emptyList())
                 }
             }

@@ -2,6 +2,7 @@ package com.scanrift.android.demo
 
 import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.GameResult
+import com.scanrift.android.domain.model.ScoreCategory
 
 /**
  * The store-screenshot data set, as plain values.
@@ -52,7 +53,19 @@ internal object DemoData {
         val hold: Int,
     )
 
-    data class Seat(val name: String, val legend: String, val deck: String?)
+    /**
+     * A tracker seat. [scoreLog] is the order the points were scored in; the seeder
+     * derives the per-category counts from it, so the two always agree.
+     */
+    data class Seat(
+        val name: String,
+        val legend: String,
+        val deck: String?,
+        val scoreLog: List<ScoreCategory> = emptyList(),
+        val xp: Int = 0,
+    ) {
+        fun count(category: ScoreCategory): Int = scoreLog.count { it == category }
+    }
 
     private fun stack(
         riftboundId: String,
@@ -282,6 +295,24 @@ internal object DemoData {
     val seats: List<Seat> = listOf(
         Seat(name = "Lena", legend = "unl-230*-219", deck = "Lillia Dreams"),
         Seat(name = "Hugo", legend = "sfd-246-221", deck = null),
+    )
+
+    private val C = ScoreCategory.CONQUER
+    private val H = ScoreCategory.HOLD
+    private val O = ScoreCategory.OTHER
+
+    /**
+     * The four-player game in progress (`--ez fourPlayers true`), for the multiplayer
+     * screenshot. Every legend is a special printing — Secret Garden Lillia, the overnumbered
+     * Irelia, the Ahri Signature and the overnumbered Riven — and every
+     * score sits below victory, with a mix of categories so each track reads as a game.
+     * Unlike [seats], these scores survive the tracker's load: see [DemoScores].
+     */
+    val fourPlayerSeats: List<Seat> = listOf(
+        Seat(name = "Lena", legend = "sgn-001-003", deck = "Lillia Dreams", scoreLog = listOf(H, C, H, O, C, H), xp = 7),
+        Seat(name = "Hugo", legend = "sfd-246-221", deck = "Irelia Blade Dance", scoreLog = listOf(C, C, H, C), xp = 4),
+        Seat(name = "Sam", legend = "ogn-303*-298", deck = null, scoreLog = listOf(H, H, O, C, H), xp = 5),
+        Seat(name = "Jules", legend = "rad-173-167", deck = null, scoreLog = listOf(C, H, O), xp = 2),
     )
 
     /** Cards on the system Wishlist. */

@@ -202,6 +202,57 @@ class CollectionQueryTest {
         assertThat(en.id).isNotEqualTo(fr.id)
     }
 
+    // ── Status ───────────────────────────────────────────────────────────────
+
+    private val banned = card("banned", "Banned Card", number = 4).copy(banned = true)
+    private val errata = card("errata", "Errata Card", number = 5).copy(errata = "New text.")
+    private val bannedErrata = card("both", "Both", number = 6).copy(banned = true, errata = "New text.")
+    private val blankErrata = card("blank", "Blank", number = 7).copy(errata = "  ")
+    private val statusRows = listOf(ahri, banned, errata, bannedErrata, blankErrata).map { DisplayCard(it, null) }
+
+    private fun statusFilter(vararg statuses: CardStatusFilter, sets: Set<String> = emptySet()) =
+        CollectionQuery.filter(
+            statusRows, "", OwnershipFilter.ALL, CollectionFilters(statuses = statuses.toSet(), sets = sets), false,
+        ).map { it.card.id }
+
+    @Test
+    fun `banned status keeps only banned cards`() {
+        assertThat(statusFilter(CardStatusFilter.BANNED)).containsExactly("banned", "both")
+    }
+
+    @Test
+    fun `errata status keeps only cards with non-blank errata`() {
+        assertThat(statusFilter(CardStatusFilter.ERRATA)).containsExactly("errata", "both")
+    }
+
+    @Test
+    fun `both statuses match the union`() {
+        assertThat(statusFilter(CardStatusFilter.BANNED, CardStatusFilter.ERRATA))
+            .containsExactly("banned", "errata", "both")
+    }
+
+    @Test
+    fun `status combines with other facets by and`() {
+        assertThat(statusFilter(CardStatusFilter.BANNED, sets = setOf("Origins"))).containsExactly("banned", "both")
+        assertThat(statusFilter(CardStatusFilter.BANNED, sets = setOf("Spiritforged"))).isEmpty()
+    }
+
+    @Test
+    fun `status filter counts as active`() {
+        assertThat(CollectionFilters(statuses = setOf(CardStatusFilter.ERRATA)).isEmpty).isFalse()
+    }
+
+    @Test
+    fun `status facets count cards and skip statuses nobody has`() {
+        val facets = CollectionQuery.facets(statusRows.map { it.card })
+        assertThat(facets.statuses).containsExactly(
+            StatusFacet(CardStatusFilter.BANNED, 2),
+            StatusFacet(CardStatusFilter.ERRATA, 2),
+        ).inOrder()
+        assertThat(CollectionQuery.facets(listOf(ahri, banned)).statuses)
+            .containsExactly(StatusFacet(CardStatusFilter.BANNED, 1))
+    }
+
     // ── Global search ────────────────────────────────────────────────────────
 
     @Test
