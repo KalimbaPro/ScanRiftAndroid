@@ -2,6 +2,9 @@ package com.scanrift.android.ui.collection
 
 import com.google.common.truth.Truth.assertThat
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardFacetFilter
+import com.scanrift.android.domain.model.CardStatusFilter
+import com.scanrift.android.domain.model.Facet
 import com.scanrift.android.domain.model.CardCondition
 import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CardList
@@ -69,20 +72,9 @@ class CollectionQueryTest {
     }
 
     @Test
-    fun `energy range excludes cards without energy and honours open bounds`() {
-        val rows = listOf(DisplayCard(ahri, null), DisplayCard(jinx, null), DisplayCard(teemo, null))
-        val atLeastFour = CollectionFilters(energyMin = 4)
-        assertThat(CollectionQuery.filter(rows, "", OwnershipFilter.ALL, atLeastFour, false).map { it.card.id })
-            .containsExactly("jinx")
-        val upToFour = CollectionFilters(energyMax = 4)
-        assertThat(CollectionQuery.filter(rows, "", OwnershipFilter.ALL, upToFour, false).map { it.card.id })
-            .containsExactly("ahri")
-    }
-
-    @Test
     fun `supertype filter excludes cards with no supertype`() {
         val rows = listOf(DisplayCard(ahri, null), DisplayCard(teemo, null))
-        val filters = CollectionFilters(supertypes = setOf("Champion"))
+        val filters = CollectionFilters(CardFacetFilter(supertypes = setOf("Champion")))
         assertThat(CollectionQuery.filter(rows, "", OwnershipFilter.ALL, filters, false).map { it.card.id })
             .containsExactly("teemo")
     }
@@ -98,7 +90,7 @@ class CollectionQueryTest {
     @Test
     fun `domain filter matches any selected domain`() {
         val rows = listOf(DisplayCard(ahri, null), DisplayCard(jinx, null), DisplayCard(teemo, null))
-        val filters = CollectionFilters(domains = setOf("Chaos", "Calm"))
+        val filters = CollectionFilters(CardFacetFilter(domains = setOf("Chaos", "Calm")))
         assertThat(CollectionQuery.filter(rows, "", OwnershipFilter.ALL, filters, false).map { it.card.id })
             .containsExactly("ahri", "jinx")
     }
@@ -110,17 +102,6 @@ class CollectionQueryTest {
             .containsExactly("jinx", "teemo", "ahri").inOrder()
         assertThat(CollectionQuery.sort(rows, CollectionSortOption.QUANTITY, false).map { it.card.id })
             .containsExactly("ahri", "teemo", "jinx").inOrder()
-    }
-
-    @Test
-    fun `facets count cards and only offer ranges with a spread`() {
-        val facets = CollectionQuery.facets(listOf(ahri, jinx, teemo))
-        assertThat(facets.domains.map { it.value }).containsExactly("Fury", "Calm", "Chaos").inOrder()
-        assertThat(facets.types).containsExactly(Facet("Unit", 3))
-        assertThat(facets.supertypes).containsExactly(Facet("Champion", 1))
-        assertThat(facets.energy).isEqualTo(3..5)
-        assertThat(facets.power).isNull()
-        assertThat(facets.artists).containsExactly(Facet("Lucho", 1))
     }
 
     @Test
@@ -186,13 +167,11 @@ class CollectionQueryTest {
     }
 
     @Test
-    fun `the language facet appears only when two or more languages are owned`() {
-        assertThat(CollectionQuery.facets(listOf(ahri), listOf(entry(ahri))).languages).isEmpty()
-        val facets = CollectionQuery.facets(
-            listOf(ahri, jinx),
+    fun `the language facet lists every language with its owned count`() {
+        val facets = CollectionQuery.languageFacets(
             listOf(entryIn(ahri, CardLanguage.FR, 1), entry(jinx, id = 2), entryIn(jinx, CardLanguage.FR, 3)),
         )
-        assertThat(facets.languages).containsExactly(Facet("en", 1), Facet("fr", 2)).inOrder()
+        assertThat(facets).containsExactly(Facet("en", 1), Facet("fr", 2), Facet("zh", 0), Facet("ko", 0)).inOrder()
     }
 
     @Test
@@ -212,7 +191,7 @@ class CollectionQueryTest {
 
     private fun statusFilter(vararg statuses: CardStatusFilter, sets: Set<String> = emptySet()) =
         CollectionQuery.filter(
-            statusRows, "", OwnershipFilter.ALL, CollectionFilters(statuses = statuses.toSet(), sets = sets), false,
+            statusRows, "", OwnershipFilter.ALL, CollectionFilters(CardFacetFilter(statuses = statuses.toSet(), sets = sets)), false,
         ).map { it.card.id }
 
     @Test
@@ -239,27 +218,18 @@ class CollectionQueryTest {
 
     @Test
     fun `status filter counts as active`() {
-        assertThat(CollectionFilters(statuses = setOf(CardStatusFilter.ERRATA)).isEmpty).isFalse()
-    }
-
-    @Test
-    fun `status facets count cards and skip statuses nobody has`() {
-        val facets = CollectionQuery.facets(statusRows.map { it.card })
-        assertThat(facets.statuses).containsExactly(
-            StatusFacet(CardStatusFilter.BANNED, 2),
-            StatusFacet(CardStatusFilter.ERRATA, 2),
-        ).inOrder()
-        assertThat(CollectionQuery.facets(listOf(ahri, banned)).statuses)
-            .containsExactly(StatusFacet(CardStatusFilter.BANNED, 1))
+        assertThat(CollectionFilters(CardFacetFilter(statuses = setOf(CardStatusFilter.ERRATA))).isEmpty).isFalse()
     }
 
     // ── Global search ────────────────────────────────────────────────────────
 
     @Test
-    fun `global search covers the whole catalogue and ranks name prefixes first`() {
-        val aatrox = card("aatrox", "Aatrox Jinx Hunter", number = 9)
-        val hits = CollectionQuery.searchCatalogue(listOf(aatrox, ahri, jinx, teemo), "jinx")
-        assertThat(hits.map { it.id }).containsExactly("jinx", "aatrox").inOrder()
+    fun `global search covers the whole catalogue in set then number order`() {
+        val aatrox = card("aatrox", "Aatrox Jinx Hunter", number = 1).copy(setId = "RAD", setLabel = "Radiance")
+        val jinxFan = card("fan", "Jinx Fan", number = 9).copy(setId = "KDA", setLabel = "K/DA")
+        val late = card("late", "Late Jinx", number = 200)
+        val hits = CollectionQuery.searchCatalogue(listOf(jinxFan, aatrox, late, ahri, jinx, teemo), "jinx")
+        assertThat(hits.map { it.id }).containsExactly("jinx", "late", "aatrox", "fan").inOrder()
     }
 
     @Test

@@ -6,6 +6,9 @@ import com.scanrift.android.data.repository.CardListRepository
 import com.scanrift.android.data.repository.CollectionRepository
 import com.scanrift.android.data.repository.DeckRepository
 import com.scanrift.android.domain.model.Card
+import com.scanrift.android.domain.model.CardFacetFilter
+import com.scanrift.android.domain.model.CardNumberComparator
+import com.scanrift.android.domain.model.CardStat
 import com.scanrift.android.domain.model.CardList
 import com.scanrift.android.domain.model.CardSupertype
 import com.scanrift.android.domain.model.CardType
@@ -34,14 +37,28 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+enum class DeckBrowserSort(val label: String, val comparator: Comparator<Card>) {
+    NUMBER("Number", CardNumberComparator),
+    NAME("Name", compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }),
+    ENERGY("Energy", byStat(CardStat.ENERGY)),
+    POWER("Power", byStat(CardStat.POWER)),
+    MIGHT("Might", byStat(CardStat.MIGHT)),
+}
+
+private fun byStat(stat: CardStat): Comparator<Card> =
+    compareBy<Card> { stat.value(it) ?: Int.MAX_VALUE }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+
 data class BrowserFilters(
     val searchQuery: String = "",
     val typeFilter: String? = null,
     val showAllCards: Boolean = false,
+    val facets: CardFacetFilter = CardFacetFilter(),
+    val sort: DeckBrowserSort = DeckBrowserSort.NUMBER,
 )
 
 data class DeckBuilderState(
     val deck: Deck? = null,
+    val browserCandidates: List<Card> = emptyList(),
     val browserCards: List<Card> = emptyList(),
     val validationErrors: List<DeckValidationError> = emptyList(),
     val filters: BrowserFilters = BrowserFilters(),
@@ -86,9 +103,11 @@ class DeckBuilderViewModel @Inject constructor(
         filters,
         collectionRepository.observeOwnedQuantities(),
     ) { currentDeck, cards, currentFilters, owned ->
+        val candidates = filterBrowser(cards, currentDeck, currentFilters)
         DeckBuilderState(
             deck = currentDeck,
-            browserCards = filterBrowser(cards, currentDeck, currentFilters),
+            browserCandidates = candidates,
+            browserCards = candidates.filter(currentFilters.facets::matches).sortedWith(currentFilters.sort.comparator),
             validationErrors = currentDeck?.let { DeckValidator.validate(it) }.orEmpty(),
             filters = currentFilters,
             missingCards = currentDeck?.missingCards(owned).orEmpty(),
@@ -110,6 +129,8 @@ class DeckBuilderViewModel @Inject constructor(
     fun setSearchQuery(value: String) { filters.value = filters.value.copy(searchQuery = value) }
     fun setTypeFilter(value: String?) { filters.value = filters.value.copy(typeFilter = value) }
     fun setShowAllCards(value: Boolean) { filters.value = filters.value.copy(showAllCards = value) }
+    fun setFacets(value: CardFacetFilter) { filters.value = filters.value.copy(facets = value) }
+    fun setSort(value: DeckBrowserSort) { filters.value = filters.value.copy(sort = value) }
 
     fun rename(name: String) {
         val trimmed = name.trim()
@@ -239,7 +260,6 @@ class DeckBuilderViewModel @Inject constructor(
             }
             // Alternate-art printings would otherwise double every entry.
             .filterNot { it.isAlternateArt }
-            .sortedBy { it.name }
             .toList()
     }
 

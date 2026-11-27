@@ -45,7 +45,7 @@ android {
         // each merge produces an uploadable bundle without a manual bump; the literal is
         // only what local builds use. versionName is still bumped by hand per release.
         versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 9
-        versionName = "1.4.0"
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
