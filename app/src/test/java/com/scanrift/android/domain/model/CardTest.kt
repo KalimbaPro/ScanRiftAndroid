@@ -158,6 +158,22 @@ class CardTest {
         ).inOrder()
     }
 
+    @Test
+    fun `main sets come in release order then the other sets alphabetically`() {
+        val ids = listOf("KDA", "RAD", "PROMO", "OGN", "VEN", "SFD", "OGS", "UNL", "SGN")
+        assertThat(ids.sortedWith(SetIdComparator))
+            .containsExactly("OGN", "OGS", "SFD", "UNL", "VEN", "RAD", "KDA", "PROMO", "SGN").inOrder()
+    }
+
+    @Test
+    fun `number sort puts Vendetta before Radiance and promos after both`() {
+        val radiance = card(riftboundId = "rad-001-200", collectorNumber = 1, setId = "RAD")
+        val vendetta = card(riftboundId = "ven-001-166", collectorNumber = 1, setId = "VEN")
+        val promo = card(riftboundId = "opp-001", collectorNumber = 1, setId = "PROMO")
+        assertThat(listOf(promo, radiance, vendetta).sortedWith(CardNumberComparator).map { it.setId })
+            .containsExactly("VEN", "RAD", "PROMO").inOrder()
+    }
+
     // ── Derived codes ────────────────────────────────────────────────────────
 
     @Test

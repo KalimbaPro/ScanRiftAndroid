@@ -79,6 +79,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scanrift.android.core.log.Log
 import com.scanrift.android.domain.model.Card
 import com.scanrift.android.domain.model.CardLanguage
+import com.scanrift.android.ui.components.ActiveFiltersBar
+import com.scanrift.android.ui.components.CardFilterSheet
+import com.scanrift.android.ui.components.FacetChip
+import com.scanrift.android.ui.components.RemovableChip
+import com.scanrift.android.ui.components.toggle
+import com.scanrift.android.ui.theme.RarityShowcase
 import com.scanrift.android.ui.adaptive.AdaptiveRules
 import com.scanrift.android.ui.adaptive.PaneSplit
 import com.scanrift.android.ui.adaptive.ProvideContentWidth
@@ -274,7 +280,23 @@ private fun CollectionBrowseContent(
                             )
                             CollectionSearchField(controls.searchQuery, viewModel::setSearchQuery)
                             if (!controls.filters.isEmpty) {
-                                ActiveFiltersBar(controls.filters, viewModel::updateFilters, viewModel::clearFilters)
+                                val filters = controls.filters
+                                ActiveFiltersBar(
+                                    filter = filters.card,
+                                    onChange = { viewModel.updateFilters(filters.copy(card = it)) },
+                                    onClearAll = viewModel::clearFilters,
+                                ) {
+                                    if (filters.foilOnly) {
+                                        RemovableChip("Foil Only", accent = RarityShowcase) {
+                                            viewModel.updateFilters(filters.copy(foilOnly = false))
+                                        }
+                                    }
+                                    CardLanguage.entries.filter { it.value in filters.languages }.forEach { language ->
+                                        RemovableChip("${language.flag} ${language.code}") {
+                                            viewModel.updateFilters(filters.copy(languages = filters.languages - language.value))
+                                        }
+                                    }
+                                }
                             }
                             if (controls.searchQuery.isNotEmpty()) {
                                 SearchOptionsBar(
@@ -341,12 +363,27 @@ private fun CollectionBrowseContent(
     }
 
     if (showFilters) {
-        CollectionFilterSheet(
-            state = state,
-            onFiltersChange = viewModel::updateFilters,
-            onClearAll = viewModel::clearFilters,
+        val filters = controls.filters
+        CardFilterSheet(
+            cards = state.filterCards,
+            filter = filters.card,
+            onFilterChange = { viewModel.updateFilters(filters.copy(card = it)) },
+            resultCount = state.cards.size,
+            onReset = viewModel::clearFilters,
             onDismiss = { showFilters = false },
-        )
+            canReset = !filters.isEmpty,
+            showArtists = state.prefs.luchoParameter,
+        ) {
+            FacetChip("Foil", filters.foilOnly, tint = RarityShowcase) {
+                viewModel.updateFilters(filters.copy(foilOnly = !filters.foilOnly))
+            }
+            state.languageFacets.forEach { facet ->
+                val language = CardLanguage.fromValue(facet.value)
+                FacetChip("${language.flag} ${language.displayName}", facet.value in filters.languages, count = facet.count) {
+                    viewModel.updateFilters(filters.copy(languages = filters.languages.toggle(facet.value)))
+                }
+            }
+        }
     }
 
     addToListCards?.let { cards ->

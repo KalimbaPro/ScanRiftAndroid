@@ -112,6 +112,10 @@ object Constants {
      * Riftbound deck-construction rules. Enforced by `DeckValidator`.
      * These must stay identical to iOS `Constants.Deck`.
      */
+    object Sets {
+        val MAIN_ORDER = listOf("OGN", "OGS", "SFD", "UNL", "VEN", "RAD")
+    }
+
     object Deck {
         const val MAIN_DECK_MINIMUM = 40
         const val RUNE_COUNT = 12

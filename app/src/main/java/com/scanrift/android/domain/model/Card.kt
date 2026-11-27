@@ -1,5 +1,6 @@
 package com.scanrift.android.domain.model
 
+import com.scanrift.android.core.Constants
 import java.util.Locale
 
 /**
@@ -148,15 +149,16 @@ data class Card(
         get() = riftboundId.split('-').filter { it.isNotEmpty() }
 }
 
+val SetIdComparator: Comparator<String> =
+    compareBy<String> { Constants.Sets.MAIN_ORDER.indexOf(it).takeIf { rank -> rank >= 0 } ?: Constants.Sets.MAIN_ORDER.size }
+        .thenBy { it }
+
 /**
  * Comparator for the "Number" sort: set, then ordering bucket, then collector number,
  * then base art before alternate art. Ported from iOS `CollectionView`.
  */
-val CardNumberComparator: Comparator<Card> = compareBy(
-    { it.setId },
-    { it.setOrderRank },
-    { it.collectorNumber },
-    { it.isAlternateArt },
+val CardNumberComparator: Comparator<Card> = compareBy<Card, String>(SetIdComparator) { it.setId }.then(
+    compareBy({ it.setOrderRank }, { it.collectorNumber }, { it.isAlternateArt }),
 )
 
 /** One localisation of a card, as served by the API under `localizations.<lang>`. */
