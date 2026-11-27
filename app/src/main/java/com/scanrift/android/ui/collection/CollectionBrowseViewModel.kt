@@ -10,6 +10,7 @@ import com.scanrift.android.domain.model.CardCondition
 import com.scanrift.android.domain.model.CardLanguage
 import com.scanrift.android.domain.model.CardList
 import com.scanrift.android.domain.model.CollectionEntry
+import com.scanrift.android.domain.model.Facet
 import com.scanrift.android.di.IoDispatcher
 import com.scanrift.android.ui.adaptive.PaneSplit
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -45,7 +46,8 @@ data class CollectionBrowseState(
     val controls: CollectionControls = CollectionControls(),
     val prefs: CollectionPrefs = CollectionPrefs(),
     val cards: List<DisplayCard> = emptyList(),
-    val facets: FilterFacets = FilterFacets(),
+    val filterCards: List<Card> = emptyList(),
+    val languageFacets: List<Facet> = emptyList(),
     val entriesByCard: Map<String, List<CollectionEntry>> = emptyMap(),
     val lists: List<CardList> = emptyList(),
     val listContext: CardList? = null,
@@ -101,7 +103,8 @@ class CollectionBrowseViewModel @Inject constructor(
             // index order and the on-screen order stay the same list.
             cards = CollectionQuery.groupByLanguage(sorted),
             showsLanguageSections = CollectionQuery.spansLanguages(sorted),
-            facets = CollectionQuery.facets(facetSource, entries.filter { it.cardId in scopedIds }),
+            filterCards = facetSource,
+            languageFacets = CollectionQuery.languageFacets(entries.filter { it.cardId in scopedIds }),
             entriesByCard = entriesByCard,
             lists = lists,
             listContext = listContext,

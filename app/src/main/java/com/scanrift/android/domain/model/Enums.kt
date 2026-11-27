@@ -94,8 +94,8 @@ object Rarity {
     const val SHOWCASE = "Showcase"
     const val PROMO = "Promo"
 
-    /** Filter-sheet display order. `Promo` is deliberately absent, as on iOS. */
-    val displayOrder = listOf(COMMON, UNCOMMON, RARE, EPIC, SHOWCASE)
+    /** Filter-sheet display order, matching iOS. */
+    val displayOrder = listOf(COMMON, UNCOMMON, RARE, EPIC, SHOWCASE, PROMO)
 
     /** Rarities whose printings are always foil. */
     val alwaysFoil = setOf(RARE, EPIC, SHOWCASE)
@@ -118,7 +118,7 @@ object Domain {
      * because it is an absence of domain rather than a choice — but note the old
      * Android build excluded it from the data model too, which hid 44 cards.
      */
-    val filterOrder = listOf(FURY, CALM, MIND, CHAOS, BODY, ORDER)
+    val filterOrder = listOf(FURY, CALM, MIND, BODY, CHAOS, ORDER)
 
     val all = listOf(BODY, CALM, CHAOS, COLORLESS, FURY, MIND, ORDER)
 }

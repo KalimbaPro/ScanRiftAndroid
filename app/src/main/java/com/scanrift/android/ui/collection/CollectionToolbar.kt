@@ -22,7 +22,6 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreateNewFolder
@@ -52,16 +51,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.scanrift.android.domain.model.CardLanguage
-import com.scanrift.android.domain.model.Domain
-import com.scanrift.android.domain.model.Rarity
 
 class SelectionActions(
     val onExit: () -> Unit,
@@ -316,84 +311,6 @@ private fun OptionCapsule(label: String, icon: ImageVector, onClick: () -> Unit)
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
         Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
-    }
-}
-
-/**
- * Active filters are shown as removable chips rather than only a count, so it is
- * always obvious why the grid is showing fewer cards than expected — the single most
- * common confusion in a filtered list.
- */
-@Composable
-fun ActiveFiltersBar(filters: CollectionFilters, onChange: (CollectionFilters) -> Unit, onClearAll: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        filters.domains.sortedBy { Domain.filterOrder.indexOf(it) }.forEach {
-            RemovableChip(it) { onChange(filters.copy(domains = filters.domains - it)) }
-        }
-        filters.types.sorted().forEach { RemovableChip(it) { onChange(filters.copy(types = filters.types - it)) } }
-        filters.supertypes.sorted().forEach {
-            RemovableChip(it) { onChange(filters.copy(supertypes = filters.supertypes - it)) }
-        }
-        if (filters.foilOnly) RemovableChip("Foil Only") { onChange(filters.copy(foilOnly = false)) }
-        CardStatusFilter.entries.filter { it in filters.statuses }.forEach { status ->
-            RemovableChip(status.label, accent = status.color) {
-                onChange(filters.copy(statuses = filters.statuses - status))
-            }
-        }
-        filters.rarities.sortedBy { Rarity.sortRank(it) }.forEach {
-            RemovableChip(it) { onChange(filters.copy(rarities = filters.rarities - it)) }
-        }
-        filters.sets.sorted().forEach { RemovableChip(it) { onChange(filters.copy(sets = filters.sets - it)) } }
-        filters.languages.map(CardLanguage::fromValue).sortedBy { it.ordinal }.forEach { language ->
-            RemovableChip("${language.flag} ${language.code}") {
-                onChange(filters.copy(languages = filters.languages - language.value))
-            }
-        }
-        if (filters.hasEnergyRange) {
-            RemovableChip("Energy: ${filters.energyMin ?: 0}–${filters.energyMax ?: 99}") {
-                onChange(filters.copy(energyMin = null, energyMax = null))
-            }
-        }
-        if (filters.hasPowerRange) {
-            RemovableChip("Power: ${filters.powerMin ?: 0}–${filters.powerMax ?: 99}") {
-                onChange(filters.copy(powerMin = null, powerMax = null))
-            }
-        }
-        filters.artists.sorted().forEach { RemovableChip(it) { onChange(filters.copy(artists = filters.artists - it)) } }
-        Text(
-            "Clear All",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.clickable(onClick = onClearAll).padding(4.dp),
-        )
-    }
-}
-
-@Composable
-private fun RemovableChip(label: String, accent: Color = MaterialTheme.colorScheme.primary, onRemove: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(accent.copy(alpha = 0.2f))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = accent)
-        Icon(
-            Icons.Filled.Cancel,
-            contentDescription = "Remove $label",
-            tint = accent,
-            modifier = Modifier.size(14.dp).clip(CircleShape).clickable(onClick = onRemove),
-        )
     }
 }
 
