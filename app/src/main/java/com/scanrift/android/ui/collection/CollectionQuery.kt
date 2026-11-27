@@ -118,21 +118,16 @@ object CollectionQuery {
     }
 
     /**
-     * The home page's global search: the **whole catalogue**, owned or not. Names that
-     * start with the query rank first, then other name hits, then hits elsewhere (set,
-     * code, text, tags). Needs two characters, so one keystroke does not list 1500 cards.
+     * The home page's global search: the **whole catalogue**, owned or not, in set order
+     * then collector number, like the iOS app. Needs two characters, so one keystroke does
+     * not list 1500 cards.
      */
     fun searchCatalogue(cards: List<Card>, query: String, limit: Int = GLOBAL_SEARCH_LIMIT): List<Card> {
         val needle = query.trim()
         if (needle.length < GLOBAL_SEARCH_MIN_LENGTH) return emptyList()
         return cards
             .filter { matchesSearch(it, needle, searchArtist = false) }
-            .sortedWith(
-                compareBy<Card>(
-                    { !it.name.startsWith(needle, ignoreCase = true) },
-                    { !it.name.contains(needle, ignoreCase = true) },
-                ).thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }.then(CardNumberComparator),
-            )
+            .sortedWith(CardNumberComparator)
             .take(limit)
     }
 

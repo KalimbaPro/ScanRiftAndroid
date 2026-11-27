@@ -224,10 +224,12 @@ class CollectionQueryTest {
     // ── Global search ────────────────────────────────────────────────────────
 
     @Test
-    fun `global search covers the whole catalogue and ranks name prefixes first`() {
-        val aatrox = card("aatrox", "Aatrox Jinx Hunter", number = 9)
-        val hits = CollectionQuery.searchCatalogue(listOf(aatrox, ahri, jinx, teemo), "jinx")
-        assertThat(hits.map { it.id }).containsExactly("jinx", "aatrox").inOrder()
+    fun `global search covers the whole catalogue in set then number order`() {
+        val aatrox = card("aatrox", "Aatrox Jinx Hunter", number = 1).copy(setId = "RAD", setLabel = "Radiance")
+        val jinxFan = card("fan", "Jinx Fan", number = 9).copy(setId = "KDA", setLabel = "K/DA")
+        val late = card("late", "Late Jinx", number = 200)
+        val hits = CollectionQuery.searchCatalogue(listOf(jinxFan, aatrox, late, ahri, jinx, teemo), "jinx")
+        assertThat(hits.map { it.id }).containsExactly("jinx", "late", "aatrox", "fan").inOrder()
     }
 
     @Test
